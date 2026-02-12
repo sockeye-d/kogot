@@ -9,9 +9,9 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef GDExtensionMethodBindPtr (*GDExtensionInterfaceClassdbGetMethodBind)(GDExtensionConstStringNamePtr, GDExtensionConstStringNamePtr, GDExtensionInt)
- *}
+ * {@snippet lang = c: typedef GDExtensionMethodBindPtr
+ * (*GDExtensionInterfaceClassdbGetMethodBind)(GDExtensionConstStringNamePtr, GDExtensionConstStringNamePtr,
+ * GDExtensionInt) }
  */
 public final class GDExtensionInterfaceClassdbGetMethodBind {
 
@@ -19,32 +19,25 @@ public final class GDExtensionInterfaceClassdbGetMethodBind {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         MemorySegment apply(MemorySegment p_classname, MemorySegment p_methodname, long p_hash);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_LONG
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.of(FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_LONG);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionInterfaceClassdbGetMethodBind.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionInterfaceClassdbGetMethodBind.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfaceClassdbGetMethodBind.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -52,10 +45,9 @@ public final class GDExtensionInterfaceClassdbGetMethodBind {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
-    public static MemorySegment invoke(MemorySegment funcPtr, MemorySegment p_classname, MemorySegment p_methodname, long p_hash) {
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    public static MemorySegment invoke(
+            MemorySegment funcPtr, MemorySegment p_classname, MemorySegment p_methodname, long p_hash) {
         try {
             return (MemorySegment) DOWN$MH.invokeExact(funcPtr, p_classname, p_methodname, p_hash);
         } catch (Error | RuntimeException ex) {
@@ -65,4 +57,3 @@ public final class GDExtensionInterfaceClassdbGetMethodBind {
         }
     }
 }
-

@@ -9,9 +9,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef GDExtensionPtrConstructor (*GDExtensionInterfaceVariantGetPtrConstructor)(GDExtensionVariantType, int32_t)
- *}
+ * {@snippet lang = c: typedef GDExtensionPtrConstructor
+ * (*GDExtensionInterfaceVariantGetPtrConstructor)(GDExtensionVariantType, int32_t) }
  */
 public final class GDExtensionInterfaceVariantGetPtrConstructor {
 
@@ -19,31 +18,25 @@ public final class GDExtensionInterfaceVariantGetPtrConstructor {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         MemorySegment apply(int p_type, int p_constructor);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_INT,
-        FFMUtils.C_INT
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.of(FFMUtils.C_POINTER, FFMUtils.C_INT, FFMUtils.C_INT);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionInterfaceVariantGetPtrConstructor.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionInterfaceVariantGetPtrConstructor.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfaceVariantGetPtrConstructor.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -51,9 +44,7 @@ public final class GDExtensionInterfaceVariantGetPtrConstructor {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static MemorySegment invoke(MemorySegment funcPtr, int p_type, int p_constructor) {
         try {
             return (MemorySegment) DOWN$MH.invokeExact(funcPtr, p_type, p_constructor);
@@ -64,4 +55,3 @@ public final class GDExtensionInterfaceVariantGetPtrConstructor {
         }
     }
 }
-

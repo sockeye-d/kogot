@@ -14,9 +14,8 @@ import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
 
 /**
- * {@snippet lang = c:
- * typedef void (*GDExtensionInterfacePrintWarning)(const char *, const char *, const char *, int32_t, GDExtensionBool)
- *}
+ * {@snippet lang = c: typedef void (*GDExtensionInterfacePrintWarning)(const char *, const char *, const char *,
+ * int32_t, GDExtensionBool) }
  */
 public final class GDExtensionInterfacePrintWarning {
 
@@ -24,24 +23,20 @@ public final class GDExtensionInterfacePrintWarning {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
-        void apply(MemorySegment p_description, MemorySegment p_function, MemorySegment p_file, int p_line, byte p_editor_notify);
+        void apply(
+                MemorySegment p_description,
+                MemorySegment p_function,
+                MemorySegment p_file,
+                int p_line,
+                byte p_editor_notify);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        C_POINTER,
-        C_POINTER,
-        C_POINTER,
-        C_INT,
-        C_CHAR
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.ofVoid(C_POINTER, C_POINTER, C_POINTER, C_INT, C_CHAR);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
@@ -49,8 +44,8 @@ public final class GDExtensionInterfacePrintWarning {
     private static final MethodHandle UP$MH = upcallHandle(GDExtensionInterfacePrintWarning.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfacePrintWarning.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -68,7 +63,13 @@ public final class GDExtensionInterfacePrintWarning {
     /// @param p_line          The line where the warning occurred.
     /// @param p_editor_notify Whether or not to notify the editor.
     /// @since 4.1
-    public static void invoke(MemorySegment funcPtr, MemorySegment p_description, MemorySegment p_function, MemorySegment p_file, int p_line, byte p_editor_notify) {
+    public static void invoke(
+            MemorySegment funcPtr,
+            MemorySegment p_description,
+            MemorySegment p_function,
+            MemorySegment p_file,
+            int p_line,
+            byte p_editor_notify) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_description, p_function, p_file, p_line, p_editor_notify);
         } catch (Error | RuntimeException ex) {
@@ -78,4 +79,3 @@ public final class GDExtensionInterfacePrintWarning {
         }
     }
 }
-

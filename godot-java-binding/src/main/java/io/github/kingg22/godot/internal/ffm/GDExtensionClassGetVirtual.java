@@ -9,9 +9,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef GDExtensionClassCallVirtual (*GDExtensionClassGetVirtual)(void *, GDExtensionConstStringNamePtr)
- *}
+ * {@snippet lang = c: typedef GDExtensionClassCallVirtual (*GDExtensionClassGetVirtual)(void *,
+ * GDExtensionConstStringNamePtr) }
  *
  * @deprecated Use GDExtensionClassGetVirtual2 instead
  */
@@ -22,22 +21,15 @@ public final class GDExtensionClassGetVirtual {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         MemorySegment apply(MemorySegment p_class_userdata, MemorySegment p_name);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.of(FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
@@ -45,8 +37,8 @@ public final class GDExtensionClassGetVirtual {
     private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionClassGetVirtual.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionClassGetVirtual.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -54,9 +46,7 @@ public final class GDExtensionClassGetVirtual {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static MemorySegment invoke(MemorySegment funcPtr, MemorySegment p_class_userdata, MemorySegment p_name) {
         try {
             return (MemorySegment) DOWN$MH.invokeExact(funcPtr, p_class_userdata, p_name);
@@ -67,4 +57,3 @@ public final class GDExtensionClassGetVirtual {
         }
     }
 }
-

@@ -8,40 +8,31 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
-/**
- * {@snippet lang = c:
- * typedef void (*GDExtensionEditorGetClassesUsedCallback)(GDExtensionTypePtr)
- *}
- */
+/** {@snippet lang = c: typedef void (*GDExtensionEditorGetClassesUsedCallback)(GDExtensionTypePtr) } */
 public final class GDExtensionEditorGetClassesUsedCallback {
 
     private GDExtensionEditorGetClassesUsedCallback() {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         void apply(MemorySegment p_packed_string_array);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        FFMUtils.C_POINTER
-    );
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionEditorGetClassesUsedCallback.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionEditorGetClassesUsedCallback.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionEditorGetClassesUsedCallback.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -49,9 +40,7 @@ public final class GDExtensionEditorGetClassesUsedCallback {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static void invoke(MemorySegment funcPtr, MemorySegment p_packed_string_array) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_packed_string_array);
@@ -62,4 +51,3 @@ public final class GDExtensionEditorGetClassesUsedCallback {
         }
     }
 }
-

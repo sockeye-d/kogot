@@ -9,9 +9,9 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef void (*GDExtensionInterfaceStringNameNewWithLatin1Chars)(GDExtensionUninitializedStringNamePtr, const char *, GDExtensionBool)
- *}
+ * {@snippet lang = c: typedef void
+ * (*GDExtensionInterfaceStringNameNewWithLatin1Chars)(GDExtensionUninitializedStringNamePtr, const char *,
+ * GDExtensionBool) }
  */
 public final class GDExtensionInterfaceStringNameNewWithLatin1Chars {
 
@@ -19,31 +19,25 @@ public final class GDExtensionInterfaceStringNameNewWithLatin1Chars {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         void apply(MemorySegment r_dest, MemorySegment p_contents, byte p_is_static);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_CHAR
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.ofVoid(FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_CHAR);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionInterfaceStringNameNewWithLatin1Chars.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionInterfaceStringNameNewWithLatin1Chars.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfaceStringNameNewWithLatin1Chars.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -51,9 +45,7 @@ public final class GDExtensionInterfaceStringNameNewWithLatin1Chars {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static void invoke(MemorySegment funcPtr, MemorySegment r_dest, MemorySegment p_contents, byte p_is_static) {
         try {
             DOWN$MH.invokeExact(funcPtr, r_dest, p_contents, p_is_static);
@@ -64,4 +56,3 @@ public final class GDExtensionInterfaceStringNameNewWithLatin1Chars {
         }
     }
 }
-

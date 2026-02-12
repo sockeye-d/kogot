@@ -9,9 +9,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef GDExtensionBool (*GDExtensionScriptInstanceSet)(GDExtensionScriptInstanceDataPtr, GDExtensionConstStringNamePtr, GDExtensionConstVariantPtr)
- *}
+ * {@snippet lang = c: typedef GDExtensionBool (*GDExtensionScriptInstanceSet)(GDExtensionScriptInstanceDataPtr,
+ * GDExtensionConstStringNamePtr, GDExtensionConstVariantPtr) }
  */
 public final class GDExtensionScriptInstanceSet {
 
@@ -19,23 +18,15 @@ public final class GDExtensionScriptInstanceSet {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         byte apply(MemorySegment p_instance, MemorySegment p_name, MemorySegment p_value);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
-        FFMUtils.C_CHAR,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.of(FFMUtils.C_CHAR, FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
@@ -43,8 +34,8 @@ public final class GDExtensionScriptInstanceSet {
     private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionScriptInstanceSet.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionScriptInstanceSet.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -52,10 +43,9 @@ public final class GDExtensionScriptInstanceSet {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
-    public static byte invoke(MemorySegment funcPtr, MemorySegment p_instance, MemorySegment p_name, MemorySegment p_value) {
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    public static byte invoke(
+            MemorySegment funcPtr, MemorySegment p_instance, MemorySegment p_name, MemorySegment p_value) {
         try {
             return (byte) DOWN$MH.invokeExact(funcPtr, p_instance, p_name, p_value);
         } catch (Error | RuntimeException ex) {
@@ -65,4 +55,3 @@ public final class GDExtensionScriptInstanceSet {
         }
     }
 }
-

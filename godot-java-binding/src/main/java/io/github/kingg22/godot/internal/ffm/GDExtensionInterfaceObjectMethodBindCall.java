@@ -9,9 +9,9 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef void (*GDExtensionInterfaceObjectMethodBindCall)(GDExtensionMethodBindPtr, GDExtensionObjectPtr, const GDExtensionConstVariantPtr *, GDExtensionInt, GDExtensionUninitializedVariantPtr, GDExtensionCallError *)
- *}
+ * {@snippet lang = c: typedef void (*GDExtensionInterfaceObjectMethodBindCall)(GDExtensionMethodBindPtr,
+ * GDExtensionObjectPtr, const GDExtensionConstVariantPtr *, GDExtensionInt, GDExtensionUninitializedVariantPtr,
+ * GDExtensionCallError *) }
  */
 public final class GDExtensionInterfaceObjectMethodBindCall {
 
@@ -19,34 +19,36 @@ public final class GDExtensionInterfaceObjectMethodBindCall {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
-        void apply(MemorySegment p_method_bind, MemorySegment p_instance, MemorySegment p_args, long p_arg_count, MemorySegment r_ret, MemorySegment r_error);
+        void apply(
+                MemorySegment p_method_bind,
+                MemorySegment p_instance,
+                MemorySegment p_args,
+                long p_arg_count,
+                MemorySegment r_ret,
+                MemorySegment r_error);
     }
 
     private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_LONG,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER
-    );
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_LONG,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionInterfaceObjectMethodBindCall.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionInterfaceObjectMethodBindCall.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfaceObjectMethodBindCall.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -54,10 +56,15 @@ public final class GDExtensionInterfaceObjectMethodBindCall {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
-    public static void invoke(MemorySegment funcPtr, MemorySegment p_method_bind, MemorySegment p_instance, MemorySegment p_args, long p_arg_count, MemorySegment r_ret, MemorySegment r_error) {
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    public static void invoke(
+            MemorySegment funcPtr,
+            MemorySegment p_method_bind,
+            MemorySegment p_instance,
+            MemorySegment p_args,
+            long p_arg_count,
+            MemorySegment r_ret,
+            MemorySegment r_error) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_method_bind, p_instance, p_args, p_arg_count, r_ret, r_error);
         } catch (Error | RuntimeException ex) {
@@ -67,4 +74,3 @@ public final class GDExtensionInterfaceObjectMethodBindCall {
         }
     }
 }
-

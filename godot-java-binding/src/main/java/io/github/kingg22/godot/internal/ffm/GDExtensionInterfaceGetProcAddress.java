@@ -16,7 +16,8 @@ import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 /// by calling `p_get_proc_address("...")` with the name of the function.
 /// For example:
 /// ```c
-///  GDExtensionInterfaceGetGodotVersion get_godot_version = (GDExtensionInterfaceGetGodotVersion)p_get_proc_address("get_godot_version");
+///  GDExtensionInterfaceGetGodotVersion get_godot_version =
+// (GDExtensionInterfaceGetGodotVersion)p_get_proc_address("get_godot_version");
 /// ```
 /// You can then call it like a normal function:
 /// ```c
@@ -32,14 +33,9 @@ public final class GDExtensionInterfaceGetProcAddress {
         throw new UnsupportedOperationException();
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
-        C_POINTER,
-        C_POINTER
-    );
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(C_POINTER, C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
@@ -48,6 +44,7 @@ public final class GDExtensionInterfaceGetProcAddress {
 
     /**
      * Invoke the upcall stub {@code funcPtr}
+     *
      * @param p_function_name the name of the function to load
      * @return The function pointer
      * @throws RuntimeException The exception is not handled immediately threw

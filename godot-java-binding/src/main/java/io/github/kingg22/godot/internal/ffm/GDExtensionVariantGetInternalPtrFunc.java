@@ -8,41 +8,31 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
-/**
- * {@snippet lang = c:
- * typedef void *(*GDExtensionVariantGetInternalPtrFunc)(GDExtensionVariantPtr)
- *}
- */
+/** {@snippet lang = c: typedef void *(*GDExtensionVariantGetInternalPtrFunc)(GDExtensionVariantPtr) } */
 public final class GDExtensionVariantGetInternalPtrFunc {
 
     private GDExtensionVariantGetInternalPtrFunc() {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         MemorySegment apply(MemorySegment _x0);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER
-    );
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionVariantGetInternalPtrFunc.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionVariantGetInternalPtrFunc.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionVariantGetInternalPtrFunc.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -50,9 +40,7 @@ public final class GDExtensionVariantGetInternalPtrFunc {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static MemorySegment invoke(MemorySegment funcPtr, MemorySegment _x0) {
         try {
             return (MemorySegment) DOWN$MH.invokeExact(funcPtr, _x0);
@@ -63,4 +51,3 @@ public final class GDExtensionVariantGetInternalPtrFunc {
         }
     }
 }
-

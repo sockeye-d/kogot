@@ -9,9 +9,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef void (*GDExtensionInterfaceObjectSetInstanceBinding)(GDExtensionObjectPtr, void *, void *, const GDExtensionInstanceBindingCallbacks *)
- *}
+ * {@snippet lang = c: typedef void (*GDExtensionInterfaceObjectSetInstanceBinding)(GDExtensionObjectPtr, void *, void
+ * *, const GDExtensionInstanceBindingCallbacks *) }
  */
 public final class GDExtensionInterfaceObjectSetInstanceBinding {
 
@@ -19,32 +18,25 @@ public final class GDExtensionInterfaceObjectSetInstanceBinding {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         void apply(MemorySegment p_o, MemorySegment p_token, MemorySegment p_binding, MemorySegment p_callbacks);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.ofVoid(FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionInterfaceObjectSetInstanceBinding.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionInterfaceObjectSetInstanceBinding.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfaceObjectSetInstanceBinding.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -52,10 +44,13 @@ public final class GDExtensionInterfaceObjectSetInstanceBinding {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
-    public static void invoke(MemorySegment funcPtr, MemorySegment p_o, MemorySegment p_token, MemorySegment p_binding, MemorySegment p_callbacks) {
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    public static void invoke(
+            MemorySegment funcPtr,
+            MemorySegment p_o,
+            MemorySegment p_token,
+            MemorySegment p_binding,
+            MemorySegment p_callbacks) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_o, p_token, p_binding, p_callbacks);
         } catch (Error | RuntimeException ex) {
@@ -65,4 +60,3 @@ public final class GDExtensionInterfaceObjectSetInstanceBinding {
         }
     }
 }
-

@@ -9,9 +9,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef void (*GDExtensionClassMethodPtrCall)(void *, GDExtensionClassInstancePtr, const GDExtensionConstTypePtr *, GDExtensionTypePtr)
- *}
+ * {@snippet lang = c: typedef void (*GDExtensionClassMethodPtrCall)(void *, GDExtensionClassInstancePtr, const
+ * GDExtensionConstTypePtr *, GDExtensionTypePtr) }
  */
 public final class GDExtensionClassMethodPtrCall {
 
@@ -19,32 +18,25 @@ public final class GDExtensionClassMethodPtrCall {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         void apply(MemorySegment method_userdata, MemorySegment p_instance, MemorySegment p_args, MemorySegment r_ret);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.ofVoid(FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionClassMethodPtrCall.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionClassMethodPtrCall.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionClassMethodPtrCall.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -52,10 +44,13 @@ public final class GDExtensionClassMethodPtrCall {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
-    public static void invoke(MemorySegment funcPtr, MemorySegment method_userdata, MemorySegment p_instance, MemorySegment p_args, MemorySegment r_ret) {
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    public static void invoke(
+            MemorySegment funcPtr,
+            MemorySegment method_userdata,
+            MemorySegment p_instance,
+            MemorySegment p_args,
+            MemorySegment r_ret) {
         try {
             DOWN$MH.invokeExact(funcPtr, method_userdata, p_instance, p_args, r_ret);
         } catch (Error | RuntimeException ex) {
@@ -65,4 +60,3 @@ public final class GDExtensionClassMethodPtrCall {
         }
     }
 }
-

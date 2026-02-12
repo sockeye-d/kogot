@@ -9,9 +9,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef uint32_t (*GDExtensionPtrKeyedChecker)(GDExtensionConstVariantPtr, GDExtensionConstVariantPtr)
- *}
+ * {@snippet lang = c: typedef uint32_t (*GDExtensionPtrKeyedChecker)(GDExtensionConstVariantPtr,
+ * GDExtensionConstVariantPtr) }
  */
 public final class GDExtensionPtrKeyedChecker {
 
@@ -19,22 +18,15 @@ public final class GDExtensionPtrKeyedChecker {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         int apply(MemorySegment p_base, MemorySegment p_key);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
-        FFMUtils.C_INT,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.of(FFMUtils.C_INT, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
@@ -42,8 +34,8 @@ public final class GDExtensionPtrKeyedChecker {
     private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionPtrKeyedChecker.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionPtrKeyedChecker.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -51,9 +43,7 @@ public final class GDExtensionPtrKeyedChecker {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static int invoke(MemorySegment funcPtr, MemorySegment p_base, MemorySegment p_key) {
         try {
             return (int) DOWN$MH.invokeExact(funcPtr, p_base, p_key);
@@ -64,4 +54,3 @@ public final class GDExtensionPtrKeyedChecker {
         }
     }
 }
-

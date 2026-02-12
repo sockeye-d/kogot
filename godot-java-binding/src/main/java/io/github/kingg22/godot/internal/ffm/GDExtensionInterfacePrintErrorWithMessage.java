@@ -9,9 +9,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef void (*GDExtensionInterfacePrintErrorWithMessage)(const char *, const char *, const char *, const char *, int32_t, GDExtensionBool)
- *}
+ * {@snippet lang = c: typedef void (*GDExtensionInterfacePrintErrorWithMessage)(const char *, const char *, const char
+ * *, const char *, int32_t, GDExtensionBool) }
  */
 public final class GDExtensionInterfacePrintErrorWithMessage {
 
@@ -19,34 +18,36 @@ public final class GDExtensionInterfacePrintErrorWithMessage {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
-        void apply(MemorySegment p_description, MemorySegment p_message, MemorySegment p_function, MemorySegment p_file, int p_line, byte p_editor_notify);
+        void apply(
+                MemorySegment p_description,
+                MemorySegment p_message,
+                MemorySegment p_function,
+                MemorySegment p_file,
+                int p_line,
+                byte p_editor_notify);
     }
 
     private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_INT,
-        FFMUtils.C_CHAR
-    );
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_INT,
+            FFMUtils.C_CHAR);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionInterfacePrintErrorWithMessage.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionInterfacePrintErrorWithMessage.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfacePrintErrorWithMessage.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -54,10 +55,15 @@ public final class GDExtensionInterfacePrintErrorWithMessage {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
-    public static void invoke(MemorySegment funcPtr, MemorySegment p_description, MemorySegment p_message, MemorySegment p_function, MemorySegment p_file, int p_line, byte p_editor_notify) {
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    public static void invoke(
+            MemorySegment funcPtr,
+            MemorySegment p_description,
+            MemorySegment p_message,
+            MemorySegment p_function,
+            MemorySegment p_file,
+            int p_line,
+            byte p_editor_notify) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_description, p_message, p_function, p_file, p_line, p_editor_notify);
         } catch (Error | RuntimeException ex) {
@@ -67,4 +73,3 @@ public final class GDExtensionInterfacePrintErrorWithMessage {
         }
     }
 }
-

@@ -8,30 +8,21 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
-/**
- * {@snippet lang = c:
- * typedef GDExtensionObjectPtr (*GDExtensionClassConstructor)()
- *}
- */
+/** {@snippet lang = c: typedef GDExtensionObjectPtr (*GDExtensionClassConstructor)() } */
 public final class GDExtensionClassConstructor {
 
     private GDExtensionClassConstructor() {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         MemorySegment apply();
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
-        FFMUtils.C_POINTER);
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
@@ -39,8 +30,8 @@ public final class GDExtensionClassConstructor {
     private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionClassConstructor.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionClassConstructor.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -48,9 +39,7 @@ public final class GDExtensionClassConstructor {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static MemorySegment invoke(MemorySegment funcPtr) {
         try {
             return (MemorySegment) DOWN$MH.invokeExact(funcPtr);
@@ -61,4 +50,3 @@ public final class GDExtensionClassConstructor {
         }
     }
 }
-

@@ -11,32 +11,21 @@ import java.lang.invoke.MethodHandle;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
 
-/**
- * {@snippet lang = c:
- * typedef void (*GDExtensionClassFreeInstance)(void *, GDExtensionClassInstancePtr)
- *}
- */
+/** {@snippet lang = c: typedef void (*GDExtensionClassFreeInstance)(void *, GDExtensionClassInstancePtr) } */
 public final class GDExtensionClassFreeInstance {
 
     private GDExtensionClassFreeInstance() {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         void apply(MemorySegment p_class_userdata, MemorySegment p_instance);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        C_POINTER,
-        C_POINTER
-    );
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(C_POINTER, C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
@@ -44,8 +33,8 @@ public final class GDExtensionClassFreeInstance {
     private static final MethodHandle UP$MH = upcallHandle(GDExtensionClassFreeInstance.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionClassFreeInstance.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -53,9 +42,7 @@ public final class GDExtensionClassFreeInstance {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static void invoke(MemorySegment funcPtr, MemorySegment p_class_userdata, MemorySegment p_instance) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_class_userdata, p_instance);

@@ -9,9 +9,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef GDExtensionInt (*GDExtensionInterfaceVariantRecursiveHash)(GDExtensionConstVariantPtr, GDExtensionInt)
- *}
+ * {@snippet lang = c: typedef GDExtensionInt (*GDExtensionInterfaceVariantRecursiveHash)(GDExtensionConstVariantPtr,
+ * GDExtensionInt) }
  */
 public final class GDExtensionInterfaceVariantRecursiveHash {
 
@@ -19,31 +18,25 @@ public final class GDExtensionInterfaceVariantRecursiveHash {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         long apply(MemorySegment p_self, long p_recursion_count);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
-        FFMUtils.C_LONG,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_LONG
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.of(FFMUtils.C_LONG, FFMUtils.C_POINTER, FFMUtils.C_LONG);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionInterfaceVariantRecursiveHash.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionInterfaceVariantRecursiveHash.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfaceVariantRecursiveHash.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -51,9 +44,7 @@ public final class GDExtensionInterfaceVariantRecursiveHash {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static long invoke(MemorySegment funcPtr, MemorySegment p_self, long p_recursion_count) {
         try {
             return (long) DOWN$MH.invokeExact(funcPtr, p_self, p_recursion_count);
@@ -64,4 +55,3 @@ public final class GDExtensionInterfaceVariantRecursiveHash {
         }
     }
 }
-

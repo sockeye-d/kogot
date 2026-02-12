@@ -2,18 +2,13 @@ package io.github.kingg22.godot.internal.initialization;
 
 import org.jspecify.annotations.NullMarked;
 
-/**
- * Main bridge class between Godot and Java
- * This class will be called from the C GDExtension
- */
+/** Main bridge class between Godot and Java This class will be called from the C GDExtension */
 @SuppressWarnings("unused") // invoked with JNI
 @NullMarked
 final class GodotBridge {
     private static boolean initialized = false;
 
-    /**
-     * Called from C when GDExtension initializes
-     */
+    /** Called from C when GDExtension initializes */
     public static void initialize(final long getProcAddressPointer, final long libraryPointer) {
         System.out.println("[Java] GodotBridge.initialize() called");
 
@@ -40,9 +35,7 @@ final class GodotBridge {
         }
     }
 
-    /**
-     * Called from C when GDExtension is being unloaded
-     */
+    /** Called from C when GDExtension is being unloaded */
     public static void shutdown() {
         System.out.println("[Java] GodotBridge.shutdown() called");
 
@@ -63,34 +56,26 @@ final class GodotBridge {
         }
     }
 
-    /**
-     * Example: Method that can be called from Godot via JNI
-     */
+    /** Example: Method that can be called from Godot via JNI */
     public static String processGameLogic(String input) {
         System.out.println("[Java] Processing: " + input);
         // Your game logic here
         return "Processed: " + input;
     }
 
-    /**
-     * Example method for loading configurations
-     */
+    /** Example method for loading configurations */
     private static void loadConfigurations() {
         System.out.println("[Java] Loading configurations...");
         // Load your config files, databases, etc.
     }
 
-    /**
-     * Example method for initializing managers
-     */
+    /** Example method for initializing managers */
     private static void initializeManagers() {
         System.out.println("[Java] Initializing managers...");
         // Initialize your game managers (audio, network, etc.)
     }
 
-    /**
-     * Example: Get JVM information
-     */
+    /** Example: Get JVM information */
     public static void printJVMInfo() {
         Runtime runtime = Runtime.getRuntime();
         System.out.println("[Java] JVM Info:");

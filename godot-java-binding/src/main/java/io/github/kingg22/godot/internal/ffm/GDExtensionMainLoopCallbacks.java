@@ -13,13 +13,8 @@ import java.util.function.Consumer;
 import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 
 /**
- * {@snippet lang = c:
- * struct {
- *     GDExtensionMainLoopStartupCallback startup_func;
- *     GDExtensionMainLoopShutdownCallback shutdown_func;
- *     GDExtensionMainLoopFrameCallback frame_func;
- * }
- *}
+ * {@snippet lang = c: struct { GDExtensionMainLoopStartupCallback startup_func; GDExtensionMainLoopShutdownCallback
+ * shutdown_func; GDExtensionMainLoopFrameCallback frame_func; } }
  */
 public final class GDExtensionMainLoopCallbacks {
 
@@ -28,194 +23,130 @@ public final class GDExtensionMainLoopCallbacks {
     }
 
     private static final GroupLayout $LAYOUT = MemoryLayout.structLayout(
-        FFMUtils.C_POINTER.withName("startup_func"),
-        FFMUtils.C_POINTER.withName("shutdown_func"),
-        FFMUtils.C_POINTER.withName("frame_func")
-    ).withName("$anon$825:9");
+                    FFMUtils.C_POINTER.withName("startup_func"),
+                    FFMUtils.C_POINTER.withName("shutdown_func"),
+                    FFMUtils.C_POINTER.withName("frame_func"))
+            .withName("$anon$825:9");
 
-    /**
-     * The layout of this struct
-     */
+    /** The layout of this struct */
     public static GroupLayout layout() {
         return $LAYOUT;
     }
 
-    private static final AddressLayout startup_func$LAYOUT = (AddressLayout) $LAYOUT.select(groupElement("startup_func"));
+    private static final AddressLayout startup_func$LAYOUT =
+            (AddressLayout) $LAYOUT.select(groupElement("startup_func"));
 
-    /**
-     * Layout for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopStartupCallback startup_func
-     *}
-     */
+    /** Layout for field: {@snippet lang = c: GDExtensionMainLoopStartupCallback startup_func } */
     public static AddressLayout startup_func$layout() {
         return startup_func$LAYOUT;
     }
 
     private static final long startup_func$OFFSET = $LAYOUT.byteOffset(groupElement("startup_func"));
 
-    /**
-     * Offset for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopStartupCallback startup_func
-     *}
-     */
+    /** Offset for field: {@snippet lang = c: GDExtensionMainLoopStartupCallback startup_func } */
     public static long startup_func$offset() {
         return startup_func$OFFSET;
     }
 
-    /**
-     * Getter for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopStartupCallback startup_func
-     *}
-     */
+    /** Getter for field: {@snippet lang = c: GDExtensionMainLoopStartupCallback startup_func } */
     public static MemorySegment startup_func(MemorySegment struct) {
         return struct.get(startup_func$LAYOUT, startup_func$OFFSET);
     }
 
-    /**
-     * Setter for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopStartupCallback startup_func
-     *}
-     */
+    /** Setter for field: {@snippet lang = c: GDExtensionMainLoopStartupCallback startup_func } */
     public static void startup_func(MemorySegment struct, MemorySegment fieldValue) {
         struct.set(startup_func$LAYOUT, startup_func$OFFSET, fieldValue);
     }
 
-    private static final AddressLayout shutdown_func$LAYOUT = (AddressLayout) $LAYOUT.select(groupElement("shutdown_func"));
+    private static final AddressLayout shutdown_func$LAYOUT =
+            (AddressLayout) $LAYOUT.select(groupElement("shutdown_func"));
 
-    /**
-     * Layout for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopShutdownCallback shutdown_func
-     *}
-     */
+    /** Layout for field: {@snippet lang = c: GDExtensionMainLoopShutdownCallback shutdown_func } */
     public static AddressLayout shutdown_func$layout() {
         return shutdown_func$LAYOUT;
     }
 
     private static final long shutdown_func$OFFSET = $LAYOUT.byteOffset(groupElement("shutdown_func"));
 
-    /**
-     * Offset for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopShutdownCallback shutdown_func
-     *}
-     */
+    /** Offset for field: {@snippet lang = c: GDExtensionMainLoopShutdownCallback shutdown_func } */
     public static long shutdown_func$offset() {
         return shutdown_func$OFFSET;
     }
 
-    /**
-     * Getter for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopShutdownCallback shutdown_func
-     *}
-     */
+    /** Getter for field: {@snippet lang = c: GDExtensionMainLoopShutdownCallback shutdown_func } */
     public static MemorySegment shutdown_func(MemorySegment struct) {
         return struct.get(shutdown_func$LAYOUT, shutdown_func$OFFSET);
     }
 
-    /**
-     * Setter for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopShutdownCallback shutdown_func
-     *}
-     */
+    /** Setter for field: {@snippet lang = c: GDExtensionMainLoopShutdownCallback shutdown_func } */
     public static void shutdown_func(MemorySegment struct, MemorySegment fieldValue) {
         struct.set(shutdown_func$LAYOUT, shutdown_func$OFFSET, fieldValue);
     }
 
     private static final AddressLayout frame_func$LAYOUT = (AddressLayout) $LAYOUT.select(groupElement("frame_func"));
 
-    /**
-     * Layout for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopFrameCallback frame_func
-     *}
-     */
+    /** Layout for field: {@snippet lang = c: GDExtensionMainLoopFrameCallback frame_func } */
     public static AddressLayout frame_func$layout() {
         return frame_func$LAYOUT;
     }
 
     private static final long frame_func$OFFSET = $LAYOUT.byteOffset(groupElement("frame_func"));
 
-    /**
-     * Offset for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopFrameCallback frame_func
-     *}
-     */
+    /** Offset for field: {@snippet lang = c: GDExtensionMainLoopFrameCallback frame_func } */
     public static long frame_func$offset() {
         return frame_func$OFFSET;
     }
 
-    /**
-     * Getter for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopFrameCallback frame_func
-     *}
-     */
+    /** Getter for field: {@snippet lang = c: GDExtensionMainLoopFrameCallback frame_func } */
     public static MemorySegment frame_func(MemorySegment struct) {
         return struct.get(frame_func$LAYOUT, frame_func$OFFSET);
     }
 
-    /**
-     * Setter for field:
-     * {@snippet lang = c:
-     * GDExtensionMainLoopFrameCallback frame_func
-     *}
-     */
+    /** Setter for field: {@snippet lang = c: GDExtensionMainLoopFrameCallback frame_func } */
     public static void frame_func(MemorySegment struct, MemorySegment fieldValue) {
         struct.set(frame_func$LAYOUT, frame_func$OFFSET, fieldValue);
     }
 
     /**
-     * Obtains a slice of {@code arrayParam} which selects the array element at {@code index}.
-     * The returned segment has address {@code arrayParam.address() + index * layout().byteSize()}
+     * Obtains a slice of {@code arrayParam} which selects the array element at {@code index}. The returned segment has
+     * address {@code arrayParam.address() + index * layout().byteSize()}
      */
     public static MemorySegment asSlice(MemorySegment array, long index) {
         return array.asSlice(layout().byteSize() * index);
     }
 
-    /**
-     * The size (in bytes) of this struct
-     */
+    /** The size (in bytes) of this struct */
     public static long sizeof() {
         return layout().byteSize();
     }
 
-    /**
-     * Allocate a segment of size {@code layout().byteSize()} using {@code allocator}
-     */
+    /** Allocate a segment of size {@code layout().byteSize()} using {@code allocator} */
     public static MemorySegment allocate(SegmentAllocator allocator) {
         return allocator.allocate(layout());
     }
 
     /**
-     * Allocate an array of size {@code elementCount} using {@code allocator}.
-     * The returned segment has size {@code elementCount * layout().byteSize()}.
+     * Allocate an array of size {@code elementCount} using {@code allocator}. The returned segment has size
+     * {@code elementCount * layout().byteSize()}.
      */
     public static MemorySegment allocateArray(long elementCount, SegmentAllocator allocator) {
         return allocator.allocate(MemoryLayout.sequenceLayout(elementCount, layout()));
     }
 
     /**
-     * Reinterprets {@code addr} using target {@code arena} and {@code cleanupAction} (if any).
-     * The returned segment has size {@code layout().byteSize()}
+     * Reinterprets {@code addr} using target {@code arena} and {@code cleanupAction} (if any). The returned segment has
+     * size {@code layout().byteSize()}
      */
     public static MemorySegment reinterpret(MemorySegment addr, Arena arena, Consumer<MemorySegment> cleanup) {
         return reinterpret(addr, 1, arena, cleanup);
     }
 
     /**
-     * Reinterprets {@code addr} using target {@code arena} and {@code cleanupAction} (if any).
-     * The returned segment has size {@code elementCount * layout().byteSize()}
+     * Reinterprets {@code addr} using target {@code arena} and {@code cleanupAction} (if any). The returned segment has
+     * size {@code elementCount * layout().byteSize()}
      */
-    public static MemorySegment reinterpret(MemorySegment addr, long elementCount, Arena arena, Consumer<MemorySegment> cleanup) {
+    public static MemorySegment reinterpret(
+            MemorySegment addr, long elementCount, Arena arena, Consumer<MemorySegment> cleanup) {
         return addr.reinterpret(layout().byteSize() * elementCount, arena, cleanup);
     }
 }
-

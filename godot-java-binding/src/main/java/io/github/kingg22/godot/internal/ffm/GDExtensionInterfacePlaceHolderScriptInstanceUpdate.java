@@ -9,9 +9,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef void (*GDExtensionInterfacePlaceHolderScriptInstanceUpdate)(GDExtensionScriptInstancePtr, GDExtensionConstTypePtr, GDExtensionConstTypePtr)
- *}
+ * {@snippet lang = c: typedef void (*GDExtensionInterfacePlaceHolderScriptInstanceUpdate)(GDExtensionScriptInstancePtr,
+ * GDExtensionConstTypePtr, GDExtensionConstTypePtr) }
  */
 public final class GDExtensionInterfacePlaceHolderScriptInstanceUpdate {
 
@@ -19,31 +18,25 @@ public final class GDExtensionInterfacePlaceHolderScriptInstanceUpdate {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         void apply(MemorySegment p_placeholder, MemorySegment p_properties, MemorySegment p_values);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.ofVoid(FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionInterfacePlaceHolderScriptInstanceUpdate.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionInterfacePlaceHolderScriptInstanceUpdate.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfacePlaceHolderScriptInstanceUpdate.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -51,10 +44,9 @@ public final class GDExtensionInterfacePlaceHolderScriptInstanceUpdate {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
-    public static void invoke(MemorySegment funcPtr, MemorySegment p_placeholder, MemorySegment p_properties, MemorySegment p_values) {
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    public static void invoke(
+            MemorySegment funcPtr, MemorySegment p_placeholder, MemorySegment p_properties, MemorySegment p_values) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_placeholder, p_properties, p_values);
         } catch (Error | RuntimeException ex) {
@@ -64,4 +56,3 @@ public final class GDExtensionInterfacePlaceHolderScriptInstanceUpdate {
         }
     }
 }
-

@@ -9,9 +9,8 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef void (*GDExtensionScriptInstanceNotification2)(GDExtensionScriptInstanceDataPtr, int32_t, GDExtensionBool)
- *}
+ * {@snippet lang = c: typedef void (*GDExtensionScriptInstanceNotification2)(GDExtensionScriptInstanceDataPtr, int32_t,
+ * GDExtensionBool) }
  */
 public final class GDExtensionScriptInstanceNotification2 {
 
@@ -19,31 +18,25 @@ public final class GDExtensionScriptInstanceNotification2 {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         void apply(MemorySegment p_instance, int p_what, byte p_reversed);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_INT,
-        FFMUtils.C_CHAR
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.ofVoid(FFMUtils.C_POINTER, FFMUtils.C_INT, FFMUtils.C_CHAR);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionScriptInstanceNotification2.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionScriptInstanceNotification2.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionScriptInstanceNotification2.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -51,9 +44,7 @@ public final class GDExtensionScriptInstanceNotification2 {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static void invoke(MemorySegment funcPtr, MemorySegment p_instance, int p_what, byte p_reversed) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_instance, p_what, p_reversed);
@@ -64,4 +55,3 @@ public final class GDExtensionScriptInstanceNotification2 {
         }
     }
 }
-

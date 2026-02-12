@@ -9,9 +9,9 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef GDExtensionBool (*GDExtensionScriptInstancePropertyGetRevert)(GDExtensionScriptInstanceDataPtr, GDExtensionConstStringNamePtr, GDExtensionVariantPtr)
- *}
+ * {@snippet lang = c: typedef GDExtensionBool
+ * (*GDExtensionScriptInstancePropertyGetRevert)(GDExtensionScriptInstanceDataPtr, GDExtensionConstStringNamePtr,
+ * GDExtensionVariantPtr) }
  */
 public final class GDExtensionScriptInstancePropertyGetRevert {
 
@@ -19,32 +19,25 @@ public final class GDExtensionScriptInstancePropertyGetRevert {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         byte apply(MemorySegment p_instance, MemorySegment p_name, MemorySegment r_ret);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
-        FFMUtils.C_CHAR,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.of(FFMUtils.C_CHAR, FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionScriptInstancePropertyGetRevert.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionScriptInstancePropertyGetRevert.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionScriptInstancePropertyGetRevert.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -52,10 +45,9 @@ public final class GDExtensionScriptInstancePropertyGetRevert {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
-    public static byte invoke(MemorySegment funcPtr, MemorySegment p_instance, MemorySegment p_name, MemorySegment r_ret) {
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    public static byte invoke(
+            MemorySegment funcPtr, MemorySegment p_instance, MemorySegment p_name, MemorySegment r_ret) {
         try {
             return (byte) DOWN$MH.invokeExact(funcPtr, p_instance, p_name, r_ret);
         } catch (Error | RuntimeException ex) {
@@ -65,4 +57,3 @@ public final class GDExtensionScriptInstancePropertyGetRevert {
         }
     }
 }
-

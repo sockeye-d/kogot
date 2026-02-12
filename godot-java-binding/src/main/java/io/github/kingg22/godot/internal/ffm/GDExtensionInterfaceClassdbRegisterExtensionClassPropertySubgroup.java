@@ -9,9 +9,9 @@ import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
 /**
- * {@snippet lang = c:
- * typedef void (*GDExtensionInterfaceClassdbRegisterExtensionClassPropertySubgroup)(GDExtensionClassLibraryPtr, GDExtensionConstStringNamePtr, GDExtensionConstStringPtr, GDExtensionConstStringPtr)
- *}
+ * {@snippet lang = c: typedef void
+ * (*GDExtensionInterfaceClassdbRegisterExtensionClassPropertySubgroup)(GDExtensionClassLibraryPtr,
+ * GDExtensionConstStringNamePtr, GDExtensionConstStringPtr, GDExtensionConstStringPtr) }
  */
 public final class GDExtensionInterfaceClassdbRegisterExtensionClassPropertySubgroup {
 
@@ -19,43 +19,44 @@ public final class GDExtensionInterfaceClassdbRegisterExtensionClassPropertySubg
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
-        void apply(MemorySegment p_library, MemorySegment p_class_name, MemorySegment p_subgroup_name, MemorySegment p_prefix);
+        void apply(
+                MemorySegment p_library,
+                MemorySegment p_class_name,
+                MemorySegment p_subgroup_name,
+                MemorySegment p_prefix);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER,
-        FFMUtils.C_POINTER
-    );
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.ofVoid(FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(GDExtensionInterfaceClassdbRegisterExtensionClassPropertySubgroup.Function.class, $DESC);
+    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(
+            GDExtensionInterfaceClassdbRegisterExtensionClassPropertySubgroup.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
-    public static MemorySegment allocate(GDExtensionInterfaceClassdbRegisterExtensionClassPropertySubgroup.Function fi, Arena arena) {
+    public static MemorySegment allocate(
+            GDExtensionInterfaceClassdbRegisterExtensionClassPropertySubgroup.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
     }
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
-    public static void invoke(MemorySegment funcPtr, MemorySegment p_library, MemorySegment p_class_name, MemorySegment p_subgroup_name, MemorySegment p_prefix) {
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    public static void invoke(
+            MemorySegment funcPtr,
+            MemorySegment p_library,
+            MemorySegment p_class_name,
+            MemorySegment p_subgroup_name,
+            MemorySegment p_prefix) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_library, p_class_name, p_subgroup_name, p_prefix);
         } catch (Error | RuntimeException ex) {
@@ -65,4 +66,3 @@ public final class GDExtensionInterfaceClassdbRegisterExtensionClassPropertySubg
         }
     }
 }
-

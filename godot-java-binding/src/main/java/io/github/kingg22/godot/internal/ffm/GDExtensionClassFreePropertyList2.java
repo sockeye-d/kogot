@@ -12,33 +12,24 @@ import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_INT;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
 
-/**
- * {@snippet lang = c:
- * typedef void (*GDExtensionClassFreePropertyList2)(GDExtensionClassInstancePtr, const GDExtensionPropertyInfo *, uint32_t)
- *}
- */
+/// ```C
+/// typedef void (*GDExtensionClassFreePropertyList2)
+/// (GDExtensionClassInstancePtr, const GDExtensionPropertyInfo *, uint32_t)
+/// ```
 public final class GDExtensionClassFreePropertyList2 {
 
     private GDExtensionClassFreePropertyList2() {
         // Should not be called directly
     }
 
-    /**
-     * The function pointer signature, expressed as a functional interface
-     */
+    /** The function pointer signature, expressed as a functional interface */
     public interface Function {
         void apply(MemorySegment p_instance, MemorySegment p_list, int p_count);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
-        C_POINTER,
-        C_POINTER,
-        C_INT
-    );
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(C_POINTER, C_POINTER, C_INT);
 
-    /**
-     * The descriptor of this function pointer
-     */
+    /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
@@ -46,8 +37,8 @@ public final class GDExtensionClassFreePropertyList2 {
     private static final MethodHandle UP$MH = upcallHandle(GDExtensionClassFreePropertyList2.Function.class, $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
-     * The lifetime of the returned segment is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
+     * is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionClassFreePropertyList2.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -55,9 +46,7 @@ public final class GDExtensionClassFreePropertyList2 {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /**
-     * Invoke the upcall stub {@code funcPtr}, with given parameters
-     */
+    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
     public static void invoke(MemorySegment funcPtr, MemorySegment p_instance, MemorySegment p_list, int p_count) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_instance, p_list, p_count);
