@@ -2,12 +2,31 @@
 # https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
 
 [versions]
-commons-math3 = "3.6.1"
-guava = "33.4.6-jre"
-kotlin-gradle-plugin = "2.3.0"
+# https://github.com/JetBrains/kotlin/releases
+kotlin = "2.3.10"
+
+# https://github.com/pinterest/ktlint/releases
+ktlint-pinterest = "1.8.0"
+
+# https://github.com/palantir/palantir-java-format/releases
+palantir = "2.86.0"
+
+# https://github.com/diffplug/spotless/blob/main/plugin-gradle/CHANGES.md
+# https://github.com/diffplug/spotless/releases
+spotless = "8.2.1"
 
 [libraries]
-commons-math3 = { module = "org.apache.commons:commons-math3", version.ref = "commons-math3" }
-guava = { module = "com.google.guava:guava", version.ref = "guava" }
-kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin-gradle-plugin" }
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 
+jspecify = "org.jspecify:jspecify:1.0.0"
+# https://github.com/google/error-prone/releases
+errorprone-core = "com.google.errorprone:error_prone_core:2.47.0"
+# https://github.com/uber/NullAway/releases
+nullaway = { group = "com.uber.nullaway", name = "nullaway", version = "0.13.1" }
+
+[plugins]
+# https://github.com/tbroyer/gradle-errorprone-plugin/releases
+error-prone = { id = "net.ltgt.errorprone", version = "5.0.0" }
+# https://github.com/tbroyer/gradle-nullaway-plugin/releases
+nullaway = { id = "net.ltgt.nullaway", version = "3.0.0" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
