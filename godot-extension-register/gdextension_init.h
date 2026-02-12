@@ -16,8 +16,8 @@
 #endif
 #endif
 
-static void cleanup_jvm(void *userdata, GDExtensionInitializationLevel p_level);
-static void initialize_jvm(void *userdata, GDExtensionInitializationLevel p_level);
+static void cleanup_jvm(const void *userdata, GDExtensionInitializationLevel p_level);
+static void initialize_jvm(const void *userdata, GDExtensionInitializationLevel p_level);
 
 GDExtensionBool GDE_EXPORT godot_java_bridge_init(
     GDExtensionInterfaceGetProcAddress p_get_proc_address,

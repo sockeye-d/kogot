@@ -40,8 +40,11 @@
 // Global JVM state
 static JavaVM *g_jvm = NULL;
 static JNIEnv *g_env = NULL;
+
+// Global Godot functions
 static GDExtensionInterfaceGetProcAddress g_get_proc_address = NULL;
 static GDExtensionClassLibraryPtr g_library = NULL;
+static GDExtensionInterfacePrintError g_print_error = NULL;
 
 // Function pointer type for JNI_CreateJavaVM
 typedef jint (JNICALL *JNI_CreateJavaVM_func)(JavaVM **, void **, void *);
@@ -51,8 +54,18 @@ static void log_info(const char *msg) {
     printf("[GDExtension-JVM] %s\n", msg);
 }
 
-static void log_error(const char *msg) {
-    fprintf(stderr, "[GDExtension-JVM] ERROR: %s\n", msg);
+static void log_error(const char *msg)
+{
+    if (g_print_error == NULL && g_get_proc_address != NULL)
+    {
+        g_print_error = (GDExtensionInterfacePrintError)g_get_proc_address("print_error");
+    }
+    if (g_print_error != NULL)
+    {
+        g_print_error(msg, __func__, __FILE__, __LINE__, false);
+    } else {
+        fprintf(stderr, "[GDExtension-JVM] ERROR: %s\n", msg);
+    }
 }
 
 // Find all jar to load
@@ -323,7 +336,8 @@ static int initialize_java_bridge() {
 }
 
 // Cleanup function called by GDExtension
-static void cleanup_jvm(void *userdata, const GDExtensionInitializationLevel p_level) {
+static void cleanup_jvm(const void *userdata, const GDExtensionInitializationLevel p_level) {
+    (void) userdata;  // acknowledge unreferenced parameter
     if (p_level != GDEXTENSION_INITIALIZATION_SCENE) {
         return;
     }
@@ -352,7 +366,8 @@ static void cleanup_jvm(void *userdata, const GDExtensionInitializationLevel p_l
     }
 }
 
-static void initialize_jvm(void *userdata, const GDExtensionInitializationLevel p_level) {
+static void initialize_jvm(const void *userdata, const GDExtensionInitializationLevel p_level) {
+    (void) userdata;  // acknowledge unreferenced parameter
     if (p_level != GDEXTENSION_INITIALIZATION_SCENE) {
         return;
     }
