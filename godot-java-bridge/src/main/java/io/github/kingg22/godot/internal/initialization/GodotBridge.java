@@ -1,14 +1,17 @@
 package io.github.kingg22.godot.internal.initialization;
 
-import org.jspecify.annotations.NullMarked;
+import io.github.kingg22.godot.internal.annotations.Initializer;
+import io.github.kingg22.godot.internal.bridge.BridgeContext;
+import io.github.kingg22.godot.internal.bridge.GodotRegistryImpl;
+import io.github.kingg22.godot.internal.registry.GeneratedRegistry;
 
-/** Main bridge class between Godot and Java This class will be called from the C GDExtension */
-@SuppressWarnings("unused") // invoked with JNI
-@NullMarked
+/** Entry point invoked by the GDExtension C bootstrap. */
+@SuppressWarnings("unused") // invoked from native
 final class GodotBridge {
     private static boolean initialized = false;
 
-    /** Called from C when GDExtension initializes */
+    /** Called from C when GDExtension initializes. */
+    @Initializer
     public static void initialize(final long getProcAddressPointer, final long libraryPointer) {
         System.out.println("[Java] GodotBridge.initialize() called");
 
@@ -20,6 +23,10 @@ final class GodotBridge {
         try {
             // Initialize your game systems here
             System.out.println("[Java] Setting up game systems...");
+
+            BridgeContext.initialize(getProcAddressPointer, libraryPointer);
+            final var registry = new GodotRegistryImpl(BridgeContext.get().classDB());
+            GeneratedRegistry.registerAll(registry);
 
             // Example: Load configurations
             loadConfigurations();
@@ -35,7 +42,7 @@ final class GodotBridge {
         }
     }
 
-    /** Called from C when GDExtension is being unloaded */
+    /** Called from C when GDExtension is being unloaded. */
     public static void shutdown() {
         System.out.println("[Java] GodotBridge.shutdown() called");
 
@@ -47,6 +54,8 @@ final class GodotBridge {
             // Cleanup your resources here
             System.out.println("[Java] Cleaning up resources...");
 
+            BridgeContext.shutdown();
+
             initialized = false;
             System.out.println("[Java] Shutdown complete!");
 
@@ -56,28 +65,21 @@ final class GodotBridge {
         }
     }
 
-    /** Example: Method that can be called from Godot via JNI */
-    public static String processGameLogic(String input) {
-        System.out.println("[Java] Processing: " + input);
-        // Your game logic here
-        return "Processed: " + input;
-    }
-
-    /** Example method for loading configurations */
+    /** Example method for loading configurations. */
     private static void loadConfigurations() {
         System.out.println("[Java] Loading configurations...");
         // Load your config files, databases, etc.
     }
 
-    /** Example method for initializing managers */
+    /** Example method for initializing managers. */
     private static void initializeManagers() {
         System.out.println("[Java] Initializing managers...");
         // Initialize your game managers (audio, network, etc.)
     }
 
-    /** Example: Get JVM information */
+    /** Example: Get JVM information. */
     public static void printJVMInfo() {
-        Runtime runtime = Runtime.getRuntime();
+        final var runtime = Runtime.getRuntime();
         System.out.println("[Java] JVM Info:");
         System.out.println("  Max Memory: " + (runtime.maxMemory() / 1024 / 1024) + " MB");
         System.out.println("  Total Memory: " + (runtime.totalMemory() / 1024 / 1024) + " MB");

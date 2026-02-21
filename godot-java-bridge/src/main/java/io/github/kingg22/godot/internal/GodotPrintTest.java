@@ -2,23 +2,16 @@ package io.github.kingg22.godot.internal;
 
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceGetProcAddress;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfacePrintWarning;
-import org.jspecify.annotations.Nullable;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 
 /// This is a holder of C pointer reinterpreted to Java
 public final class GodotPrintTest {
-    private static @Nullable MemorySegment getProcAddress;
-
-    public static void init(final long getProcAddressPointer) {
-        if (getProcAddress != null) return;
-        System.out.println("[Java] Initializing GodotRuntime...");
-        getProcAddress = MemorySegment.ofAddress(getProcAddressPointer)
-                .reinterpret(ValueLayout.ADDRESS.byteSize(), Arena.global(), null);
+    public static void init(final MemorySegment getProcAddress) {
+        System.out.println("[Java] Testing Print of Godot...");
         var arena = Arena.ofAuto();
-        MemorySegment printWarningFunPtr =
+        var printWarningFunPtr =
                 GDExtensionInterfaceGetProcAddress.invoke(getProcAddress, arena.allocateFrom("print_warning"));
         GDExtensionInterfacePrintWarning.invoke(
                 printWarningFunPtr,
