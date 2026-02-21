@@ -25,6 +25,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
+@Suppress("UnstableApiUsage")
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
     // Use Maven Central as the default repository (where Gradle will download dependencies) in all subprojects.
@@ -39,4 +40,4 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 // If there are changes in only one of the projects, Gradle will rebuild only the one that has changed.
 // Learn more about structuring projects with Gradle - https://docs.gradle.org/8.7/userguide/multi_project_builds.html
-include("godot-java-binding", "godot-java-bridge")
+include("godot-java-binding", "godot-java-bridge", "sample")
