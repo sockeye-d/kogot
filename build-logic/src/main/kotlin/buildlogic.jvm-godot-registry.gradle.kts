@@ -8,14 +8,19 @@ plugins {
     java
 }
 
-val generatedRegistryDir = layout.buildDirectory.dir("generated/sources/godotRegistry/java")
-val sourceJavaFiles = layout.buildDirectory.file("/classes/java/main")
-val sourceKotlinFiles = layout.buildDirectory.file("/classes/kotlin/main")
+val generatedRegistryDir = layout.buildDirectory.dir("generated/sources/godotRegistry/main/java")
 
 data class ClassInfoEntry(val fqcn: String, val className: String, val parent: String)
 
-val taskGenerateRegistry = tasks.register("generateGodotRegistry", Task::class) {
+val generateRegistry = tasks.register("generateGodotRegistry", Task::class) {
     group = "build"
+    dependsOn(tasks.compileJava)
+    tasks.findByName("compileKotlin")?.let { dependsOn(it) }
+    val sourceJavaFiles = layout.buildDirectory.file("/classes/java/main")
+    val sourceKotlinFiles = layout.buildDirectory.file("/classes/kotlin/main")
+
+    inputs.files(sourceJavaFiles, sourceKotlinFiles)
+    outputs.dir(generatedRegistryDir)
 
     val classDirs = mutableListOf<File>()
     // TODO
@@ -110,19 +115,23 @@ val taskGenerateRegistry = tasks.register("generateGodotRegistry", Task::class) 
     val lines = buildList {
         add("package io.github.kingg22.godot.internal.registry;")
         add("")
-        add("import io.github.kingg22.godot.api.GodotRegistry;")
-        add("")
         add("/** Generated registry. Do not edit manually. */")
+        add("@SuppressWarnings(\"all\")")
+        add("@org.jspecify.annotations.NullMarked")
         add("public final class GeneratedRegistry {")
         add("    private GeneratedRegistry() {")
         add("        throw new UnsupportedOperationException(\"Utility class\");")
         add("    }")
         add("")
-        add("    public static void registerAll(final GodotRegistry registry) {")
+        add("    public static void registerAll(final io.github.kingg22.godot.api.GodotRegistry registry) {")
         entries.onEach { entry ->
             add(
                 "        registry.register(\"${entry.className}\", \"${entry.parent}\", ${entry.fqcn}::new);",
             )
+        }
+        if (entries.isEmpty()) {
+            logger.warn("No classes to register found.")
+            add("        // No classes to register found.")
         }
         add("    }")
         add("}")
@@ -131,30 +140,31 @@ val taskGenerateRegistry = tasks.register("generateGodotRegistry", Task::class) 
     outFile.writeText(lines.joinToString(System.lineSeparator()))
 }
 
-val sourceSets = the<SourceSetContainer>()
-
-val taskCompileGeneratedRegistry = tasks.register("compileGeneratedRegistry", JavaCompile::class) {
-    group = "build"
-    dependsOn(taskGenerateRegistry)
-
-    tasks.findByName("compileKotlin")?.let { this.dependsOn(it) }
-    tasks.findByName("compileJava")?.let { this.dependsOn(it) }
-
+val compileGeneratedRegistry = tasks.register<JavaCompile>(
+    "compileGeneratedRegistry",
+) {
+    dependsOn(generateRegistry)
     source(generatedRegistryDir)
-    val mainSourceSet = sourceSets.named("main").get()
-    val compileJava = tasks.withType<JavaCompile>().findByName("compileJava")
-    val classesDirs = files(
-        compileJava?.destinationDirectory,
-        layout.buildDirectory.dir("classes/kotlin/main"),
+
+    classpath = sourceSets["main"].compileClasspath + files(layout.buildDirectory.dir("classes/java/main"))
+
+    destinationDirectory.set(layout.buildDirectory.dir("classes/java/main"))
+
+    javaCompiler.set(
+        javaToolchains.compilerFor {
+            languageVersion.set(JavaLanguageVersion.current()) // o del usuario
+        },
     )
-    classpath = mainSourceSet.compileClasspath + classesDirs
-    destinationDirectory = layout.buildDirectory.dir("classes/java/main")
 }
 
 tasks.assemble.configure {
-    dependsOn(taskGenerateRegistry)
+    mustRunAfter(compileGeneratedRegistry)
 }
 
-tasks.classes.configure {
-    dependsOn(taskCompileGeneratedRegistry)
+tasks.jar.configure {
+    dependsOn(compileGeneratedRegistry)
+}
+
+sourceSets.main.configure {
+    java.srcDir(generatedRegistryDir)
 }
