@@ -2,6 +2,8 @@
 
 package io.github.kingg22.godot.internal.ffm;
 
+import org.jspecify.annotations.Nullable;
+
 import java.lang.foreign.AddressLayout;
 import java.lang.foreign.Arena;
 import java.lang.foreign.GroupLayout;
@@ -15,14 +17,15 @@ import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 import static java.lang.foreign.ValueLayout.OfInt;
 
-// TODO add static helper
-/// ```C
+/// ```c++
 /// struct {
 ///     GDExtensionVariantType type;
 ///     GDExtensionStringNamePtr name;
 ///     GDExtensionStringNamePtr class_name;
+///     // Bitfield of `PropertyHint` (defined in `extension_api.json`).
 ///     uint32_t hint;
 ///     GDExtensionStringPtr hint_string;
+///     // Bitfield of `PropertyUsageFlags` (defined in `extension_api.json`).
 ///     uint32_t usage;
 /// }
 /// ```
@@ -30,6 +33,29 @@ public final class GDExtensionPropertyInfo {
 
     private GDExtensionPropertyInfo() {
         throw new UnsupportedOperationException();
+    }
+
+    /// Creates a new [GDExtensionPropertyInfo] backed by an [Arena#ofAuto()] allocation.
+    /// @param type The type of the property [VariantType].
+    /// @param hint Bitfield of [PropertyHint]
+    /// @param usage Bitfield of [PropertyUsageFlags]
+    /// @return A pointer to instance
+    public static MemorySegment create(
+            final int type,
+            final MemorySegment name,
+            final int hint,
+            final int usage,
+            final @Nullable MemorySegment className,
+            final @Nullable MemorySegment hintString) {
+        final var arena = Arena.ofAuto();
+        final var struct = arena.allocate(layout());
+        type(struct, type);
+        name(struct, name);
+        class_name(struct, className != null ? className : MemorySegment.NULL);
+        hint(struct, hint);
+        hint_string(struct, hintString != null ? hintString : MemorySegment.NULL);
+        usage(struct, usage);
+        return struct;
     }
 
     private static final GroupLayout $LAYOUT = MemoryLayout.structLayout(
