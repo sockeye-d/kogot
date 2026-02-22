@@ -11,13 +11,12 @@ import java.lang.invoke.MethodHandle;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
 
-/**
- * {@snippet lang = c: typedef void (*GDExtensionCallableCustomToString)(void *, GDExtensionBool *,
- * GDExtensionStringPtr) }
- */
-public final class GDExtensionCallableCustomToString {
+/// ```c++
+/// typedef void (*GDExtensionCallableCustomToString)(void *, GDExtensionBool *, GDExtensionStringPtr)
+/// ```
+public final class CallableCustomToString {
 
-    private GDExtensionCallableCustomToString() {
+    private CallableCustomToString() {
         throw new UnsupportedOperationException();
     }
 
@@ -33,13 +32,13 @@ public final class GDExtensionCallableCustomToString {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionCallableCustomToString.Function.class, $DESC);
+    private static final MethodHandle UP$MH = upcallHandle(CallableCustomToString.Function.class, $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
      * is managed by {@code arena}
      */
-    public static MemorySegment allocate(GDExtensionCallableCustomToString.Function fi, Arena arena) {
+    public static MemorySegment allocate(CallableCustomToString.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
     }
 

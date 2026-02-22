@@ -1,7 +1,7 @@
 package io.github.kingg22.godot.internal.bridge;
 
 import io.github.kingg22.godot.api.GodotClass;
-import io.github.kingg22.godot.internal.ffm.GDExtensionCallError;
+import io.github.kingg22.godot.internal.ffm.CallError;
 import io.github.kingg22.godot.internal.ffm.GDExtensionClassCreateInstance2;
 import io.github.kingg22.godot.internal.ffm.GDExtensionClassCreationInfo5;
 import io.github.kingg22.godot.internal.ffm.GDExtensionClassFreeInstance;
@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
-import static io.github.kingg22.godot.internal.ffm.GDExtensionCallError.CallErrorType.CALL_OK;
+import static io.github.kingg22.godot.internal.ffm.CallErrorType.CALL_OK;
 import static java.util.Objects.requireNonNull;
 
 /** High-level ClassDB registration and instance dispatch. */
@@ -143,7 +143,7 @@ public final class ClassDBBridge {
 
         final var handle = instances.get(instancePtr.address());
         if (handler == null || handle == null) {
-            GDExtensionCallError.setError(error, CALL_OK, 0, 0);
+            CallError.setError(error, CALL_OK, 0, 0);
             ffi.variantNewNil(returnValue);
             return;
         }

@@ -12,10 +12,12 @@ import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_CHAR;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
 
-/** {@snippet lang = c: typedef GDExtensionBool (*GDExtensionCallableCustomEqual)(void *, void *) } */
-public final class GDExtensionCallableCustomEqual {
+/// ```c++
+/// typedef GDExtensionBool (*GDExtensionCallableCustomEqual)(void *, void *)
+/// ```
+public final class CallableCustomEqual {
 
-    private GDExtensionCallableCustomEqual() {
+    private CallableCustomEqual() {
         throw new UnsupportedOperationException();
     }
 
@@ -31,13 +33,13 @@ public final class GDExtensionCallableCustomEqual {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionCallableCustomEqual.Function.class, $DESC);
+    private static final MethodHandle UP$MH = upcallHandle(CallableCustomEqual.Function.class, $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
      * is managed by {@code arena}
      */
-    public static MemorySegment allocate(GDExtensionCallableCustomEqual.Function fi, Arena arena) {
+    public static MemorySegment allocate(CallableCustomEqual.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
     }
 

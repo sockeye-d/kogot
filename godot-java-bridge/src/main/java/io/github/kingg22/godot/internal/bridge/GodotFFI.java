@@ -1,6 +1,5 @@
 package io.github.kingg22.godot.internal.bridge;
 
-import io.github.kingg22.godot.internal.ffm.GDExtensionGodotVersion2;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceClassdbConstructObject2;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceClassdbRegisterExtensionClass5;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceClassdbRegisterExtensionClassMethod;
@@ -11,6 +10,7 @@ import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceObjectSetScriptI
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceScriptInstanceCreate3;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceStringNameNewWithUtf8Chars;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceVariantNewNil;
+import io.github.kingg22.godot.internal.ffm.GodotVersion2;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -101,9 +101,9 @@ final class GodotFFI {
         GDExtensionInterfaceObjectSetScriptInstance.invoke(fnObjectSetScriptInstance, objectPtr, scriptInstance);
     }
 
-    GDExtensionGodotVersion2 getGodotVersion2() {
-        final var pointer = arena.allocate(GDExtensionGodotVersion2.layout());
+    GodotVersion2 getGodotVersion2() {
+        final var pointer = arena.allocate(GodotVersion2.layout());
         GDExtensionInterfaceGetGodotVersion2.invoke(fnGetGodotVersion2, pointer);
-        return GDExtensionGodotVersion2.parse(pointer);
+        return GodotVersion2.parse(pointer);
     }
 }

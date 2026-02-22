@@ -8,60 +8,44 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_LONG;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
 
-/**
- * {@snippet lang = c: typedef void (*GDExtensionCallableCustomCall)(void *, const GDExtensionConstVariantPtr *,
- * GDExtensionInt, GDExtensionVariantPtr, GDExtensionCallError *) }
- */
-public final class GDExtensionCallableCustomCall {
+/** {@snippet lang = c: typedef void (*GDExtensionWorkerThreadPoolTask)(void *) } */
+public final class WorkerThreadPoolTask {
 
-    private GDExtensionCallableCustomCall() {
+    private WorkerThreadPoolTask() {
         throw new UnsupportedOperationException();
     }
 
     /** The function pointer signature, expressed as a functional interface */
     public interface Function {
-        void apply(
-                MemorySegment callable_userdata,
-                MemorySegment p_args,
-                long p_argument_count,
-                MemorySegment r_return,
-                MemorySegment r_error);
+        void apply(MemorySegment _x0);
     }
 
-    private static final FunctionDescriptor $DESC =
-            FunctionDescriptor.ofVoid(C_POINTER, C_POINTER, C_LONG, C_POINTER, C_POINTER);
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(C_POINTER);
 
     /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionCallableCustomCall.Function.class, $DESC);
+    private static final MethodHandle UP$MH = upcallHandle(WorkerThreadPoolTask.Function.class, $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
      * is managed by {@code arena}
      */
-    public static MemorySegment allocate(GDExtensionCallableCustomCall.Function fi, Arena arena) {
+    public static MemorySegment allocate(WorkerThreadPoolTask.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
     }
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
     /** Invoke the upcall stub {@code funcPtr}, with given parameters */
-    public static void invoke(
-            MemorySegment funcPtr,
-            MemorySegment callable_userdata,
-            MemorySegment p_args,
-            long p_argument_count,
-            MemorySegment r_return,
-            MemorySegment r_error) {
+    public static void invoke(MemorySegment funcPtr, MemorySegment _x0) {
         try {
-            DOWN$MH.invokeExact(funcPtr, callable_userdata, p_args, p_argument_count, r_return, r_error);
+            DOWN$MH.invokeExact(funcPtr, _x0);
         } catch (Error | RuntimeException ex) {
             throw ex;
         } catch (Throwable ex$) {

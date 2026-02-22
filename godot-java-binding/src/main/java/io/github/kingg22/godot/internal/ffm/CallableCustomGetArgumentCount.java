@@ -8,45 +8,47 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_INT;
+import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_LONG;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
 
-/** {@snippet lang = c: typedef void (*GDExtensionWorkerThreadPoolGroupTask)(void *, uint32_t) } */
-public final class GDExtensionWorkerThreadPoolGroupTask {
+/// ```c++
+/// typedef GDExtensionInt (*CallableCustomGetArgumentCount)(void *, GDExtensionBool *)
+/// ```
+public final class CallableCustomGetArgumentCount {
 
-    private GDExtensionWorkerThreadPoolGroupTask() {
+    private CallableCustomGetArgumentCount() {
         throw new UnsupportedOperationException();
     }
 
     /** The function pointer signature, expressed as a functional interface */
     public interface Function {
-        void apply(MemorySegment _x0, int _x1);
+        long apply(MemorySegment callable_userdata, MemorySegment r_is_valid);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(C_POINTER, C_INT);
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(C_LONG, C_POINTER, C_POINTER);
 
     /** The descriptor of this function pointer */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionWorkerThreadPoolGroupTask.Function.class, $DESC);
+    private static final MethodHandle UP$MH = upcallHandle(CallableCustomGetArgumentCount.Function.class, $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
      * is managed by {@code arena}
      */
-    public static MemorySegment allocate(GDExtensionWorkerThreadPoolGroupTask.Function fi, Arena arena) {
+    public static MemorySegment allocate(CallableCustomGetArgumentCount.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
     }
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
     /** Invoke the upcall stub {@code funcPtr}, with given parameters */
-    public static void invoke(MemorySegment funcPtr, MemorySegment _x0, int _x1) {
+    public static long invoke(MemorySegment funcPtr, MemorySegment callable_userdata, MemorySegment r_is_valid) {
         try {
-            DOWN$MH.invokeExact(funcPtr, _x0, _x1);
+            return (long) DOWN$MH.invokeExact(funcPtr, callable_userdata, r_is_valid);
         } catch (Error | RuntimeException ex) {
             throw ex;
         } catch (Throwable ex$) {
