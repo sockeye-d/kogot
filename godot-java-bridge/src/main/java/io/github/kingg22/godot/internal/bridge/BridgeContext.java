@@ -33,6 +33,7 @@ public final class BridgeContext implements AutoCloseable {
         final var library = MemorySegment.ofAddress(libraryPointer)
                 .reinterpret(ValueLayout.ADDRESS.byteSize(), Arena.global(), null);
         instance = new BridgeContext(getProcAddress, library);
+        System.out.println("[Java] Running on " + instance.ffi.getGodotVersion2());
     }
 
     public static BridgeContext get() {

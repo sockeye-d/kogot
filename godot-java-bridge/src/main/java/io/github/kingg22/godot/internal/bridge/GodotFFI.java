@@ -1,8 +1,10 @@
 package io.github.kingg22.godot.internal.bridge;
 
+import io.github.kingg22.godot.internal.ffm.GDExtensionGodotVersion2;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceClassdbConstructObject2;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceClassdbRegisterExtensionClass5;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceClassdbRegisterExtensionClassMethod;
+import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceGetGodotVersion2;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceGetProcAddress;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceObjectSetInstance;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceObjectSetScriptInstance;
@@ -30,6 +32,7 @@ final class GodotFFI {
     private final MemorySegment fnVariantNewNil;
     private final MemorySegment fnScriptInstanceCreate3;
     private final MemorySegment fnObjectSetScriptInstance;
+    private final MemorySegment fnGetGodotVersion2;
 
     GodotFFI(final MemorySegment getProcAddress, final MemorySegment library, final Arena arena) {
         this.getProcAddress = getProcAddress;
@@ -44,6 +47,7 @@ final class GodotFFI {
         this.fnVariantNewNil = lookup("variant_new_nil");
         this.fnScriptInstanceCreate3 = lookup("script_instance_create3");
         this.fnObjectSetScriptInstance = lookup("object_set_script_instance");
+        this.fnGetGodotVersion2 = lookup("get_godot_version2");
     }
 
     MemorySegment library() {
@@ -53,7 +57,11 @@ final class GodotFFI {
     MemorySegment lookup(final String name) {
         return cache.computeIfAbsent(name, key -> {
             final var cName = arena.allocateFrom(key);
-            return GDExtensionInterfaceGetProcAddress.invoke(getProcAddress, cName);
+            final var fnPtr = GDExtensionInterfaceGetProcAddress.invoke(getProcAddress, cName);
+            if (MemorySegment.NULL.equals(fnPtr)) {
+                throw new IllegalStateException("Failed to lookup function named: '" + key + "'");
+            }
+            return fnPtr;
         });
     }
 
@@ -91,5 +99,11 @@ final class GodotFFI {
 
     void objectSetScriptInstance(final MemorySegment objectPtr, final MemorySegment scriptInstance) {
         GDExtensionInterfaceObjectSetScriptInstance.invoke(fnObjectSetScriptInstance, objectPtr, scriptInstance);
+    }
+
+    GDExtensionGodotVersion2 getGodotVersion2() {
+        final var pointer = arena.allocate(GDExtensionGodotVersion2.layout());
+        GDExtensionInterfaceGetGodotVersion2.invoke(fnGetGodotVersion2, pointer);
+        return GDExtensionGodotVersion2.parse(pointer);
     }
 }
