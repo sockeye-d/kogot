@@ -21,6 +21,7 @@ public final class ClassCreationInfo5 extends ClassCreationInfo4 {
     public static MemorySegment create(
             final boolean isVirtual,
             final boolean isAbstract,
+            final boolean isExposed,
             final boolean isRuntime,
             final MemorySegment createInstanceFunc,
             final MemorySegment freeInstanceFunc,
@@ -45,6 +46,7 @@ public final class ClassCreationInfo5 extends ClassCreationInfo4 {
         var struct = arena.allocate(layout());
         is_virtual(struct, isVirtual ? (byte) 1 : (byte) 0);
         is_abstract(struct, isAbstract ? (byte) 1 : (byte) 0);
+        is_exposed(struct, isExposed ? (byte) 1 : (byte) 0);
         is_runtime(struct, isRuntime ? (byte) 1 : (byte) 0);
         icon_path(struct, arena.allocateFrom(iconPath));
         create_instance_func(struct, createInstanceFunc);
