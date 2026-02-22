@@ -18,4 +18,9 @@ public final class GodotRegistryImpl implements GodotRegistry {
             final String className, final String parentClassName, final Supplier<? extends GodotClass> factory) {
         classDB.registerClass(new ClassDBBridge.ClassDefinition(className, parentClassName, factory));
     }
+
+    @Override
+    public void close() {
+        classDB.close();
+    }
 }
