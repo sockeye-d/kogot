@@ -13,12 +13,17 @@ import java.util.function.Consumer;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 
-// TODO add static helper
-/// ```C
+/// ```c++
 /// struct {
-///   GDExtensionMainLoopStartupCallback startup_func;
-///   GDExtensionMainLoopShutdownCallback shutdown_func;
-///   GDExtensionMainLoopFrameCallback frame_func;
+///     // Will be called after Godot is started and is fully initialized.
+///     GDExtensionMainLoopStartupCallback startup_func;
+///     // Will be called before Godot is shutdown when it is still fully initialized.
+///     GDExtensionMainLoopShutdownCallback shutdown_func;
+///     // Will be called for each process frame. This will run after all `_process()` methods on Node,
+///     // and before `ScriptServer::frame()`.
+///     // This is intended to be the equivalent of `ScriptLanguage::frame()` for GDExtension language bindings that
+///     // don't use the script API.
+///     GDExtensionMainLoopFrameCallback frame_func;
 /// }
 /// ```
 public final class GDExtensionMainLoopCallbacks {
@@ -36,6 +41,22 @@ public final class GDExtensionMainLoopCallbacks {
     /** The layout of this struct */
     public static GroupLayout layout() {
         return $LAYOUT;
+    }
+
+    /// Create a new [GDExtensionMainLoopCallbacks] instance.
+    /// See the class documentation for more information.
+    /// @return A pointer to instance
+    /// @see GDExtensionMainLoopStartupCallback
+    /// @see GDExtensionMainLoopShutdownCallback
+    /// @see GDExtensionMainLoopFrameCallback
+    public static MemorySegment create(
+            final MemorySegment startup_func, final MemorySegment shutdown_func, final MemorySegment frame_func) {
+        final var arena = Arena.ofAuto();
+        final var struct = allocate(arena);
+        startup_func(struct, startup_func);
+        shutdown_func(struct, shutdown_func);
+        frame_func(struct, frame_func);
+        return struct;
     }
 
     private static final AddressLayout startup_func$LAYOUT =
