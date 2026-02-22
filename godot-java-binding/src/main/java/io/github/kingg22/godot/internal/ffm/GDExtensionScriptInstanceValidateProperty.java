@@ -35,7 +35,7 @@ public final class GDExtensionScriptInstanceValidateProperty {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionScriptInstanceValidateProperty.Function.class, $DESC);
+            upcallHandle(GDExtensionScriptInstanceValidateProperty.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

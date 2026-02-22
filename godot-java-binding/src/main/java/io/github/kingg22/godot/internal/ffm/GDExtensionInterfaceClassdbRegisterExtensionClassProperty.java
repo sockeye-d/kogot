@@ -42,7 +42,7 @@ public final class GDExtensionInterfaceClassdbRegisterExtensionClassProperty {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceClassdbRegisterExtensionClassProperty.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceClassdbRegisterExtensionClassProperty.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

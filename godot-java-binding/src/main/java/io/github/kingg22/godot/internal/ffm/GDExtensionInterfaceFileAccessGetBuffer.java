@@ -35,7 +35,7 @@ public final class GDExtensionInterfaceFileAccessGetBuffer {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceFileAccessGetBuffer.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceFileAccessGetBuffer.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

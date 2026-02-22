@@ -30,7 +30,8 @@ public final class GDExtensionInterfaceVariantNewNil {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionInterfaceVariantNewNil.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            upcallHandle(GDExtensionInterfaceVariantNewNil.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

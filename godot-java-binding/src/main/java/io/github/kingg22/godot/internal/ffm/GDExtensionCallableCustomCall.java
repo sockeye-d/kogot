@@ -12,10 +12,11 @@ import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_LONG;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
 import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
 
-/// ```c++
-/// typedef void (*GDExtensionCallableCustomCall)
-/// (void *, const GDExtensionConstVariantPtr *, GDExtensionInt, GDExtensionVariantPtr, GDExtensionCallError *)
-/// ```
+/**
+ * {@snippet lang=c :
+ * typedef void (*GDExtensionCallableCustomCall)(void *, const GDExtensionConstVariantPtr *, GDExtensionInt, GDExtensionVariantPtr, GDExtensionCallError *)
+ * }
+ */
 public final class GDExtensionCallableCustomCall {
 
     private GDExtensionCallableCustomCall() {
@@ -40,7 +41,8 @@ public final class GDExtensionCallableCustomCall {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionCallableCustomCall.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            upcallHandle(GDExtensionCallableCustomCall.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

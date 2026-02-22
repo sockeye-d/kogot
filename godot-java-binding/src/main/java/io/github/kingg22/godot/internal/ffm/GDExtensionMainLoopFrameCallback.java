@@ -29,7 +29,8 @@ public final class GDExtensionMainLoopFrameCallback {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionMainLoopFrameCallback.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            upcallHandle(GDExtensionMainLoopFrameCallback.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

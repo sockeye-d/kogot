@@ -35,7 +35,7 @@ public final class GDExtensionInterfacePackedFloat64ArrayOperatorIndex {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfacePackedFloat64ArrayOperatorIndex.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfacePackedFloat64ArrayOperatorIndex.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

@@ -35,7 +35,7 @@ public final class GDExtensionInterfaceVariantRecursiveHash {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceVariantRecursiveHash.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceVariantRecursiveHash.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

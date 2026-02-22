@@ -34,7 +34,8 @@ public final class GDExtensionInterfaceVariantCanConvert {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionInterfaceVariantCanConvert.Function.class, $DESC);
+    private static final MethodHandle UP$MH =
+            upcallHandle(GDExtensionInterfaceVariantCanConvert.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

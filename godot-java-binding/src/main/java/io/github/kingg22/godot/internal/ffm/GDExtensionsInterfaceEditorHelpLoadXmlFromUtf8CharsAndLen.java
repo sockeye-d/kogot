@@ -35,7 +35,7 @@ public final class GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen.Function.class, $DESC);
+            upcallHandle(GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

@@ -33,7 +33,7 @@ public final class GDExtensionInterfaceClassdbConstructObject2 {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceClassdbConstructObject2.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceClassdbConstructObject2.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

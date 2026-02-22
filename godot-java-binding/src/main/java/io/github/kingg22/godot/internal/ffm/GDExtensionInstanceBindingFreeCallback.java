@@ -31,7 +31,7 @@ public final class GDExtensionInstanceBindingFreeCallback {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInstanceBindingFreeCallback.Function.class, $DESC);
+            upcallHandle(GDExtensionInstanceBindingFreeCallback.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

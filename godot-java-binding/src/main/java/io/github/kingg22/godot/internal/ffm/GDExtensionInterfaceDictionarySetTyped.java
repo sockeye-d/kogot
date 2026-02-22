@@ -44,7 +44,7 @@ public final class GDExtensionInterfaceDictionarySetTyped {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceDictionarySetTyped.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceDictionarySetTyped.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

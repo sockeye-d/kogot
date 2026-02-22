@@ -43,7 +43,7 @@ public final class GDExtensionInterfacePrintScriptErrorWithMessage {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfacePrintScriptErrorWithMessage.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfacePrintScriptErrorWithMessage.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

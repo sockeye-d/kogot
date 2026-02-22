@@ -30,7 +30,7 @@ public final class GDExtensionInterfaceImagePtr {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionInterfaceImagePtr.Function.class, $DESC);
+    private static final MethodHandle UP$MH = upcallHandle(GDExtensionInterfaceImagePtr.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

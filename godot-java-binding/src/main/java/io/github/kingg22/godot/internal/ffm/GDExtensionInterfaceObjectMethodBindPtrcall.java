@@ -35,7 +35,7 @@ public final class GDExtensionInterfaceObjectMethodBindPtrcall {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceObjectMethodBindPtrcall.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceObjectMethodBindPtrcall.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

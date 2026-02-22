@@ -33,7 +33,7 @@ public final class GDExtensionScriptInstanceRefCountIncremented {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionScriptInstanceRefCountIncremented.Function.class, $DESC);
+            upcallHandle(GDExtensionScriptInstanceRefCountIncremented.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

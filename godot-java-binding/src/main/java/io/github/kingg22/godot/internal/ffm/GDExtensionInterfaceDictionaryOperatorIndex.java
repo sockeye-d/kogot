@@ -34,7 +34,7 @@ public final class GDExtensionInterfaceDictionaryOperatorIndex {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceDictionaryOperatorIndex.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceDictionaryOperatorIndex.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

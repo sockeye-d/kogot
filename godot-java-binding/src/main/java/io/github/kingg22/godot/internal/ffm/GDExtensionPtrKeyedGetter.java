@@ -33,7 +33,7 @@ public final class GDExtensionPtrKeyedGetter {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionPtrKeyedGetter.Function.class, $DESC);
+    private static final MethodHandle UP$MH = upcallHandle(GDExtensionPtrKeyedGetter.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

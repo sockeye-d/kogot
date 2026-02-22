@@ -34,7 +34,7 @@ public final class GDExtensionInterfaceStringOperatorPlusEqChar {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceStringOperatorPlusEqChar.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceStringOperatorPlusEqChar.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

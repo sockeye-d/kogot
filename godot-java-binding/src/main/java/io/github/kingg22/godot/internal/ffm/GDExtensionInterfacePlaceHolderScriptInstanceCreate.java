@@ -35,7 +35,7 @@ public final class GDExtensionInterfacePlaceHolderScriptInstanceCreate {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfacePlaceHolderScriptInstanceCreate.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfacePlaceHolderScriptInstanceCreate.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

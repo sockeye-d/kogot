@@ -42,7 +42,7 @@ public final class GDExtensionInterfaceWorkerThreadPoolAddNativeTask {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceWorkerThreadPoolAddNativeTask.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceWorkerThreadPoolAddNativeTask.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

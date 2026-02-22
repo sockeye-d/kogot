@@ -35,7 +35,7 @@ public final class GDExtensionScriptInstanceFreePropertyList2 {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionScriptInstanceFreePropertyList2.Function.class, $DESC);
+            upcallHandle(GDExtensionScriptInstanceFreePropertyList2.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

@@ -34,7 +34,7 @@ public final class GDExtensionInterfaceGlobalGetSingleton {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceGlobalGetSingleton.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceGlobalGetSingleton.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

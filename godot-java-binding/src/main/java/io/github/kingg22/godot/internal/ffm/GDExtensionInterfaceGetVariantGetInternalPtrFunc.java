@@ -35,7 +35,7 @@ public final class GDExtensionInterfaceGetVariantGetInternalPtrFunc {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceGetVariantGetInternalPtrFunc.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceGetVariantGetInternalPtrFunc.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

@@ -31,7 +31,7 @@ public final class GDExtensionInstanceBindingCreateCallback {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInstanceBindingCreateCallback.Function.class, $DESC);
+            upcallHandle(GDExtensionInstanceBindingCreateCallback.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

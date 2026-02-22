@@ -35,7 +35,7 @@ public final class GDExtensionInterfaceVariantGetPtrKeyedChecker {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceVariantGetPtrKeyedChecker.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceVariantGetPtrKeyedChecker.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

@@ -35,7 +35,7 @@ public final class GDExtensionInterfacePackedVector3ArrayOperatorIndex {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfacePackedVector3ArrayOperatorIndex.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfacePackedVector3ArrayOperatorIndex.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

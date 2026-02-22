@@ -35,7 +35,7 @@ public final class GDExtensionInterfaceGetVariantToTypeConstructor {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceGetVariantToTypeConstructor.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceGetVariantToTypeConstructor.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

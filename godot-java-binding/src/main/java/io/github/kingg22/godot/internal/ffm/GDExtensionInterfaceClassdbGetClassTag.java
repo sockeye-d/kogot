@@ -31,7 +31,7 @@ public final class GDExtensionInterfaceClassdbGetClassTag {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceClassdbGetClassTag.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceClassdbGetClassTag.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

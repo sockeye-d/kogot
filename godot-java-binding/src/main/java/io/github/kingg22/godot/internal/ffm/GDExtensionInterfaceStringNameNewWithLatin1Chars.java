@@ -36,7 +36,7 @@ public final class GDExtensionInterfaceStringNameNewWithLatin1Chars {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceStringNameNewWithLatin1Chars.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceStringNameNewWithLatin1Chars.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

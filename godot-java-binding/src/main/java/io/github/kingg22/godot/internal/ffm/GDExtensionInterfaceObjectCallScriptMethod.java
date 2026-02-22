@@ -43,7 +43,7 @@ public final class GDExtensionInterfaceObjectCallScriptMethod {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceObjectCallScriptMethod.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceObjectCallScriptMethod.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

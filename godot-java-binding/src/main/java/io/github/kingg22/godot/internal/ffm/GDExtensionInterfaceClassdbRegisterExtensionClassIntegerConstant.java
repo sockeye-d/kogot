@@ -44,8 +44,8 @@ public final class GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConst
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant.Function.class, $DESC);
+    private static final MethodHandle UP$MH = upcallHandle(
+            GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

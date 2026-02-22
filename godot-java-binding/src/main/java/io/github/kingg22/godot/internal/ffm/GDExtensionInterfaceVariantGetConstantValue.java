@@ -35,7 +35,7 @@ public final class GDExtensionInterfaceVariantGetConstantValue {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceVariantGetConstantValue.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceVariantGetConstantValue.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

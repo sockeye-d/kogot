@@ -35,7 +35,7 @@ public final class GDExtensionInterfaceVariantHashCompare {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceVariantHashCompare.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceVariantHashCompare.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

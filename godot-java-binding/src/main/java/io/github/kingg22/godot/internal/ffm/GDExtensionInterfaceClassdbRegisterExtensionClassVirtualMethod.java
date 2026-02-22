@@ -35,7 +35,7 @@ public final class GDExtensionInterfaceClassdbRegisterExtensionClassVirtualMetho
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceClassdbRegisterExtensionClassVirtualMethod.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceClassdbRegisterExtensionClassVirtualMethod.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

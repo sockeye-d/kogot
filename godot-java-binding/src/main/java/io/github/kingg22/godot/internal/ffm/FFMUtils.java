@@ -70,9 +70,10 @@ final class FFMUtils {
         System.out.printf("%s(%s)\n", name, traceArgs);
     }
 
-    static MethodHandle upcallHandle(final Class<?> clazz, final FunctionDescriptor functionDescriptor) {
+    static MethodHandle upcallHandle(
+            final Class<?> clazz, final String name, final FunctionDescriptor functionDescriptor) {
         try {
-            return MethodHandles.lookup().findVirtual(clazz, "apply", functionDescriptor.toMethodType());
+            return MethodHandles.lookup().findVirtual(clazz, name, functionDescriptor.toMethodType());
         } catch (ReflectiveOperationException ex) {
             throw new LinkageError(ex.getMessage(), ex);
         }

@@ -34,7 +34,7 @@ public final class GDExtensionInterfaceObjectGetInstanceBinding {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceObjectGetInstanceBinding.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceObjectGetInstanceBinding.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

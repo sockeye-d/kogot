@@ -34,7 +34,7 @@ public final class GDExtensionInterfaceRegisterMainLoopCallbacks {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceRegisterMainLoopCallbacks.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceRegisterMainLoopCallbacks.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

@@ -34,7 +34,7 @@ public final class GDExtensionScriptInstanceGet {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionScriptInstanceGet.Function.class, $DESC);
+    private static final MethodHandle UP$MH = upcallHandle(GDExtensionScriptInstanceGet.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

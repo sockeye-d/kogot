@@ -43,7 +43,7 @@ public final class GDExtensionInterfacePrintErrorWithMessage {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfacePrintErrorWithMessage.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfacePrintErrorWithMessage.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

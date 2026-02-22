@@ -35,7 +35,7 @@ public final class GDExtensionInterfaceObjectGetInstanceId {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceObjectGetInstanceId.Function.class, $DESC);
+            upcallHandle(GDExtensionInterfaceObjectGetInstanceId.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment

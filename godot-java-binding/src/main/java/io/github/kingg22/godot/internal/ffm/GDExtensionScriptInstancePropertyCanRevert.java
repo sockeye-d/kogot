@@ -35,7 +35,7 @@ public final class GDExtensionScriptInstancePropertyCanRevert {
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionScriptInstancePropertyCanRevert.Function.class, $DESC);
+            upcallHandle(GDExtensionScriptInstancePropertyCanRevert.Function.class, "apply", $DESC);
 
     /**
      * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
