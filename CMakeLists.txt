@@ -41,8 +41,9 @@ set(OUTPUT_NAME "${TARGET_PATH}.${BUILD_SUFFIX}.${ARCH_SUFFIX}")
 set(SOURCES
     godot-extension-register/gdextension_interface.h
     godot-extension-register/gdextension_init.h
+    godot-extension-register/jvm_bridge_runtime.h
     godot-extension-register/gdextension_init.c
-    # Add more source files here
+    godot-extension-register/jvm_bridge_runtime.c
 )
 
 # Create shared library

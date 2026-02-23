@@ -2,81 +2,83 @@ package io.github.kingg22.godot.internal.initialization;
 
 import io.github.kingg22.godot.internal.annotations.Initializer;
 import io.github.kingg22.godot.internal.bridge.BridgeContext;
+import io.github.kingg22.godot.internal.ffm.GDExtensionInitializationLevel;
 
 /** Entry point invoked by the GDExtension C bootstrap. */
 @SuppressWarnings("unused") // invoked from native
 final class GodotBridge {
-    private static boolean initialized = false;
 
-    /** Called from C when GDExtension initializes. */
+    private GodotBridge() {
+        throw new UnsupportedOperationException("Internal native bridge class, cannot be instantiated");
+    }
+
+    private static boolean runtimeInitialized = false;
+
+    /** Called once from C when the runtime reaches SCENE and JVM startup succeeded. */
     @Initializer
     public static void initialize(final long getProcAddressPointer, final long libraryPointer) {
         System.out.println("[Java] GodotBridge.initialize() called");
 
-        if (initialized) {
-            System.out.println("[Java] Already initialized, skipping...");
+        if (runtimeInitialized) {
+            System.out.println("[Java] Runtime already initialized, skipping bridge bootstrap");
             return;
         }
 
-        try {
-            printJVMInfo();
+        BridgeContext.initialize(getProcAddressPointer, libraryPointer);
+        runtimeInitialized = true;
 
-            // Initialize your game systems here
-            System.out.println("[Java] Setting up game systems...");
+        printJVMInfo();
+        System.out.println("[Java] Bridge runtime initialized");
+    }
 
-            BridgeContext.initialize(getProcAddressPointer, libraryPointer);
-
-            // Example: Load configurations
-            loadConfigurations();
-
-            // Example: Initialize managers
-            initializeManagers();
-
-            initialized = true;
-            System.out.println("[Java] Initialization complete!");
-        } catch (Exception e) {
-            System.err.println("[Java] Error during initialization:");
-            e.printStackTrace();
+    /** Called from C for each level in initialization order. */
+    public static void onInitializationLevel(final short level) {
+        switch (level) {
+            case GDExtensionInitializationLevel.GDEXTENSION_INITIALIZATION_CORE ->
+                System.out.println("[Java] Init level CORE");
+            case GDExtensionInitializationLevel.GDEXTENSION_INITIALIZATION_SERVERS ->
+                System.out.println("[Java] Init level SERVERS");
+            case GDExtensionInitializationLevel.GDEXTENSION_INITIALIZATION_SCENE -> {
+                System.out.println("[Java] Init level SCENE");
+                if (!runtimeInitialized) {
+                    System.err.println("[Java] SCENE level reached without runtime bootstrap");
+                }
+            }
+            case GDExtensionInitializationLevel.GDEXTENSION_INITIALIZATION_EDITOR ->
+                System.out.println("[Java] Init level EDITOR");
+            default -> System.err.println("[Java] Unknown init level: " + level);
         }
     }
 
-    /** Called from C when GDExtension is being unloaded. */
+    /** Called from C for each level in deinitialization order. */
+    public static void onDeinitializationLevel(final short level) {
+        switch (level) {
+            case GDExtensionInitializationLevel.GDEXTENSION_INITIALIZATION_EDITOR ->
+                System.out.println("[Java] Deinit level EDITOR");
+            case GDExtensionInitializationLevel.GDEXTENSION_INITIALIZATION_SCENE -> {
+                System.out.println("[Java] Deinit level SCENE");
+                BridgeContext.shutdown();
+                runtimeInitialized = false;
+            }
+            case GDExtensionInitializationLevel.GDEXTENSION_INITIALIZATION_SERVERS ->
+                System.out.println("[Java] Deinit level SERVERS");
+            case GDExtensionInitializationLevel.GDEXTENSION_INITIALIZATION_CORE ->
+                System.out.println("[Java] Deinit level CORE");
+            default -> System.err.println("[Java] Unknown deinit level: " + level);
+        }
+    }
+
+    /** Called from C when JVM is going down. */
     public static void shutdown() {
         System.out.println("[Java] GodotBridge.shutdown() called");
 
-        if (!initialized) {
-            return;
-        }
+        BridgeContext.shutdown();
+        runtimeInitialized = false;
 
-        try {
-            // Cleanup your resources here
-            System.out.println("[Java] Cleaning up resources...");
-
-            BridgeContext.shutdown();
-
-            initialized = false;
-            System.out.println("[Java] Shutdown complete!");
-
-        } catch (Exception e) {
-            System.err.println("[Java] Error during shutdown:");
-            e.printStackTrace();
-        }
+        System.out.println("[Java] Shutdown complete");
     }
 
-    /** Example method for loading configurations. */
-    private static void loadConfigurations() {
-        System.out.println("[Java] Loading configurations...");
-        // Load your config files, databases, etc.
-    }
-
-    /** Example method for initializing managers. */
-    private static void initializeManagers() {
-        System.out.println("[Java] Initializing managers...");
-        // Initialize your game managers (audio, network, etc.)
-    }
-
-    /** Example: Get JVM information. */
-    public static void printJVMInfo() {
+    private static void printJVMInfo() {
         final var runtime = Runtime.getRuntime();
         System.out.println("[Java] JVM Info:");
         System.out.println("  Max Memory: " + (runtime.maxMemory() / 1024 / 1024) + " MB");
