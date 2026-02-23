@@ -36,6 +36,32 @@ public final class BridgeContext implements AutoCloseable {
         System.out.println("[Java] Running on " + instance.ffi.getGodotVersion2());
     }
 
+    /** SCENE-level hook: place runtime registration calls (ClassDB/Script instances) here. */
+    public static void onSceneInitialized() {
+        if (instance == null) {
+            throw new IllegalStateException("BridgeContext not initialized for SCENE");
+        }
+        // Intentionally lightweight in early development.
+    }
+
+    /** EDITOR-level hook: place editor-only integrations here. */
+    public static void onEditorInitialized() {
+        if (instance == null) {
+            throw new IllegalStateException("BridgeContext not initialized for EDITOR");
+        }
+        // Intentionally lightweight in early development.
+    }
+
+    /** EDITOR-level cleanup hook. */
+    public static void onEditorDeinitialized() {
+        // Editor-specific teardown will be added when editor tooling is implemented.
+    }
+
+    /** SCENE-level cleanup hook. */
+    public static void onSceneDeinitialized() {
+        shutdown();
+    }
+
     public static BridgeContext get() {
         if (instance == null) {
             throw new IllegalStateException("BridgeContext not initialized");
