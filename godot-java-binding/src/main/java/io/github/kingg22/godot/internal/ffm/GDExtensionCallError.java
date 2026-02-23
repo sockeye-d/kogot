@@ -30,18 +30,6 @@ public final class GDExtensionCallError {
                     C_INT.withName("error"), C_INT.withName("argument"), C_INT.withName("expected"))
             .withName("GDExtensionCallError");
 
-    /// Set a [GDExtensionCallError] at the given address.
-    /// @param struct a [MemorySegment] represents a pointer to a [GDExtensionCallError]
-    /// @param code a [GDExtensionCallErrorType]
-    public static void setError(final MemorySegment struct, final short code, final int argument, final int expected) {
-        if (MemorySegment.NULL.equals(struct)) {
-            return;
-        }
-        error(struct, code);
-        argument(struct, argument);
-        expected(struct, expected);
-    }
-
     /** The layout of this struct */
     public static GroupLayout layout() {
         return $LAYOUT;

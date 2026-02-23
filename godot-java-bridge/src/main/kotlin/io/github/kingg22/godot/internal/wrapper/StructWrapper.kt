@@ -3,15 +3,7 @@
 
 package io.github.kingg22.godot.internal.wrapper
 
-import io.github.kingg22.godot.internal.ffm.GDExtensionCallableCustomInfo2
-import io.github.kingg22.godot.internal.ffm.GDExtensionClassCreationInfo4
-import io.github.kingg22.godot.internal.ffm.GDExtensionClassMethodInfo
-import io.github.kingg22.godot.internal.ffm.GDExtensionClassVirtualMethodInfo
-import io.github.kingg22.godot.internal.ffm.GDExtensionInstanceBindingCallbacks
-import io.github.kingg22.godot.internal.ffm.GDExtensionMainLoopCallbacks
-import io.github.kingg22.godot.internal.ffm.GDExtensionMethodInfo
-import io.github.kingg22.godot.internal.ffm.GDExtensionPropertyInfo
-import io.github.kingg22.godot.internal.ffm.GDExtensionScriptInstanceInfo3
+import io.github.kingg22.godot.internal.ffm.*
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.SegmentAllocator
@@ -391,4 +383,16 @@ fun GDExtensionPropertyInfo(
     GDExtensionPropertyInfo.hint_string(struct, hintString)
     GDExtensionPropertyInfo.usage(struct, usage)
     return struct
+}
+
+/**
+ * Set a [GDExtensionCallError] at the given address.
+ * @param struct a [MemorySegment] represents a pointer to a [GDExtensionCallError]
+ * @param code a [io.github.kingg22.godot.internal.ffm.GDExtensionCallErrorType]
+ */
+fun GDExtensionCallError(struct: MemorySegment, code: Short, argument: Int, expected: Int) {
+    if (MemorySegment.NULL == struct) return
+    GDExtensionCallError.error(struct, code.toInt())
+    GDExtensionCallError.argument(struct, argument)
+    GDExtensionCallError.expected(struct, expected)
 }
