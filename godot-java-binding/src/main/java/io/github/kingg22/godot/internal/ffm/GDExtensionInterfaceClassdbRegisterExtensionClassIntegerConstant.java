@@ -8,16 +8,10 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_CHAR;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_LONG;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
-
 /**
- * {@snippet lang = c: typedef void
- * (*GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant)(GDExtensionClassLibraryPtr,
- * GDExtensionConstStringNamePtr, GDExtensionConstStringNamePtr, GDExtensionConstStringNamePtr, GDExtensionInt,
- * GDExtensionBool) }
+ * {@snippet lang=c :
+ * typedef void (*GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant)(GDExtensionClassLibraryPtr, GDExtensionConstStringNamePtr, GDExtensionConstStringNamePtr, GDExtensionConstStringNamePtr, GDExtensionInt, GDExtensionBool)
+ * }
  */
 public final class GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant {
 
@@ -25,7 +19,9 @@ public final class GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConst
         throw new UnsupportedOperationException();
     }
 
-    /** The function pointer signature, expressed as a functional interface */
+    /**
+     * The function pointer signature, expressed as a functional interface
+     */
     public interface Function {
         void apply(
                 MemorySegment p_library,
@@ -36,20 +32,27 @@ public final class GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConst
                 byte p_is_bitfield);
     }
 
-    private static final FunctionDescriptor $DESC =
-            FunctionDescriptor.ofVoid(C_POINTER, C_POINTER, C_POINTER, C_POINTER, C_LONG, C_CHAR);
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_LONG,
+            FFMUtils.C_CHAR);
 
-    /** The descriptor of this function pointer */
+    /**
+     * The descriptor of this function pointer
+     */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(
+    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(
             GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant.Function.class, "apply", $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
-     * is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
+     * The lifetime of the returned segment is managed by {@code arena}
      */
     public static MemorySegment allocate(
             GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConstant.Function fi, Arena arena) {
@@ -58,7 +61,9 @@ public final class GDExtensionInterfaceClassdbRegisterExtensionClassIntegerConst
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    /**
+     * Invoke the upcall stub {@code funcPtr}, with given parameters
+     */
     public static void invoke(
             MemorySegment funcPtr,
             MemorySegment p_library,

@@ -2,20 +2,19 @@
 
 package io.github.kingg22.godot.internal.ffm;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.Linker;
-import java.lang.foreign.MemorySegment;
-import java.lang.invoke.MethodHandle;
+import java.lang.foreign.*;
+import java.lang.invoke.*;
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.*;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_LONG;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
+import static java.lang.foreign.MemoryLayout.PathElement.*;
+import static java.lang.foreign.ValueLayout.*;
 
 /**
- * {@snippet lang = c: typedef void (*GDExtensionInterfaceObjectMethodBindCall)(GDExtensionMethodBindPtr,
- * GDExtensionObjectPtr, const GDExtensionConstVariantPtr *, GDExtensionInt, GDExtensionUninitializedVariantPtr,
- * GDExtensionCallError *) }
+ * {@snippet lang=c :
+ * typedef void (*GDExtensionInterfaceObjectMethodBindCall)(GDExtensionMethodBindPtr, GDExtensionObjectPtr, const GDExtensionConstVariantPtr *, GDExtensionInt, GDExtensionUninitializedVariantPtr, GDExtensionCallError *)
+ * }
  */
 public final class GDExtensionInterfaceObjectMethodBindCall {
 
@@ -23,7 +22,9 @@ public final class GDExtensionInterfaceObjectMethodBindCall {
         throw new UnsupportedOperationException();
     }
 
-    /** The function pointer signature, expressed as a functional interface */
+    /**
+     * The function pointer signature, expressed as a functional interface
+     */
     public interface Function {
         void apply(
                 MemorySegment p_method_bind,
@@ -34,20 +35,27 @@ public final class GDExtensionInterfaceObjectMethodBindCall {
                 MemorySegment r_error);
     }
 
-    private static final FunctionDescriptor $DESC =
-            FunctionDescriptor.ofVoid(C_POINTER, C_POINTER, C_POINTER, C_LONG, C_POINTER, C_POINTER);
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_LONG,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER);
 
-    /** The descriptor of this function pointer */
+    /**
+     * The descriptor of this function pointer
+     */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceObjectMethodBindCall.Function.class, "apply", $DESC);
+            FFMUtils.upcallHandle(GDExtensionInterfaceObjectMethodBindCall.Function.class, "apply", $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
-     * is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
+     * The lifetime of the returned segment is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfaceObjectMethodBindCall.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -55,7 +63,9 @@ public final class GDExtensionInterfaceObjectMethodBindCall {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    /**
+     * Invoke the upcall stub {@code funcPtr}, with given parameters
+     */
     public static void invoke(
             MemorySegment funcPtr,
             MemorySegment p_method_bind,

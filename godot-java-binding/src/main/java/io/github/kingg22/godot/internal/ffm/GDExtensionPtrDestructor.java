@@ -2,39 +2,48 @@
 
 package io.github.kingg22.godot.internal.ffm;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.Linker;
-import java.lang.foreign.MemorySegment;
-import java.lang.invoke.MethodHandle;
+import java.lang.foreign.*;
+import java.lang.invoke.*;
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.*;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
+import static java.lang.foreign.MemoryLayout.PathElement.*;
+import static java.lang.foreign.ValueLayout.*;
 
-/** {@snippet lang = c: typedef void (*GDExtensionPtrDestructor)(GDExtensionTypePtr) } */
+/**
+ * {@snippet lang=c :
+ * typedef void (*GDExtensionPtrDestructor)(GDExtensionTypePtr)
+ * }
+ */
 public final class GDExtensionPtrDestructor {
 
     private GDExtensionPtrDestructor() {
         throw new UnsupportedOperationException();
     }
 
-    /** The function pointer signature, expressed as a functional interface */
+    /**
+     * The function pointer signature, expressed as a functional interface
+     */
     public interface Function {
         void apply(MemorySegment p_base);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(C_POINTER);
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(FFMUtils.C_POINTER);
 
-    /** The descriptor of this function pointer */
+    /**
+     * The descriptor of this function pointer
+     */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH = upcallHandle(GDExtensionPtrDestructor.Function.class, "apply", $DESC);
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionPtrDestructor.Function.class, "apply", $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
-     * is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
+     * The lifetime of the returned segment is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionPtrDestructor.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -42,7 +51,9 @@ public final class GDExtensionPtrDestructor {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    /**
+     * Invoke the upcall stub {@code funcPtr}, with given parameters
+     */
     public static void invoke(MemorySegment funcPtr, MemorySegment p_base) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_base);

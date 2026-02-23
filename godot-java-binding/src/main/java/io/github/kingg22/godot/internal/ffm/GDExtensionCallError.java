@@ -9,17 +9,18 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.util.function.Consumer;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_INT;
 import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 import static java.lang.foreign.ValueLayout.OfInt;
 
-/// ```C
-/// struct {
-///     GDExtensionCallErrorType error;
-///     int32_t argument;
-///     int32_t expected;
-/// }
-/// ```
+/**
+ * {@snippet lang=c :
+ * struct {
+ *     GDExtensionCallErrorType error;
+ *     int32_t argument;
+ *     int32_t expected;
+ * }
+ * }
+ */
 public final class GDExtensionCallError {
 
     private GDExtensionCallError() {
@@ -27,123 +28,191 @@ public final class GDExtensionCallError {
     }
 
     private static final GroupLayout $LAYOUT = MemoryLayout.structLayout(
-                    C_INT.withName("error"), C_INT.withName("argument"), C_INT.withName("expected"))
+                    FFMUtils.C_INT.withName("error"),
+                    FFMUtils.C_INT.withName("argument"),
+                    FFMUtils.C_INT.withName("expected"))
             .withName("GDExtensionCallError");
 
-    /** The layout of this struct */
-    public static GroupLayout layout() {
+    /**
+     * The layout of this struct
+     */
+    public static final GroupLayout layout() {
         return $LAYOUT;
     }
 
     private static final OfInt error$LAYOUT = (OfInt) $LAYOUT.select(groupElement("error"));
 
-    /** Layout for field: {@snippet lang = c: GDExtensionCallErrorType error } */
-    public static OfInt error$layout() {
+    /**
+     * Layout for field:
+     * {@snippet lang=c :
+     * GDExtensionCallErrorType error
+     * }
+     */
+    public static final OfInt error$layout() {
         return error$LAYOUT;
     }
 
     private static final long error$OFFSET = $LAYOUT.byteOffset(groupElement("error"));
 
-    /** Offset for field: {@snippet lang = c: GDExtensionCallErrorType error } */
-    public static long error$offset() {
+    /**
+     * Offset for field:
+     * {@snippet lang=c :
+     * GDExtensionCallErrorType error
+     * }
+     */
+    public static final long error$offset() {
         return error$OFFSET;
     }
 
-    /** Getter for field: {@snippet lang = c: GDExtensionCallErrorType error } */
+    /**
+     * Getter for field:
+     * {@snippet lang=c :
+     * GDExtensionCallErrorType error
+     * }
+     */
     public static int error(MemorySegment struct) {
         return struct.get(error$LAYOUT, error$OFFSET);
     }
 
-    /** Setter for field: {@snippet lang = c: GDExtensionCallErrorType error } */
+    /**
+     * Setter for field:
+     * {@snippet lang=c :
+     * GDExtensionCallErrorType error
+     * }
+     */
     public static void error(MemorySegment struct, int fieldValue) {
         struct.set(error$LAYOUT, error$OFFSET, fieldValue);
     }
 
     private static final OfInt argument$LAYOUT = (OfInt) $LAYOUT.select(groupElement("argument"));
 
-    /** Layout for field: {@snippet lang = c: int32_t argument } */
-    public static OfInt argument$layout() {
+    /**
+     * Layout for field:
+     * {@snippet lang=c :
+     * int32_t argument
+     * }
+     */
+    public static final OfInt argument$layout() {
         return argument$LAYOUT;
     }
 
     private static final long argument$OFFSET = $LAYOUT.byteOffset(groupElement("argument"));
 
-    /** Offset for field: {@snippet lang = c: int32_t argument } */
-    public static long argument$offset() {
+    /**
+     * Offset for field:
+     * {@snippet lang=c :
+     * int32_t argument
+     * }
+     */
+    public static final long argument$offset() {
         return argument$OFFSET;
     }
 
-    /** Getter for field: {@snippet lang = c: int32_t argument } */
+    /**
+     * Getter for field:
+     * {@snippet lang=c :
+     * int32_t argument
+     * }
+     */
     public static int argument(MemorySegment struct) {
         return struct.get(argument$LAYOUT, argument$OFFSET);
     }
 
-    /** Setter for field: {@snippet lang = c: int32_t argument } */
+    /**
+     * Setter for field:
+     * {@snippet lang=c :
+     * int32_t argument
+     * }
+     */
     public static void argument(MemorySegment struct, int fieldValue) {
         struct.set(argument$LAYOUT, argument$OFFSET, fieldValue);
     }
 
     private static final OfInt expected$LAYOUT = (OfInt) $LAYOUT.select(groupElement("expected"));
 
-    /** Layout for field: {@snippet lang = c: int32_t expected } */
-    public static OfInt expected$layout() {
+    /**
+     * Layout for field:
+     * {@snippet lang=c :
+     * int32_t expected
+     * }
+     */
+    public static final OfInt expected$layout() {
         return expected$LAYOUT;
     }
 
     private static final long expected$OFFSET = $LAYOUT.byteOffset(groupElement("expected"));
 
-    /** Offset for field: {@snippet lang = c: int32_t expected } */
-    public static long expected$offset() {
+    /**
+     * Offset for field:
+     * {@snippet lang=c :
+     * int32_t expected
+     * }
+     */
+    public static final long expected$offset() {
         return expected$OFFSET;
     }
 
-    /** Getter for field: {@snippet lang = c: int32_t expected } */
+    /**
+     * Getter for field:
+     * {@snippet lang=c :
+     * int32_t expected
+     * }
+     */
     public static int expected(MemorySegment struct) {
         return struct.get(expected$LAYOUT, expected$OFFSET);
     }
 
-    /** Setter for field: {@snippet lang = c: int32_t expected } */
+    /**
+     * Setter for field:
+     * {@snippet lang=c :
+     * int32_t expected
+     * }
+     */
     public static void expected(MemorySegment struct, int fieldValue) {
         struct.set(expected$LAYOUT, expected$OFFSET, fieldValue);
     }
 
     /**
-     * Obtains a slice of {@code arrayParam} which selects the array element at {@code index}. The returned segment has
-     * address {@code arrayParam.address() + index * layout().byteSize()}
+     * Obtains a slice of {@code arrayParam} which selects the array element at {@code index}.
+     * The returned segment has address {@code arrayParam.address() + index * layout().byteSize()}
      */
     public static MemorySegment asSlice(MemorySegment array, long index) {
         return array.asSlice(layout().byteSize() * index);
     }
 
-    /** The size (in bytes) of this struct */
+    /**
+     * The size (in bytes) of this struct
+     */
     public static long sizeof() {
         return layout().byteSize();
     }
 
-    /** Allocate a segment of size {@code layout().byteSize()} using {@code allocator} */
+    /**
+     * Allocate a segment of size {@code layout().byteSize()} using {@code allocator}
+     */
     public static MemorySegment allocate(SegmentAllocator allocator) {
         return allocator.allocate(layout());
     }
 
     /**
-     * Allocate an array of size {@code elementCount} using {@code allocator}. The returned segment has size
-     * {@code elementCount * layout().byteSize()}.
+     * Allocate an array of size {@code elementCount} using {@code allocator}.
+     * The returned segment has size {@code elementCount * layout().byteSize()}.
      */
     public static MemorySegment allocateArray(long elementCount, SegmentAllocator allocator) {
         return allocator.allocate(MemoryLayout.sequenceLayout(elementCount, layout()));
     }
 
     /**
-     * Reinterprets {@code addr} using target {@code arena} and {@code cleanupAction} (if any). The returned segment has
-     * size {@code layout().byteSize()}
+     * Reinterprets {@code addr} using target {@code arena} and {@code cleanupAction} (if any).
+     * The returned segment has size {@code layout().byteSize()}
      */
     public static MemorySegment reinterpret(MemorySegment addr, Arena arena, Consumer<MemorySegment> cleanup) {
         return reinterpret(addr, 1, arena, cleanup);
     }
 
     /**
-     * Reinterprets {@code addr} using target {@code arena} and {@code cleanupAction} (if any). The returned segment has
-     * size {@code elementCount * layout().byteSize()}
+     * Reinterprets {@code addr} using target {@code arena} and {@code cleanupAction} (if any).
+     * The returned segment has size {@code elementCount * layout().byteSize()}
      */
     public static MemorySegment reinterpret(
             MemorySegment addr, long elementCount, Arena arena, Consumer<MemorySegment> cleanup) {

@@ -2,19 +2,19 @@
 
 package io.github.kingg22.godot.internal.ffm;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.Linker;
-import java.lang.foreign.MemorySegment;
-import java.lang.invoke.MethodHandle;
+import java.lang.foreign.*;
+import java.lang.invoke.*;
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.*;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_LONG;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
+import static java.lang.foreign.MemoryLayout.PathElement.*;
+import static java.lang.foreign.ValueLayout.*;
 
 /**
- * {@snippet lang = c: typedef void (*GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen)(const char *,
- * GDExtensionInt) }
+ * {@snippet lang=c :
+ * typedef void (*GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen)(const char *, GDExtensionInt)
+ * }
  */
 public final class GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen {
 
@@ -22,24 +22,28 @@ public final class GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen {
         throw new UnsupportedOperationException();
     }
 
-    /** The function pointer signature, expressed as a functional interface */
+    /**
+     * The function pointer signature, expressed as a functional interface
+     */
     public interface Function {
         void apply(MemorySegment p_data, long p_size);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(C_POINTER, C_LONG);
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(FFMUtils.C_POINTER, FFMUtils.C_LONG);
 
-    /** The descriptor of this function pointer */
+    /**
+     * The descriptor of this function pointer
+     */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen.Function.class, "apply", $DESC);
+    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(
+            GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen.Function.class, "apply", $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
-     * is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
+     * The lifetime of the returned segment is managed by {@code arena}
      */
     public static MemorySegment allocate(
             GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen.Function fi, Arena arena) {
@@ -48,7 +52,9 @@ public final class GDExtensionsInterfaceEditorHelpLoadXmlFromUtf8CharsAndLen {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    /**
+     * Invoke the upcall stub {@code funcPtr}, with given parameters
+     */
     public static void invoke(MemorySegment funcPtr, MemorySegment p_data, long p_size) {
         try {
             DOWN$MH.invokeExact(funcPtr, p_data, p_size);

@@ -2,19 +2,19 @@
 
 package io.github.kingg22.godot.internal.ffm;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.Linker;
-import java.lang.foreign.MemorySegment;
-import java.lang.invoke.MethodHandle;
+import java.lang.foreign.*;
+import java.lang.invoke.*;
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.*;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_CHAR;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
+import static java.lang.foreign.MemoryLayout.PathElement.*;
+import static java.lang.foreign.ValueLayout.*;
 
 /**
- * {@snippet lang = c: typedef GDExtensionBool (*GDExtensionInterfaceVariantIterInit)(GDExtensionConstVariantPtr,
- * GDExtensionUninitializedVariantPtr, GDExtensionBool *) }
+ * {@snippet lang=c :
+ * typedef GDExtensionBool (*GDExtensionInterfaceVariantIterInit)(GDExtensionConstVariantPtr, GDExtensionUninitializedVariantPtr, GDExtensionBool *)
+ * }
  */
 public final class GDExtensionInterfaceVariantIterInit {
 
@@ -22,24 +22,29 @@ public final class GDExtensionInterfaceVariantIterInit {
         throw new UnsupportedOperationException();
     }
 
-    /** The function pointer signature, expressed as a functional interface */
+    /**
+     * The function pointer signature, expressed as a functional interface
+     */
     public interface Function {
         byte apply(MemorySegment p_self, MemorySegment r_iter, MemorySegment r_valid);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(C_CHAR, C_POINTER, C_POINTER, C_POINTER);
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.of(FFMUtils.C_CHAR, FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /** The descriptor of this function pointer */
+    /**
+     * The descriptor of this function pointer
+     */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceVariantIterInit.Function.class, "apply", $DESC);
+            FFMUtils.upcallHandle(GDExtensionInterfaceVariantIterInit.Function.class, "apply", $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
-     * is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
+     * The lifetime of the returned segment is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfaceVariantIterInit.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -47,7 +52,9 @@ public final class GDExtensionInterfaceVariantIterInit {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    /**
+     * Invoke the upcall stub {@code funcPtr}, with given parameters
+     */
     public static byte invoke(
             MemorySegment funcPtr, MemorySegment p_self, MemorySegment r_iter, MemorySegment r_valid) {
         try {

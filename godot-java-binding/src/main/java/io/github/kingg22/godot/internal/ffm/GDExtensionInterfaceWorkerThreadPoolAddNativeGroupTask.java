@@ -2,21 +2,19 @@
 
 package io.github.kingg22.godot.internal.ffm;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.Linker;
-import java.lang.foreign.MemorySegment;
-import java.lang.invoke.MethodHandle;
+import java.lang.foreign.*;
+import java.lang.invoke.*;
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.*;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_CHAR;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_INT;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_LONG;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
+import static java.lang.foreign.MemoryLayout.PathElement.*;
+import static java.lang.foreign.ValueLayout.*;
 
 /**
- * {@snippet lang = c: typedef int64_t (*GDExtensionInterfaceWorkerThreadPoolAddNativeGroupTask)(GDExtensionObjectPtr,
- * GDExtensionWorkerThreadPoolGroupTask, void *, int, int, GDExtensionBool, GDExtensionConstStringPtr) }
+ * {@snippet lang=c :
+ * typedef int64_t (*GDExtensionInterfaceWorkerThreadPoolAddNativeGroupTask)(GDExtensionObjectPtr, GDExtensionWorkerThreadPoolGroupTask, void *, int32_t, int32_t, GDExtensionBool, GDExtensionConstStringPtr)
+ * }
  */
 public final class GDExtensionInterfaceWorkerThreadPoolAddNativeGroupTask {
 
@@ -24,7 +22,9 @@ public final class GDExtensionInterfaceWorkerThreadPoolAddNativeGroupTask {
         throw new UnsupportedOperationException();
     }
 
-    /** The function pointer signature, expressed as a functional interface */
+    /**
+     * The function pointer signature, expressed as a functional interface
+     */
     public interface Function {
         long apply(
                 MemorySegment p_instance,
@@ -36,20 +36,29 @@ public final class GDExtensionInterfaceWorkerThreadPoolAddNativeGroupTask {
                 MemorySegment p_description);
     }
 
-    private static final FunctionDescriptor $DESC =
-            FunctionDescriptor.of(C_LONG, C_POINTER, C_POINTER, C_POINTER, C_INT, C_INT, C_CHAR, C_POINTER);
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(
+            FFMUtils.C_LONG,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_POINTER,
+            FFMUtils.C_INT,
+            FFMUtils.C_INT,
+            FFMUtils.C_CHAR,
+            FFMUtils.C_POINTER);
 
-    /** The descriptor of this function pointer */
+    /**
+     * The descriptor of this function pointer
+     */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
-    private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceWorkerThreadPoolAddNativeGroupTask.Function.class, "apply", $DESC);
+    private static final MethodHandle UP$MH = FFMUtils.upcallHandle(
+            GDExtensionInterfaceWorkerThreadPoolAddNativeGroupTask.Function.class, "apply", $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
-     * is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
+     * The lifetime of the returned segment is managed by {@code arena}
      */
     public static MemorySegment allocate(
             GDExtensionInterfaceWorkerThreadPoolAddNativeGroupTask.Function fi, Arena arena) {
@@ -58,7 +67,9 @@ public final class GDExtensionInterfaceWorkerThreadPoolAddNativeGroupTask {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    /**
+     * Invoke the upcall stub {@code funcPtr}, with given parameters
+     */
     public static long invoke(
             MemorySegment funcPtr,
             MemorySegment p_instance,

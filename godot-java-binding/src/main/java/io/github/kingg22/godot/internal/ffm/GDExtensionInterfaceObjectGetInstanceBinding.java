@@ -2,18 +2,19 @@
 
 package io.github.kingg22.godot.internal.ffm;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.Linker;
-import java.lang.foreign.MemorySegment;
-import java.lang.invoke.MethodHandle;
+import java.lang.foreign.*;
+import java.lang.invoke.*;
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.*;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
+import static java.lang.foreign.MemoryLayout.PathElement.*;
+import static java.lang.foreign.ValueLayout.*;
 
 /**
- * {@snippet lang = c: typedef void *(*GDExtensionInterfaceObjectGetInstanceBinding)(GDExtensionObjectPtr, void *, const
- * GDExtensionInstanceBindingCallbacks *) }
+ * {@snippet lang=c :
+ * typedef void *(*GDExtensionInterfaceObjectGetInstanceBinding)(GDExtensionObjectPtr, void *, const GDExtensionInstanceBindingCallbacks *)
+ * }
  */
 public final class GDExtensionInterfaceObjectGetInstanceBinding {
 
@@ -21,24 +22,29 @@ public final class GDExtensionInterfaceObjectGetInstanceBinding {
         throw new UnsupportedOperationException();
     }
 
-    /** The function pointer signature, expressed as a functional interface */
+    /**
+     * The function pointer signature, expressed as a functional interface
+     */
     public interface Function {
         MemorySegment apply(MemorySegment p_o, MemorySegment p_token, MemorySegment p_callbacks);
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(C_POINTER, C_POINTER, C_POINTER, C_POINTER);
+    private static final FunctionDescriptor $DESC =
+            FunctionDescriptor.of(FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /** The descriptor of this function pointer */
+    /**
+     * The descriptor of this function pointer
+     */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionInterfaceObjectGetInstanceBinding.Function.class, "apply", $DESC);
+            FFMUtils.upcallHandle(GDExtensionInterfaceObjectGetInstanceBinding.Function.class, "apply", $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
-     * is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
+     * The lifetime of the returned segment is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionInterfaceObjectGetInstanceBinding.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -46,7 +52,9 @@ public final class GDExtensionInterfaceObjectGetInstanceBinding {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    /**
+     * Invoke the upcall stub {@code funcPtr}, with given parameters
+     */
     public static MemorySegment invoke(
             MemorySegment funcPtr, MemorySegment p_o, MemorySegment p_token, MemorySegment p_callbacks) {
         try {

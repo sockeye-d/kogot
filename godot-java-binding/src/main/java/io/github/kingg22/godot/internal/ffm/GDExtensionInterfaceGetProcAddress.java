@@ -2,52 +2,54 @@
 
 package io.github.kingg22.godot.internal.ffm;
 
+import java.lang.foreign.Arena;
 import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
-
-/// ```c
-///  typedef GDExtensionInterfaceFunctionPtr (*GDExtensionInterfaceGetProcAddress)(const char *)
-/// ```
-/// The rest of the GDExtension's interface to Godot consists of function pointers that can be loaded
-/// by calling `p_get_proc_address("...")` with the name of the function.
-/// For example:
-/// ```c
-///  GDExtensionInterfaceGetGodotVersion get_godot_version =
-/// (GDExtensionInterfaceGetGodotVersion)p_get_proc_address("get_godot_version");
-/// ```
-/// You can then call it like a normal function:
-/// ```c
-///    GDExtensionGodotVersion godot_version;
-///    get_godot_version(&godot_version);
-///    printf("Godot v%d.%d.%d\n", godot_version.major, godot_version.minor, godot_version.patch);
-/// ```
-/// All of these interface functions are described below, together with the name that's used to load it,
-/// and the function pointer typedef that shows its signature.
+/**
+ * {@snippet lang=c :
+ * typedef GDExtensionInterfaceFunctionPtr (*GDExtensionInterfaceGetProcAddress)(const char *)
+ * }
+ */
 public final class GDExtensionInterfaceGetProcAddress {
 
     private GDExtensionInterfaceGetProcAddress() {
         throw new UnsupportedOperationException();
     }
 
-    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(C_POINTER, C_POINTER);
+    /**
+     * The function pointer signature, expressed as a functional interface
+     */
+    public interface Function {
+        MemorySegment apply(MemorySegment p_function_name);
+    }
 
-    /** The descriptor of this function pointer */
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.of(FFMUtils.C_POINTER, FFMUtils.C_POINTER);
+
+    /**
+     * The descriptor of this function pointer
+     */
     public static FunctionDescriptor descriptor() {
         return $DESC;
+    }
+
+    private static final MethodHandle UP$MH =
+            FFMUtils.upcallHandle(GDExtensionInterfaceGetProcAddress.Function.class, "apply", $DESC);
+
+    /**
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
+     * The lifetime of the returned segment is managed by {@code arena}
+     */
+    public static MemorySegment allocate(GDExtensionInterfaceGetProcAddress.Function fi, Arena arena) {
+        return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
     }
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
     /**
-     * Invoke the upcall stub {@code funcPtr}
-     *
-     * @param p_function_name the name of the function to load
-     * @return The function pointer
-     * @throws RuntimeException The exception is not handled immediately threw
+     * Invoke the upcall stub {@code funcPtr}, with given parameters
      */
     public static MemorySegment invoke(MemorySegment funcPtr, MemorySegment p_function_name) {
         try {

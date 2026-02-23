@@ -2,11 +2,14 @@
 
 package io.github.kingg22.godot.internal.ffm;
 
-/// ```C
-/// typedef GDExtensionClassCreationInfo4 GDExtensionClassCreationInfo5
-/// ```
+/**
+ * {@snippet lang=c :
+ * typedef GDExtensionClassCreationInfo4 GDExtensionClassCreationInfo5
+ * }
+ */
 public final class GDExtensionClassCreationInfo5 extends GDExtensionClassCreationInfo4 {
+
     private GDExtensionClassCreationInfo5() {
-        super();
+        throw new UnsupportedOperationException();
     }
 }

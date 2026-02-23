@@ -8,20 +8,20 @@ import java.lang.foreign.Linker;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.C_POINTER;
-import static io.github.kingg22.godot.internal.ffm.FFMUtils.upcallHandle;
-
-/// ```c++
-/// typedef void (*GDExtensionClassCallVirtualWithData)(GDExtensionClassInstancePtr,
-/// GDExtensionConstStringNamePtr, void *, const GDExtensionConstTypePtr *, GDExtensionTypePtr)
-/// ```
+/**
+ * {@snippet lang=c :
+ * typedef void (*GDExtensionClassCallVirtualWithData)(GDExtensionClassInstancePtr, GDExtensionConstStringNamePtr, void *, const GDExtensionConstTypePtr *, GDExtensionTypePtr)
+ * }
+ */
 public final class GDExtensionClassCallVirtualWithData {
 
     private GDExtensionClassCallVirtualWithData() {
         throw new UnsupportedOperationException();
     }
 
-    /** The function pointer signature, expressed as a functional interface */
+    /**
+     * The function pointer signature, expressed as a functional interface
+     */
     public interface Function {
         void apply(
                 MemorySegment p_instance,
@@ -31,20 +31,22 @@ public final class GDExtensionClassCallVirtualWithData {
                 MemorySegment r_ret);
     }
 
-    private static final FunctionDescriptor $DESC =
-            FunctionDescriptor.ofVoid(C_POINTER, C_POINTER, C_POINTER, C_POINTER, C_POINTER);
+    private static final FunctionDescriptor $DESC = FunctionDescriptor.ofVoid(
+            FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER, FFMUtils.C_POINTER);
 
-    /** The descriptor of this function pointer */
+    /**
+     * The descriptor of this function pointer
+     */
     public static FunctionDescriptor descriptor() {
         return $DESC;
     }
 
     private static final MethodHandle UP$MH =
-            upcallHandle(GDExtensionClassCallVirtualWithData.Function.class, "apply", $DESC);
+            FFMUtils.upcallHandle(GDExtensionClassCallVirtualWithData.Function.class, "apply", $DESC);
 
     /**
-     * Allocates a new upcall stub, whose implementation is defined by {@code fi}. The lifetime of the returned segment
-     * is managed by {@code arena}
+     * Allocates a new upcall stub, whose implementation is defined by {@code fi}.
+     * The lifetime of the returned segment is managed by {@code arena}
      */
     public static MemorySegment allocate(GDExtensionClassCallVirtualWithData.Function fi, Arena arena) {
         return Linker.nativeLinker().upcallStub(UP$MH.bindTo(fi), $DESC, arena);
@@ -52,7 +54,9 @@ public final class GDExtensionClassCallVirtualWithData {
 
     private static final MethodHandle DOWN$MH = Linker.nativeLinker().downcallHandle($DESC);
 
-    /** Invoke the upcall stub {@code funcPtr}, with given parameters */
+    /**
+     * Invoke the upcall stub {@code funcPtr}, with given parameters
+     */
     public static void invoke(
             MemorySegment funcPtr,
             MemorySegment p_instance,
