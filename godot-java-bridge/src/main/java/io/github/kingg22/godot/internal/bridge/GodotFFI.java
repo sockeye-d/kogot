@@ -11,6 +11,7 @@ import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceObjectSetScriptI
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceScriptInstanceCreate3;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceStringNameNewWithUtf8Chars;
 import io.github.kingg22.godot.internal.ffm.GDExtensionInterfaceVariantNewNil;
+import io.github.kingg22.godot.internal.wrapper.GodotVersion2;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
@@ -18,7 +19,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Low-level GDExtension function accessors. */
-final class GodotFFI {
+public final class GodotFFI {
     private final MemorySegment getProcAddress;
     private final MemorySegment library;
     private final Arena arena;
@@ -101,9 +102,9 @@ final class GodotFFI {
         GDExtensionInterfaceObjectSetScriptInstance.invoke(fnObjectSetScriptInstance, objectPtr, scriptInstance);
     }
 
-    GDExtensionGodotVersion2 getGodotVersion2() {
+    GodotVersion2 getGodotVersion2() {
         final var pointer = arena.allocate(GDExtensionGodotVersion2.layout());
         GDExtensionInterfaceGetGodotVersion2.invoke(fnGetGodotVersion2, pointer);
-        return GDExtensionGodotVersion2.parse(pointer);
+        return new GodotVersion2(pointer);
     }
 }

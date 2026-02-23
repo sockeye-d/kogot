@@ -17,45 +17,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.groupElement;
 import static java.lang.foreign.ValueLayout.OfInt;
 import static java.lang.foreign.ValueLayout.OfLong;
 
-/// ```c++
-/// struct {
-///     uint32_t major;
-///     uint32_t minor;
-///     uint32_t patch;
-///     uint32_t hex;
-///     const char *status;
-///     const char *build;
-///     const char *hash;
-///     uint64_t timestamp;
-///     const char *string;
-/// }
-/// ```
-/// **Private constructor** Use [GDExtensionGodotVersion2#parse(MemorySegment)] to get an instance.
-///
-/// @param hex Full version encoded as hexadecimal with one byte (2 hex digits) per number
-/// (e.g., for "3.1.12" it would be 0x03010C)
-/// @param status e.g. "stable", "beta", "rc1", "rc2"
-/// @param build e.g. "custom_build"
-/// @param hash Full Git commit hash.
-/// @param timestamp Git commit date UNIX timestamp in seconds, or 0 if unavailable.
-/// @param string e.g. "Godot v3.1.4.stable.official.mono"
-/// @see GDExtensionInterfaceGetGodotVersion2
-public record GDExtensionGodotVersion2(
-        int major,
-        int minor,
-        int patch,
-        int hex,
-        String status,
-        String build,
-        String hash,
-        long timestamp,
-        String string) {
-
-    @Override
-    public String toString() {
-        return string;
-    }
-
+public final class GDExtensionGodotVersion2 {
     private static final GroupLayout $LAYOUT = MemoryLayout.structLayout(
                     C_INT.withName("major"),
                     C_INT.withName("minor"),
@@ -71,19 +33,6 @@ public record GDExtensionGodotVersion2(
     /** The layout of this struct */
     public static GroupLayout layout() {
         return $LAYOUT;
-    }
-
-    public static GDExtensionGodotVersion2 parse(final MemorySegment struct) {
-        return new GDExtensionGodotVersion2(
-                major(struct),
-                minor(struct),
-                patch(struct),
-                hex(struct),
-                status(struct).getString(0),
-                build(struct).getString(0),
-                hash(struct).getString(0),
-                timestamp(struct),
-                string(struct).getString(0));
     }
 
     private static final OfInt major$LAYOUT = (OfInt) $LAYOUT.select(groupElement("major"));
