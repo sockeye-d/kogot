@@ -56,6 +56,7 @@ class ExtensionApiGenerator(private val packageName: String) {
         }
 
         return FileSpec.builder(packageName, enumName)
+            .commonConfiguration()
             .addType(typeBuilder.build())
             .build()
     }
@@ -80,6 +81,7 @@ class ExtensionApiGenerator(private val packageName: String) {
         }
 
         return FileSpec.builder(packageName, cls.name)
+            .commonConfiguration()
             .addType(typeBuilder.build())
             .build()
     }

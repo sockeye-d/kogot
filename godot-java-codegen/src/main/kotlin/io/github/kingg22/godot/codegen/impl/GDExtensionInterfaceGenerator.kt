@@ -53,6 +53,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
         addCommonDocs(typeBuilder, type.description, emptyList(), type.deprecated)
 
         return FileSpec.builder(packageName, sanitizeTypeName(type.name))
+            .commonConfiguration()
             .addType(typeBuilder.build())
             .build()
     }
@@ -69,6 +70,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
         addCommonDocs(typeBuilder, type.description, emptyList(), type.deprecated)
 
         return FileSpec.builder(packageName, sanitizeTypeName(type.name))
+            .commonConfiguration()
             .addType(typeBuilder.build())
             .build()
     }
@@ -78,6 +80,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
         addCommonDocs(typeAlias, type.description, emptyList(), type.deprecated)
 
         return FileSpec.builder(packageName, sanitizeTypeName(type.name))
+            .commonConfiguration()
             .addTypeAlias(typeAlias.build())
             .build()
     }
@@ -103,6 +106,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
         addCommonDocs(typeBuilder, type.description, emptyList(), type.deprecated)
 
         return FileSpec.builder(packageName, sanitizeTypeName(type.name))
+            .commonConfiguration()
             .addType(typeBuilder.build())
             .build()
     }
@@ -122,6 +126,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
         addCommonDocs(typeBuilder, type.description, emptyList(), type.deprecated)
 
         return FileSpec.builder(packageName, sanitizeTypeName(type.name))
+            .commonConfiguration()
             .addType(typeBuilder.build())
             .build()
     }
@@ -158,6 +163,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
         }
 
         return FileSpec.builder(packageName, "GDExtensionInterface")
+            .commonConfiguration()
             .addType(typeBuilder.build())
             .build()
     }
