@@ -2,33 +2,69 @@
 # https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
 
 [versions]
+# https://github.com/google/error-prone/releases
+errorprone-core = "2.47.0"
+
+# https://github.com/tbroyer/gradle-errorprone-plugin/releases
+errorprone-gradle = "5.0.0"
+
+# https://github.com/JetBrains/java-annotations/releases
+jetbrains-jvm-annotations = "26.0.2"
+
+# https://github.com/jspecify/jspecify/releases
+jspecify = "1.0.0"
+
 # https://github.com/JetBrains/kotlin/releases
 kotlin = "2.3.10"
+
+# https://github.com/Kotlin/kotlinx.serialization/releases
+kotlinx-serialization = "1.10.0"
+
+# https://github.com/square/kotlinpoet/releases
+kotlinpoet = "2.2.0"
 
 # https://github.com/pinterest/ktlint/releases
 ktlint-pinterest = "1.8.0"
 
-# https://github.com/palantir/palantir-java-format/releases
-palantir = "2.86.0"
+# https://github.com/uber/NullAway/releases
+nullaway = "0.13.1"
+
+# https://github.com/tbroyer/gradle-nullaway-plugin/releases
+nullaway-gradle = "3.0.0"
 
 # https://github.com/diffplug/spotless/blob/main/plugin-gradle/CHANGES.md
 # https://github.com/diffplug/spotless/releases
 spotless = "8.2.1"
 
-[libraries]
-kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
-# https://gitlab.ow2.org/asm/asm/-/tags
-asm = { group = "org.ow2.asm", name="asm", version = "9.9.1" }
+# https://github.com/palantir/palantir-java-format/releases
+palantir = "2.86.0"
 
-jspecify = "org.jspecify:jspecify:1.0.0"
-# https://github.com/google/error-prone/releases
-errorprone-core = "com.google.errorprone:error_prone_core:2.47.0"
-# https://github.com/uber/NullAway/releases
-nullaway = "com.uber.nullaway:nullaway:0.13.1"
+[libraries]
+errorprone-core = { group = "com.google.errorprone", name = "error_prone_core", version.ref = "errorprone-core" }
+jetbrains-annotations = { group = "org.jetbrains", name = "annotations", version.ref = "jetbrains-jvm-annotations" }
+jspecify = { group = "org.jspecify", name = "jspecify", version.ref = "jspecify" }
+kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+nullaway = { group = "com.uber.nullaway", name = "nullaway", version.ref = "nullaway" }
+
+# gradle plugins
+erroprone-gradle = { group = "net.ltgt.errorprone", name = "net.ltgt.errorprone.gradle.plugin", version.ref = "errorprone-gradle" }
+kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
+nullaway-gradle = { group = "net.ltgt.nullaway", name = "net.ltgt.nullaway.gradle.plugin", version.ref = "nullaway-gradle" }
+spotless-gradle = { group = "com.diffplug.spotless", name = "spotless-plugin-gradle", version.ref = "spotless" }
+
+# Libraries can be bundled together for easier import
+[bundles]
+gradle-plugins = [
+    "erroprone-gradle",
+    "kotlin-gradle-plugin",
+    "nullaway-gradle",
+    "spotless-gradle",
+]
 
 [plugins]
-# https://github.com/tbroyer/gradle-errorprone-plugin/releases
-error-prone = { id = "net.ltgt.errorprone", version = "5.0.0" }
-# https://github.com/tbroyer/gradle-nullaway-plugin/releases
-nullaway = { id = "net.ltgt.nullaway", version = "3.0.0" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+error-prone = { id = "net.ltgt.errorprone", version.ref = "errorprone-gradle" }
+nullaway = { id = "net.ltgt.nullaway", version.ref = "nullaway-gradle" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

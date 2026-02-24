@@ -1,12 +1,12 @@
 plugins {
     id("buildlogic.kotlin-application-conventions")
     id("buildlogic.kotlin-styles-conventions")
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.3.10"
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
-    implementation("com.squareup:kotlinpoet:2.2.0")
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinpoet)
 }
 
 application {

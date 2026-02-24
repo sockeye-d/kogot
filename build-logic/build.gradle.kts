@@ -11,9 +11,5 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.kotlin.gradle.plugin)
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.2.1")
-    implementation("net.ltgt.errorprone:net.ltgt.errorprone.gradle.plugin:5.0.0")
-    implementation("net.ltgt.nullaway:net.ltgt.nullaway.gradle.plugin:3.0.0")
-    implementation(libs.asm)
+    implementation(libs.bundles.gradle.plugins)
 }
