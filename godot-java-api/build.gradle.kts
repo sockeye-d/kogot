@@ -3,6 +3,7 @@ plugins {
     id("buildlogic.kotlin-styles-conventions")
 }
 
+/*
 sourceSets {
     main {
         kotlin.srcDir("build/generated/sources/godotApi")
@@ -12,3 +13,4 @@ sourceSets {
 tasks.named("compileKotlin") {
     dependsOn(":godot-java-codegen:generateGodotApi")
 }
+*/

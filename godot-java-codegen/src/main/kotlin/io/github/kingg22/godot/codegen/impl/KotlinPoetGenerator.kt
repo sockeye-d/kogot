@@ -1,16 +1,16 @@
 package io.github.kingg22.godot.codegen.impl
 
 import com.squareup.kotlinpoet.*
-import io.github.kingg22.godot.codegen.models.Arguments
-import io.github.kingg22.godot.codegen.models.Deprecated
-import io.github.kingg22.godot.codegen.models.GDExtensionInterface
-import io.github.kingg22.godot.codegen.models.Interface
-import io.github.kingg22.godot.codegen.models.Types
-import io.github.kingg22.godot.codegen.models.ValueType
+import io.github.kingg22.godot.codegen.models.gextensioninterface.Arguments
+import io.github.kingg22.godot.codegen.models.gextensioninterface.Deprecated
+import io.github.kingg22.godot.codegen.models.gextensioninterface.GDExtensionInterface
+import io.github.kingg22.godot.codegen.models.gextensioninterface.Interface
+import io.github.kingg22.godot.codegen.models.gextensioninterface.Types
+import io.github.kingg22.godot.codegen.models.gextensioninterface.ValueType
 import java.nio.file.Path
 
 // https://kotlinlang.org/docs/reference/keyword-reference.html
-private val kotlinKeywords = setOf(
+val kotlinKeywords = setOf(
     // Hard keywords
     "as",
     "break",
@@ -100,9 +100,9 @@ private val kotlinKeywords = setOf(
     "yield",
 )
 
-private val nameRegex = Regex("[^A-Za-z0-9_]")
-private val K_DEPRECATED = ClassName("kotlin", "Deprecated")
-private val K_REPLACE_WITH = ClassName("kotlin", "ReplaceWith")
+val nameRegex = Regex("[^A-Za-z0-9_]")
+val K_DEPRECATED = ClassName("kotlin", "Deprecated")
+val K_REPLACE_WITH = ClassName("kotlin", "ReplaceWith")
 
 class KotlinPoetGenerator(private val packageName: String) {
     fun generate(api: GDExtensionInterface, outputDir: Path): List<Path> = api.types.map { type ->
@@ -288,7 +288,7 @@ class KotlinPoetGenerator(private val packageName: String) {
 
             "double" -> DOUBLE
 
-            "string" -> STRING
+            "string", "char16_t", "char32_t", "wchar_t" -> STRING
 
             "int", "int32_t" -> INT
 

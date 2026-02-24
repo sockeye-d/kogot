@@ -1,4 +1,4 @@
-package io.github.kingg22.godot.codegen.models
+package io.github.kingg22.godot.codegen.models.gextensioninterface
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

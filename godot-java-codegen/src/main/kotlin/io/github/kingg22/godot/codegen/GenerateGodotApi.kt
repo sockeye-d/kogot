@@ -1,7 +1,7 @@
 package io.github.kingg22.godot.codegen
 
 import io.github.kingg22.godot.codegen.impl.KotlinPoetGenerator
-import io.github.kingg22.godot.codegen.models.GDExtensionInterface
+import io.github.kingg22.godot.codegen.models.gextensioninterface.GDExtensionInterface
 import kotlinx.serialization.json.Json
 import java.io.IOException
 import kotlin.io.path.Path
@@ -45,7 +45,9 @@ private fun run(args: Array<String>): Int {
     }
 
     val parser = OptionParser.builder {
-        accepts("--input", listOf("-i", "--input-file"), "help.input", true)
+        accepts("--input-interface", listOf("-ii", "--input-file-interface"), "help.input", false)
+        accepts("--input-extension", listOf("-ie", "--input-file-extension"), "help.input", false)
+
         accepts("--output", listOf("-o", "--output-dir"), "help.output", true)
         accepts("--package", listOf("-p"), "help.package", true)
 
@@ -78,26 +80,41 @@ private fun run(args: Array<String>): Int {
         return printHelp(SUCCESS)
     }
 
-    val inputFile = Path(optionSet.valueOf("--input")!!)
-    val outputDir = Path(optionSet.valueOf("--output")!!).createDirectories()
-    val packageName = optionSet.valueOf("--package")!!
-
-    if (!inputFile.exists()) {
-        logger.err("file.not.found", inputFile)
+    if (!optionSet.has("--input-extension") && !optionSet.has("--input-file-extension")) {
+        logger.err("Missing input extension file or input interface file")
         return INPUT_ERROR
     }
+
+    val extensionFile = optionSet.valueOf("--input-extension")?.let { Path(it) }
+    val interfaceFile = optionSet.valueOf("--input-interface")?.let { Path(it) }
+    val outputDir = Path(optionSet.valueOf("--output")!!).createDirectories()
+    val packageName = optionSet.valueOf("--package").orEmpty()
 
     if (!outputDir.exists() || !outputDir.isDirectory()) {
         logger.err("directory.not.found", outputDir)
         return OUTPUT_ERROR
     }
 
+    if (interfaceFile != null) {
+        if (!interfaceFile.exists()) {
+            logger.err("file.not.found", interfaceFile)
+            return INPUT_ERROR
+        }
+    }
+
+    val json = Json
+    val generator = KotlinPoetGenerator(packageName)
+
     try {
-        val json = Json
-        val api = json.decodeFromString<GDExtensionInterface>(inputFile.readText())
-        KotlinPoetGenerator(packageName).generate(api, outputDir)
+        if (interfaceFile != null) {
+            val api = json.decodeFromString<GDExtensionInterface>(interfaceFile.readText())
+            generator.generate(api, outputDir)
+        }
+        if (extensionFile != null) {
+            // TODO
+        }
     } catch (e: Exception) {
-        logger.fatal(e, "file.read.error", inputFile)
+        logger.fatal(e, "file.read.error", interfaceFile)
         return FATAL_ERROR
     }
 
