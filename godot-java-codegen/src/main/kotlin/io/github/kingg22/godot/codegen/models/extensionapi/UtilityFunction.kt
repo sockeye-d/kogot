@@ -4,11 +4,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class UtilityFunction(
+class UtilityFunction(
     val name: String,
     @SerialName("return_type") val returnType: String? = null,
     val category: String,
     @SerialName("is_vararg") val isVararg: Boolean,
     val hash: Long,
-    val arguments: List<MethodArg>? = null,
+    val arguments: List<MethodArg> = emptyList(),
 )

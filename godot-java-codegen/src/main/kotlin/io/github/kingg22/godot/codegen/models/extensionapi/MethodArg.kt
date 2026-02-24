@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class MethodArg(
+class MethodArg(
     val name: String,
     val type: String,
     val meta: String? = null,

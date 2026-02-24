@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ExtensionApi(
+class ExtensionApi(
     val header: Header,
     @SerialName("builtin_class_sizes") val builtinClassSizes: List<BuiltinSizes>,
     @SerialName("builtin_class_member_offsets") val builtinClassMemberOffsets: List<BuiltinClassMemberOffsets>,

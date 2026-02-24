@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Header(
+class Header(
     @SerialName("version_major") val versionMajor: Int,
     @SerialName("version_minor") val versionMinor: Int,
     @SerialName("version_patch") val versionPatch: Int,

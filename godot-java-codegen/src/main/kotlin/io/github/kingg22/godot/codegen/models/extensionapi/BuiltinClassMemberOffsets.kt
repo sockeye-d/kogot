@@ -4,7 +4,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class BuiltinClassMemberOffsets(
+class BuiltinClassMemberOffsets(
     @SerialName("build_configuration") val buildConfiguration: String,
     val classes: List<Classes>,
-)
+) {
+    @Serializable
+    class Classes(val name: String, val members: List<Members>)
+}

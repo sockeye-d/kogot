@@ -4,10 +4,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class BuiltinSizes(
+class BuiltinSizes(
     @SerialName("build_configuration") val buildConfiguration: String,
     val sizes: List<BuiltinSizeForConfig>,
 ) {
     @Serializable
-    data class BuiltinSizeForConfig(val name: String, val size: Int)
+    class BuiltinSizeForConfig(val name: String, val size: Int)
 }
