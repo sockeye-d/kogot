@@ -135,7 +135,7 @@ fun typeNameFor(packageName: String, rawType: String): TypeName {
         return LIST.parameterizedBy(innerType)
     }
 
-    if (type.startsWith("bitfield::")) return INT
+    if (type.startsWith("bitfield::")) return LONG
 
     if (type.startsWith("enum::")) {
         type = type.removePrefix("enum::")
