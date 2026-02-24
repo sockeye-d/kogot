@@ -15,10 +15,15 @@ tasks.register<JavaExec>("generateGodotApi") {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("io.github.kingg22.godot.codegen.GenerateGodotApiKt")
 
-    val inputJson = project.rootProject
+    val inputInterfaceJson = project.rootProject
         .layout
         .projectDirectory
         .file("godot-java-binding/raw/v4_6_1/gdextension_interface.json")
+
+    val inputExtensionApiJson = project.rootProject
+        .layout
+        .projectDirectory
+        .file("godot-java-binding/raw/v4_6_1/extension_api.json")
 
     val outputDir = project.rootProject
         .layout
@@ -26,8 +31,10 @@ tasks.register<JavaExec>("generateGodotApi") {
         .dir("godot-java-api/build/generated/sources/godotApi")
 
     args(
-        "--input",
-        inputJson.asFile.absolutePath,
+        "--input-interface",
+        inputInterfaceJson.asFile.absolutePath,
+        "--input-extension",
+        inputExtensionApiJson.asFile.absolutePath,
         "--output",
         outputDir.asFile.absolutePath,
         "--package",

@@ -1,14 +1,17 @@
 package io.github.kingg22.godot.codegen
 
 import io.github.kingg22.godot.codegen.impl.KotlinPoetGenerator
+import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 import io.github.kingg22.godot.codegen.models.gextensioninterface.GDExtensionInterface
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import java.io.IOException
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
+import kotlin.io.path.inputStream
 import kotlin.io.path.isDirectory
-import kotlin.io.path.readText
 import kotlin.system.exitProcess
 
 // error codes
@@ -36,6 +39,7 @@ private fun printHelp(exitCode: Int): Int {
     return exitCode
 }
 
+@OptIn(ExperimentalSerializationApi::class)
 private fun run(args: Array<String>): Int {
     val args = try {
         CommandLine.parse(args.toMutableList())
@@ -45,8 +49,8 @@ private fun run(args: Array<String>): Int {
     }
 
     val parser = OptionParser.builder {
-        accepts("--input-interface", listOf("-ii", "--input-file-interface"), "help.input", false)
-        accepts("--input-extension", listOf("-ie", "--input-file-extension"), "help.input", false)
+        accepts("--input-interface", listOf("-ii", "--input-file-interface"), "help.input", true)
+        accepts("--input-extension", listOf("-ie", "--input-file-extension"), "help.input", true)
 
         accepts("--output", listOf("-o", "--output-dir"), "help.output", true)
         accepts("--package", listOf("-p"), "help.package", true)
@@ -80,8 +84,8 @@ private fun run(args: Array<String>): Int {
         return printHelp(SUCCESS)
     }
 
-    if (!optionSet.has("--input-extension") && !optionSet.has("--input-file-extension")) {
-        logger.err("Missing input extension file or input interface file")
+    if (!optionSet.has("--input-extension") && !optionSet.has("--input-interface")) {
+        logger.err("Missing input extension file or input interface file, must specify one of them.")
         return INPUT_ERROR
     }
 
@@ -95,11 +99,19 @@ private fun run(args: Array<String>): Int {
         return OUTPUT_ERROR
     }
 
-    if (interfaceFile != null) {
-        if (!interfaceFile.exists()) {
-            logger.err("file.not.found", interfaceFile)
-            return INPUT_ERROR
-        }
+    if (interfaceFile != null && !interfaceFile.exists()) {
+        logger.err("file.not.found", interfaceFile)
+        return INPUT_ERROR
+    }
+
+    if (extensionFile != null && !extensionFile.exists()) {
+        logger.err("file.not.found", interfaceFile)
+        return INPUT_ERROR
+    }
+
+    if (extensionFile == null && interfaceFile == null) {
+        logger.err("Unexpected. Missing input extension file or input interface file, must specify one of them.")
+        return INPUT_ERROR
     }
 
     val json = Json
@@ -107,11 +119,16 @@ private fun run(args: Array<String>): Int {
 
     try {
         if (interfaceFile != null) {
-            val api = json.decodeFromString<GDExtensionInterface>(interfaceFile.readText())
-            generator.generate(api, outputDir)
+            val extensionInterface = json.decodeFromStream<GDExtensionInterface>(interfaceFile.inputStream())
+            val paths = generator.generate(extensionInterface, outputDir)
+            println("---Generated GDExtension Interface files---:")
+            paths.forEach { println(it) }
+            println("--------------------------------------------")
         }
         if (extensionFile != null) {
-            // TODO
+            println()
+            val extensionApi = json.decodeFromStream<ExtensionApi>(extensionFile.inputStream())
+            println(extensionApi.toString())
         }
     } catch (e: Exception) {
         logger.fatal(e, "file.read.error", interfaceFile)
