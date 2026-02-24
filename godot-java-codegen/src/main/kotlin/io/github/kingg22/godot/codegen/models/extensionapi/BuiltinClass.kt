@@ -10,9 +10,9 @@ data class BuiltinClass(
     @SerialName("is_keyed") val isKeyed: Boolean = false,
     val members: List<BuiltinClassMember>? = null,
     val constants: List<BuiltinClassConstant>? = null,
-    val enums: List<BuiltinEnum>? = null,
+    val enums: List<BuiltinEnum> = emptyList(),
     val operators: List<Operator>,
-    val methods: List<BuiltinMethod>? = null,
+    val methods: List<BuiltinMethod> = emptyList(),
     val constructors: List<Constructor>,
     @SerialName("has_destructor") val hasDestructor: Boolean,
 ) {
@@ -25,7 +25,7 @@ data class BuiltinClass(
         @SerialName("is_static") val isStatic: Boolean,
         val hash: Long? = null,
         @SerialName("hash_compatibility") val hashCompatibility: List<Long>? = null,
-        val arguments: List<MethodArg>? = null,
+        val arguments: List<MethodArg> = emptyList(),
     )
 
     @Serializable

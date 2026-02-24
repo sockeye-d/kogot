@@ -12,7 +12,7 @@ data class GodotClass(
     @SerialName("api_type") val apiType: String,
     val constants: List<EnumConstant>? = null,
     val enums: List<ApiEnum> = emptyList(),
-    val methods: List<ClassMethod>? = null,
+    val methods: List<ClassMethod> = emptyList(),
     val properties: List<ClassProperty>? = null,
     val signals: List<Signal>? = null,
 ) {
@@ -27,7 +27,7 @@ data class GodotClass(
         val hash: Long? = null,
         @SerialName("hash_compatibility") val hashCompatibility: List<Long>? = null,
         @SerialName("return_value") val returnValue: MethodReturn? = null,
-        val arguments: List<MethodArg>? = null,
+        val arguments: List<MethodArg> = emptyList(),
     )
 
     @Serializable
