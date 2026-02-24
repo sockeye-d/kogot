@@ -162,8 +162,8 @@ class OptionParser private constructor(
         fun valuesOf(name: String?) = options[name]
 
         fun valueOf(name: String?): String? {
-            val values = valuesOf(name)
-            return values?.get(values.size - 1)
+            val values = valuesOf(name) ?: return null
+            return values.lastOrNull()
         }
 
         fun nonOptionArguments() = nonOptionArgs
