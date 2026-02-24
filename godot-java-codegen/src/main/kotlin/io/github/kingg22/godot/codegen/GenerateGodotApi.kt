@@ -1,10 +1,13 @@
 package io.github.kingg22.godot.codegen
 
+import io.github.kingg22.godot.codegen.impl.KotlinPoetGenerator
 import io.github.kingg22.godot.codegen.models.GDExtensionInterface
 import kotlinx.serialization.json.Json
 import java.io.IOException
 import kotlin.io.path.Path
+import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
+import kotlin.io.path.isDirectory
 import kotlin.io.path.readText
 import kotlin.system.exitProcess
 
@@ -43,7 +46,7 @@ private fun run(args: Array<String>): Int {
 
     val parser = OptionParser.builder {
         accepts("--input", listOf("-i", "--input-file"), "help.input", true)
-        accepts("--output", "help.output", true)
+        accepts("--output", listOf("-o", "--output-dir"), "help.output", true)
         accepts("--package", listOf("-p"), "help.package", true)
 
         // optionals
@@ -57,38 +60,42 @@ private fun run(args: Array<String>): Int {
         printOptionError(oe.message)
         return OPTION_ERROR
     }
-/*
-    if (optionSet.has("--version")) {
-        val version = JextractTool::class.java.getModule().getDescriptor().version()
-        logger.info(
-            "jextract.version",
-            version.get(),
-            System.getProperty("java.runtime.version"),
-            LibClang.version(),
-        )
-        return SUCCESS
-    }
-*/
+
+    /*
+        if (optionSet.has("--version")) {
+            val version = JextractTool::class.java.getModule().getDescriptor().version()
+            logger.info(
+                "jextract.version",
+                version.get(),
+                System.getProperty("java.runtime.version"),
+                LibClang.version(),
+            )
+            return SUCCESS
+        }
+     */
 
     if (optionSet.has("-h")) {
         return printHelp(SUCCESS)
     }
 
-    logger.info(optionSet.toString())
-
     val inputFile = Path(optionSet.valueOf("--input")!!)
+    val outputDir = Path(optionSet.valueOf("--output")!!).createDirectories()
+    val packageName = optionSet.valueOf("--package")!!
 
     if (!inputFile.exists()) {
         logger.err("file.not.found", inputFile)
         return INPUT_ERROR
     }
 
+    if (!outputDir.exists() || !outputDir.isDirectory()) {
+        logger.err("directory.not.found", outputDir)
+        return OUTPUT_ERROR
+    }
+
     try {
         val json = Json
         val api = json.decodeFromString<GDExtensionInterface>(inputFile.readText())
-
-        println()
-        println(api.toString())
+        KotlinPoetGenerator(packageName).generate(api, outputDir)
     } catch (e: Exception) {
         logger.fatal(e, "file.read.error", inputFile)
         return FATAL_ERROR
