@@ -1,11 +1,25 @@
 package io.github.kingg22.godot.codegen.impl
 
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
 import io.github.kingg22.godot.codegen.models.extensionapi.MethodReturn
 import io.github.kingg22.godot.codegen.models.gextensioninterface.Arguments
 import io.github.kingg22.godot.codegen.models.gextensioninterface.Deprecated
 import io.github.kingg22.godot.codegen.models.gextensioninterface.ValueType
+
+// https://github.com/JetBrains/kotlin/blob/master/compiler/frontend.java/src/org/jetbrains/kotlin/resolve/jvm/checkers/JvmSimpleNameBacktickChecker.kt
+private val ILLEGAL_CHARACTERS_TO_ESCAPE = setOf(
+    // '.', special handle
+    ';',
+    '[',
+    ']',
+    '/',
+    '<',
+    '>',
+    ':',
+    '\\',
+)
 
 // https://kotlinlang.org/docs/reference/keyword-reference.html
 private val kotlinKeywords = setOf(
@@ -114,6 +128,18 @@ fun typeNameFor(packageName: String, rawType: String): TypeName {
         type = type.removeSuffix("*").trim()
     }
 
+    if (type.startsWith("typedarray::")) {
+        val inner = type.removePrefix("typedarray::")
+        val innerType = typeNameFor(packageName, inner)
+        return LIST.parameterizedBy(innerType)
+    }
+
+    if (type.startsWith("bitfield::")) return INT
+
+    if (type.startsWith("enum::")) {
+        type = type.removePrefix("enum::")
+    }
+
     val normalizedType = normalizeTypeName(type)
     val normalized = normalizedType.lowercase()
     return when (normalized) {
@@ -135,17 +161,41 @@ fun typeNameFor(packageName: String, rawType: String): TypeName {
     }
 }
 
-fun argumentsToParameters(packageName: String, arguments: List<Arguments>): List<ParameterSpec> = arguments.mapIndexed {
-        index,
-        arg,
-    ->
-    ParameterSpec.builder(argumentName(arg, index), typeNameFor(packageName, arg.type)).build()
-}
+fun argumentsToParameters(packageName: String, arguments: List<Arguments>): List<ParameterSpec> =
+    arguments.mapIndexed { index, arg ->
+        val name = argumentName(arg, index)
+        val type = typeNameFor(packageName, arg.type)
+        ParameterSpec
+            .builder(name, type)
+            .apply {
+                addKdoc(
+                    arg.description.joinToCode { line ->
+                        CodeBlock.of("%L", line)
+                    },
+                )
+                addKdocForBitfield(this, arg.type)
+            }
+            .build()
+    }
 
-fun methodArgsToParameters(packageName: String, arguments: List<MethodArg>?): List<ParameterSpec> {
-    if (arguments.isNullOrEmpty()) return emptyList()
-    return arguments.mapIndexed { index, arg ->
-        ParameterSpec.builder(methodArgName(arg, index), typeNameFor(packageName, arg.type)).build()
+fun methodArgsToParameters(packageName: String, arguments: List<MethodArg>): List<ParameterSpec> =
+    arguments.mapIndexed { index, arg ->
+        val name = methodArgName(arg, index)
+        val type = typeNameFor(packageName, arg.type)
+        // TODO add default values
+        ParameterSpec
+            .builder(name, type)
+            .apply {
+                addKdocForBitfield(this, arg.type)
+            }
+            .build()
+    }
+
+fun addKdocForBitfield(typeBuilder: Documentable.Builder<*>, returnType: String?, prefixKdoc: String? = null) {
+    if (returnType == null) return
+    if (returnType.startsWith("bitfield::")) {
+        val prefix = if (prefixKdoc != null) "$prefixKdoc " else ""
+        typeBuilder.addKdoc("$prefix`bitfield` for [%L]", returnType.removePrefix("bitfield::"))
     }
 }
 
@@ -260,16 +310,13 @@ fun sanitizeTypeName(name: String): String {
 }
 
 fun normalizeTypeName(rawType: String): String {
-    var type = rawType.trim()
-    if (type.startsWith("enum::")) {
-        println(
-            "INFO: Type '$rawType' starts with 'enum::', which is not supported by KotlinPoet. This going to be handle!",
+    val type = rawType.trim()
+    if (type.any { it in ILLEGAL_CHARACTERS_TO_ESCAPE }) {
+        error(
+            "WARNING: Type '$rawType' contains " +
+                ILLEGAL_CHARACTERS_TO_ESCAPE.intersect(rawType.toSet()).joinToString("") +
+                ", which is not supported by KotlinPoet.",
         )
-        type = type.removePrefix("enum::")
-    }
-    if (type.contains("::")) {
-        System.err.println("WARNING: Type '$rawType' contains '::', which is not supported by KotlinPoet.")
-        type = type.split("::").joinToString("_")
     }
     check(!type.isBlank()) { "Type name cannot be blank, '$rawType' given" }
     return type
