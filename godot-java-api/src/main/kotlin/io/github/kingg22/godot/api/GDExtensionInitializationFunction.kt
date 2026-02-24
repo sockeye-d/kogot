@@ -1,5 +1,5 @@
 package io.github.kingg22.godot.api
 
-interface GDExtensionInitializationFunction {
-    fun invoke()
+public interface GDExtensionInitializationFunction {
+    public fun invoke()
 }
