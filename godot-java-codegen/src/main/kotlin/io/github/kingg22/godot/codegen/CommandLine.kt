@@ -28,8 +28,8 @@ package io.github.kingg22.godot.codegen
 import java.io.IOException
 import java.io.Reader
 import java.nio.charset.Charset
-import java.nio.file.Files
-import java.nio.file.Paths
+import kotlin.io.path.Path
+import kotlin.io.path.bufferedReader
 
 // This is verbatim copy of com.sun.tools.javac.main.CommandLine except for package name
 
@@ -59,14 +59,11 @@ object CommandLine {
      * @throws IOException if there is a problem reading any of the @files
      */
     @Throws(IOException::class)
-    fun parse(args: MutableList<String>): List<String> {
-        val newArgs = ArrayList<String>()
-        appendParsedCommandArgs(newArgs, args)
-        return newArgs
-    }
+    fun parse(args: List<String>): List<String> = parsedCommandArgs(args)
 
     @Throws(IOException::class)
-    private fun appendParsedCommandArgs(newArgs: MutableList<String>, args: List<String>) {
+    private fun parsedCommandArgs(args: List<String>): List<String> {
+        val newArgs = ArrayList<String>(args.size)
         for (arg in args) {
             var arg = arg
             if (arg.length > 1 && arg[0] == '@') {
@@ -80,6 +77,8 @@ object CommandLine {
                 newArgs.add(arg)
             }
         }
+        newArgs.trimToSize()
+        return newArgs
     }
 
     /**
@@ -100,17 +99,16 @@ object CommandLine {
      */
     @Throws(IOException::class, UnmatchedQuote::class)
     fun parse(envVariable: String?, args: List<String>): List<String> {
-        val inArgs = ArrayList<String>()
-        appendParsedEnvVariables(inArgs, envVariable)
+        val inArgs = ArrayList<String>(appendParsedEnvVariables(envVariable))
+        inArgs.ensureCapacity(inArgs.size + args.size)
         inArgs.addAll(args)
-        val newArgs = ArrayList<String>()
-        appendParsedCommandArgs(newArgs, inArgs)
-        return newArgs
+        inArgs.trimToSize()
+        return parsedCommandArgs(inArgs)
     }
 
     @Throws(IOException::class)
     private fun loadCmdFile(name: String, args: MutableList<String>) {
-        Files.newBufferedReader(Paths.get(name), Charset.defaultCharset()).use { r ->
+        Path(name).bufferedReader(Charset.defaultCharset()).use { r ->
             val t = Tokenizer(r)
             var token = t.nextToken()
             while (token != null) {
@@ -121,15 +119,16 @@ object CommandLine {
     }
 
     @Throws(UnmatchedQuote::class)
-    private fun appendParsedEnvVariables(newArgs: MutableList<String>, envVariable: String?) {
-        if (envVariable == null) return
+    private fun appendParsedEnvVariables(envVariable: String?): List<String> {
+        if (envVariable == null) return emptyList()
 
-        val `in` = System.getenv(envVariable)
+        val `in`: String? = System.getenv(envVariable)
         if (`in` == null || `in`.trim { it <= ' ' }.isEmpty()) {
-            return
+            return emptyList()
         }
 
         val len = `in`.length
+        val newArgs = ArrayList<String>()
 
         var pos = 0
         val sb = StringBuilder()
@@ -165,7 +164,7 @@ object CommandLine {
                             if (pos >= len) {
                                 break@loop
                             }
-                            ch = `in`.get(pos)
+                            ch = `in`[pos]
                         }
                         break
                     }
@@ -185,6 +184,7 @@ object CommandLine {
         if (quote != NUL) {
             throw UnmatchedQuote(envVariable)
         }
+        return newArgs
     }
 
     private class Tokenizer(private val `in`: Reader) {
