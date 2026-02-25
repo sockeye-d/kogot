@@ -24,6 +24,12 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
         file.writeTo(outputDir)
     }.plusElement(generateInterface(api.interfaces).writeTo(outputDir)).toList()
 
+    private fun createFile(type: TypeSpec, fileName: String): FileSpec = FileSpec
+        .builder(packageName, fileName)
+        .commonConfiguration()
+        .addType(type)
+        .build()
+
     private fun generateEnum(type: Types.EnumType): FileSpec {
         val typeBuilder = TypeSpec.enumBuilder(sanitizeTypeName(type.name))
             .primaryConstructor(
@@ -52,10 +58,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
 
         addCommonDocs(typeBuilder, type.description, emptyList(), type.deprecated)
 
-        return FileSpec.builder(packageName, sanitizeTypeName(type.name))
-            .commonConfiguration()
-            .addType(typeBuilder.build())
-            .build()
+        return createFile(typeBuilder.build(), sanitizeTypeName(type.name))
     }
 
     private fun generateHandle(type: Types.HandleType): FileSpec {
@@ -69,10 +72,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
 
         addCommonDocs(typeBuilder, type.description, emptyList(), type.deprecated)
 
-        return FileSpec.builder(packageName, sanitizeTypeName(type.name))
-            .commonConfiguration()
-            .addType(typeBuilder.build())
-            .build()
+        return createFile(typeBuilder.build(), sanitizeTypeName(type.name))
     }
 
     private fun generateAlias(type: Types.AliasType): FileSpec {
@@ -105,10 +105,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
 
         addCommonDocs(typeBuilder, type.description, emptyList(), type.deprecated)
 
-        return FileSpec.builder(packageName, sanitizeTypeName(type.name))
-            .commonConfiguration()
-            .addType(typeBuilder.build())
-            .build()
+        return createFile(typeBuilder.build(), sanitizeTypeName(type.name))
     }
 
     private fun generateFunctionType(type: Types.FunctionType): FileSpec {
@@ -125,10 +122,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
         typeBuilder.addFunction(funSpec)
         addCommonDocs(typeBuilder, type.description, emptyList(), type.deprecated)
 
-        return FileSpec.builder(packageName, sanitizeTypeName(type.name))
-            .commonConfiguration()
-            .addType(typeBuilder.build())
-            .build()
+        return createFile(typeBuilder.build(), sanitizeTypeName(type.name))
     }
 
     private fun generateInterface(interfaces: List<Interface>): FileSpec {
@@ -162,9 +156,6 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
             typeBuilder.addFunction(funSpec)
         }
 
-        return FileSpec.builder(packageName, "GDExtensionInterface")
-            .commonConfiguration()
-            .addType(typeBuilder.build())
-            .build()
+        return createFile(typeBuilder.build(), "GDExtensionInterface")
     }
 }
