@@ -152,7 +152,9 @@ class ExtensionApiGenerator(private val packageName: String) {
 
             fun BuiltinEnum.asApiEnum() = ApiEnum(name = name, isBitfield = false, values = values)
 
-            typeBuilder.typeSpecs.addFirst(companionObject.build())
+            if (companionObject.build() != TypeSpec.companionObjectBuilder().build()) {
+                typeBuilder.typeSpecs.addFirst(companionObject.build())
+            }
 
             val enums = cls.enums.map { enumDef ->
                 generateEnum(enumDef.asApiEnum())
@@ -203,7 +205,9 @@ class ExtensionApiGenerator(private val packageName: String) {
                 }
             }
 
-            typeBuilder.typeSpecs.addFirst(companionObject.build())
+            if (companionObject.build() != TypeSpec.companionObjectBuilder().build()) {
+                typeBuilder.typeSpecs.addFirst(companionObject.build())
+            }
             val enumSpecs = cls.enums.map { enumDef -> generateEnum(enumDef) }
             typeBuilder.addTypes(enumSpecs)
 
