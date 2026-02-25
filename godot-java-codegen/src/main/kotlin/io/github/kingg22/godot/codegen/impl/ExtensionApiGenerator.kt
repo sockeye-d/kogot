@@ -5,7 +5,10 @@ import io.github.kingg22.godot.codegen.models.extensionapi.BuiltinClass
 import io.github.kingg22.godot.codegen.models.extensionapi.EnumDescriptor
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 import io.github.kingg22.godot.codegen.models.extensionapi.GodotClass
+import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
+import io.github.kingg22.godot.codegen.models.extensionapi.MethodReturn
 import io.github.kingg22.godot.codegen.models.extensionapi.NativeStructure
+import io.github.kingg22.godot.codegen.models.extensionapi.TypeMetaHolder
 import io.github.kingg22.godot.codegen.models.extensionapi.UtilityFunction
 import java.nio.file.Path
 
@@ -54,7 +57,7 @@ class ExtensionApiGenerator(private val packageName: String) {
 
         val enums = globalEnums.asSequence().map { enumDef ->
             val enumSpec = generateEnum(enumDef)
-            createFile(enumSpec, enumDef.name).writeTo(outputDir)
+            createFile(enumSpec, enumDef.name.renameGodotClass()).writeTo(outputDir)
         }
 
         val variantClass = generateVariant(nestedEnum).writeTo(outputDir)
@@ -83,7 +86,7 @@ class ExtensionApiGenerator(private val packageName: String) {
 
     private fun generateEnum(enumDef: EnumDescriptor): TypeSpec {
         val typeBuilder = TypeSpec
-            .enumBuilder(enumDef.name)
+            .enumBuilder(enumDef.name.renameGodotClass())
             .primaryConstructor(
                 FunSpec
                     .constructorBuilder()
@@ -102,7 +105,7 @@ class ExtensionApiGenerator(private val packageName: String) {
                 .anonymousClassBuilder()
                 .addSuperclassConstructorParameter("%L", value.value)
                 .build()
-            typeBuilder.addEnumConstant(sanitizeEnumConstant(value.name), enumConst)
+            typeBuilder.addEnumConstant(sanitizeTypeName(value.name), enumConst)
         }
         return typeBuilder.build()
     }
@@ -113,11 +116,7 @@ class ExtensionApiGenerator(private val packageName: String) {
 
         fun BuiltinClass.isSingleton(): Boolean = singletons.any { it == this.name }
 
-        val className = if (cls.name == "String") {
-            "GodotString"
-        } else {
-            cls.name
-        }
+        val className = cls.name.renameGodotClass()
 
         enrichExceptions({ "Generating builtin class '$className', isSingleton: ${cls.isSingleton()}" }) {
             val typeBuilder = generateClass(className, null, cls.isSingleton())
@@ -167,9 +166,12 @@ class ExtensionApiGenerator(private val packageName: String) {
         fun GodotClass.isSingleton(): Boolean = singletons.any { it == this.name }
 
         enrichExceptions({ "Generating class '${cls.name}', isSingleton: ${cls.isSingleton()}" }) {
+            val className = cls.name.renameGodotClass()
+
             val parent = cls.inherits?.takeIf { it.isNotBlank() }
             val parentClass = parent?.let { typeNameFor(packageName, parent) }
-            val typeBuilder = generateClass(cls.name, parentClass, cls.isSingleton())
+
+            val typeBuilder = generateClass(className, parentClass, cls.isSingleton())
             val companionObject = typeBuilder.typeSpecs
                 .find { it.isCompanion }?.also { typeBuilder.typeSpecs.remove(it) }?.toBuilder()
                 ?: TypeSpec.companionObjectBuilder()
@@ -209,7 +211,7 @@ class ExtensionApiGenerator(private val packageName: String) {
             val enumSpecs = cls.enums.map { enumDef -> generateEnum(enumDef) }
             typeBuilder.addTypes(enumSpecs)
 
-            return createFile(typeBuilder.build(), cls.name)
+            return createFile(typeBuilder.build(), className)
         }
     }
 
@@ -350,16 +352,28 @@ class ExtensionApiGenerator(private val packageName: String) {
         .addModifiers(modifiers).apply { baseClass?.let { superclass(it) } }
 
     private fun FunSpec.Builder.accidentalOverride(funName: String, returnType: TypeName): FunSpec.Builder =
-        if (funName == "wait" && returnType == UNIT) {
-            System.err.println("INFO: modifying wait() to avoid conflicts with JVM Object method")
-            this
-                .addKdoc(
-                    "Generated Note: Original name was `wait`, renamed to avoid conflicts with JVM [java.lang.Object] method.",
-                )
-                .build()
-                .toBuilder("await")
-        } else {
-            this
+        when (funName) {
+            "wait" if returnType == UNIT -> {
+                System.err.println("INFO: modifying wait() to avoid conflicts with JVM Object method")
+                this
+                    .addKdoc(
+                        "Generated Note: Original name was `wait`, renamed to avoid conflicts with JVM [java.lang.Object] method.",
+                    )
+                    .build()
+                    .toBuilder("await")
+            }
+
+            "toString" if returnType == ClassName(packageName, "GodotString") -> {
+                System.err.println("INFO: modifying toString() to avoid conflicts with Any method")
+                this
+                    .addKdoc(
+                        "Generated Note: Original name was `toString`, renamed to avoid conflicts with Kotlin [Any] / Java [java.lang.Object] method.",
+                    )
+                    .build()
+                    .toBuilder("toGodotString")
+            }
+
+            else -> this
         }
 
     private inline fun <T> enrichExceptions(metadata: () -> String, block: () -> T): T = try {
@@ -367,4 +381,63 @@ class ExtensionApiGenerator(private val packageName: String) {
     } catch (e: Exception) {
         throw RuntimeException(metadata(), e)
     }
+}
+
+private fun typeNameFor(packageName: String, type: TypeMetaHolder): TypeName = if (type.meta == null) {
+    typeNameFor(packageName, type.type)
+} else if (type.isRequired()) {
+    typeNameFor(packageName, type.type)
+} else {
+    // currently skip char meta type
+    if (type.meta == "char32") {
+        return typeNameFor(packageName, type.type).copy(nullable = true)
+    }
+    typeNameFor(packageName, type.meta ?: type.type).copy(nullable = true)
+}
+
+private fun methodReturnTypeName(packageName: String, returnValue: MethodReturn?): TypeName =
+    if (returnValue == null) UNIT else typeNameFor(packageName, returnValue)
+
+private fun methodArgsToParameters(
+    packageName: String,
+    isVararg: Boolean,
+    arguments: List<MethodArg>,
+): List<ParameterSpec> = if (isVararg) {
+    buildList {
+        arguments.forEachIndexed { index, arg ->
+            val name = methodArgName(arg, index)
+            check(name != "args") {
+                "Cannot use 'args' as parameter name for vararg function. $arg"
+            }
+            val type = typeNameFor(packageName, arg)
+            add(
+                ParameterSpec
+                    .builder(name, type)
+                    .addKdocForBitfield(arg.type)
+                    .build(),
+            )
+        }
+
+        addLast(
+            ParameterSpec.builder(
+                "args",
+                ClassName(packageName, "Variant"),
+                KModifier.VARARG,
+            ).build(),
+        )
+    }
+} else {
+    arguments.mapIndexed { index, arg ->
+        val name = methodArgName(arg, index)
+        val type = typeNameFor(packageName, arg)
+        ParameterSpec
+            .builder(name, type)
+            .addKdocForBitfield(arg.type)
+            .build()
+    }
+}
+
+private fun methodArgName(arg: MethodArg, index: Int): String {
+    val baseName = arg.name.takeIf { it.isNotBlank() } ?: "arg$index"
+    return safeIdentifier(baseName)
 }

@@ -1,15 +1,12 @@
 package io.github.kingg22.godot.codegen.impl
 
-import com.squareup.kotlinpoet.FileSpec
-import com.squareup.kotlinpoet.FunSpec
-import com.squareup.kotlinpoet.INT
-import com.squareup.kotlinpoet.KModifier
-import com.squareup.kotlinpoet.PropertySpec
-import com.squareup.kotlinpoet.TypeAliasSpec
-import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.*
+import io.github.kingg22.godot.codegen.models.gextensioninterface.Arguments
+import io.github.kingg22.godot.codegen.models.gextensioninterface.Deprecated
 import io.github.kingg22.godot.codegen.models.gextensioninterface.GDExtensionInterface
 import io.github.kingg22.godot.codegen.models.gextensioninterface.Interface
 import io.github.kingg22.godot.codegen.models.gextensioninterface.Types
+import io.github.kingg22.godot.codegen.models.gextensioninterface.ValueType
 import java.nio.file.Path
 
 class GDExtensionInterfaceGenerator(private val packageName: String) {
@@ -53,7 +50,7 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
                     }
                 }
                 .build()
-            typeBuilder.addEnumConstant(sanitizeEnumConstant(value.name), enumConst)
+            typeBuilder.addEnumConstant(sanitizeTypeName(value.name), enumConst)
         }
 
         addCommonDocs(typeBuilder, type.description, emptyList(), type.deprecated)
@@ -159,3 +156,78 @@ class GDExtensionInterfaceGenerator(private val packageName: String) {
         return createFile(typeBuilder.build(), "GDExtensionInterface")
     }
 }
+
+private fun argumentsToParameters(packageName: String, arguments: List<Arguments>): List<ParameterSpec> =
+    arguments.mapIndexed { index, arg ->
+        val name = argumentName(arg, index)
+        val type = typeNameFor(packageName, arg.type)
+        ParameterSpec
+            .builder(name, type)
+            .apply {
+                addKdoc(
+                    arg.description.joinToCode { line ->
+                        CodeBlock.of("%L", line)
+                    },
+                )
+                addKdocForBitfield(arg.type)
+            }
+            .build()
+    }
+
+private fun argumentName(arg: Arguments, index: Int): String {
+    val baseName = arg.name?.takeIf { it.isNotBlank() } ?: "arg$index"
+    return safeIdentifier(baseName)
+}
+
+private fun addCommonDocs(
+    builder: TypeSpec.Builder,
+    description: List<String>,
+    see: List<String>,
+    deprecated: Deprecated?,
+) {
+    val kdoc = buildKdoc(description, see, emptyList(), null)
+    if (kdoc.isNotBlank()) {
+        builder.addKdoc("%L\n", kdoc)
+    }
+    deprecated?.let { builder.addAnnotation(deprecatedAnnotation(it)) }
+}
+
+private fun addCommonDocs(
+    builder: TypeAliasSpec.Builder,
+    description: List<String>,
+    see: List<String>,
+    deprecated: Deprecated?,
+) {
+    val kdoc = buildKdoc(description, see, emptyList(), null)
+    if (kdoc.isNotBlank()) {
+        builder.addKdoc("%L\n", kdoc)
+    }
+    deprecated?.let { builder.addAnnotation(deprecatedAnnotation(it)) }
+}
+
+private fun deprecatedAnnotation(deprecated: Deprecated): AnnotationSpec {
+    val message = buildString {
+        if (!deprecated.message.isNullOrBlank()) {
+            append(deprecated.message)
+            append(" (since ")
+            append(deprecated.since)
+            append(')')
+        } else {
+            append("Deprecated since ")
+            append(deprecated.since)
+        }
+    }
+
+    val builder = AnnotationSpec.builder(K_DEPRECATED)
+        .addMember("message = %S", message)
+
+    val replaceWith = deprecated.replaceWith
+    if (!replaceWith.isNullOrBlank()) {
+        builder.addMember("replaceWith = %T(%S)", K_REPLACE_WITH, replaceWith)
+    }
+
+    return builder.build()
+}
+
+private fun returnTypeName(packageName: String, returnValue: ValueType?): TypeName =
+    if (returnValue == null) UNIT else typeNameFor(packageName, returnValue.type)
