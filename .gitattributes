@@ -125,12 +125,9 @@
 mvnw            text eol=lf
 gradlew         text eol=lf
 
-# Todos los Java generados en esa carpeta
-jvm-ffm/ffm/raw/**/*.java linguist-generated
-jvm-ffm/ffm/raw/* -linguist-detectable
-
 # Marcar archivos externos incluidos
 **/gdextension_interface.h linguist-vendored
 **/gdextension_interface.json linguist-vendored
 **/gdextension_interface.schema.json linguist-vendored
 **/extension_api.json linguist-vendored
+jvm-ffm/ffm/tools/* linguist-vendored
