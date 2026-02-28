@@ -1,118 +1,22 @@
 package io.github.kingg22.godot.codegen.impl
 
-import com.squareup.kotlinpoet.*
-import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import com.squareup.kotlinpoet.AnnotationSpec
+import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.Documentable
+import com.squareup.kotlinpoet.FileSpec
 
-// https://github.com/JetBrains/kotlin/blob/master/compiler/frontend.java/src/org/jetbrains/kotlin/resolve/jvm/checkers/JvmSimpleNameBacktickChecker.kt
-private val ILLEGAL_CHARACTERS_TO_ESCAPE = setOf(
-    // '.', special handle
-    ';',
-    '[',
-    ']',
-    '/',
-    '<',
-    '>',
-    ':',
-    '\\',
-)
-
-// https://kotlinlang.org/docs/keyword-reference.html
-private val kotlinKeywords = setOf(
-    // Hard keywords
-    "as",
-    "break",
-    "class",
-    "continue",
-    "do",
-    "else",
-    "false",
-    "for",
-    "fun",
-    "if",
-    "in",
-    "interface",
-    "is",
-    "null",
-    "object",
-    "package",
-    "return",
-    "super",
-    "this",
-    "throw",
-    "true",
-    "try",
-    "typealias",
-    "typeof",
-    "val",
-    "var",
-    "when",
-    "while",
-
-    // Soft keywords
-    "by",
-    "catch",
-    "constructor",
-    "delegate",
-    "dynamic",
-    "field",
-    "file",
-    "finally",
-    "get",
-    "import",
-    "init",
-    "param",
-    "property",
-    "receiver",
-    "set",
-    "setparam",
-    "where",
-
-    // Modifier keywords
-    "actual",
-    "abstract",
-    "annotation",
-    "companion",
-    "const",
-    "crossinline",
-    "data",
-    "enum",
-    "expect",
-    "external",
-    "final",
-    "infix",
-    "inline",
-    "inner",
-    "internal",
-    "lateinit",
-    "noinline",
-    "open",
-    "operator",
-    "out",
-    "override",
-    "private",
-    "protected",
-    "public",
-    "reified",
-    "sealed",
-    "suspend",
-    "tailrec",
-    "value",
-    "vararg",
-
-    // These aren't keywords anymore but still break some code if unescaped. https://youtrack.jetbrains.com/issue/KT-52315
-    "header",
-    "impl",
-
-    // Other reserved keywords
-    "yield",
-)
-
-private val nameRegex = Regex("[^A-Za-z0-9_]")
+private val NAME_REGEX = Regex("[^A-Za-z0-9_]")
 private val K_JVM_NAME = ClassName("kotlin.jvm", "JvmName")
 private val K_JVM_STATIC = ClassName("kotlin.jvm", "JvmStatic")
 val K_DEPRECATED = ClassName("kotlin", "Deprecated")
 val K_REPLACE_WITH = ClassName("kotlin", "ReplaceWith")
 val K_SUPPRESS = ClassName("kotlin", "Suppress")
+
+internal inline fun <T> withExceptionContext(metadata: () -> String, block: () -> T): T = try {
+    block()
+} catch (e: Exception) {
+    throw RuntimeException(metadata(), e)
+}
 
 fun FileSpec.Builder.commonConfiguration() = apply {
     indent("    ") // use 4 spaces https://pinterest.github.io/ktlint/latest/rules/standard/#indentation
@@ -126,87 +30,6 @@ fun FileSpec.Builder.commonConfiguration() = apply {
             .addMember("%S", "RemoveRedundantQualifierName")
             .build(),
     )
-}
-
-/** Special class can be better DX if it has a prefixed `Godot` */
-fun String.renameGodotClass() = when (this.lowercase()) {
-    "object" -> "GodotObject"
-    "error" -> "GodotError"
-    "string" -> "GodotString"
-    else -> this
-}
-
-fun typeNameFor(packageName: String, rawType: String): TypeName {
-    var type = rawType.trim()
-    // const types don't have equivalents in Kotlin, so we remove them
-    type = type.removePrefix("const ").trim()
-
-    while (type.endsWith("*")) {
-        type = type.removeSuffix("*").trim()
-    }
-
-    if (type.startsWith("typedarray::")) {
-        val inner = type.removePrefix("typedarray::")
-        val innerType = typeNameFor(packageName, inner)
-        return LIST.parameterizedBy(innerType)
-    }
-
-    // TODO can be better if generate a EnumMask value class to maintain typed
-    if (type.startsWith("bitfield::")) return LONG
-
-    type = type.removePrefix("enum::")
-
-    val normalizedType = checkTypeName(type).renameGodotClass()
-    val normalized = normalizedType.lowercase()
-
-    // float in Godot = 64 bits => Double
-    // int in Godot = 64 bits => Long
-    // string in Godot = UTF-32 => GodotString != kotlin.String
-    return when (normalized) {
-        "void" -> UNIT
-        "bool", "boolean" -> BOOLEAN
-        "float" -> FLOAT
-        "double" -> DOUBLE
-        "int8_t", "int8", "byte" -> BYTE
-        "uint8_t", "uint8", "ubyte" -> U_BYTE
-        "int16_t", "int16", "short" -> SHORT
-        "uint16_t", "uint16", "ushort" -> U_SHORT
-        "int32_t", "int32", "int" -> INT
-        "uint32_t", "uint32", "uint" -> U_INT
-        "int64_t", "int64", "long", "intptr_t" -> LONG
-        "uint64_t", "uint64", "ulong", "uintptr_t", "size_t" -> U_LONG
-        "string" -> ClassName(packageName, "GodotString")
-        else -> ClassName(packageName, normalizedType.split(".").map { sanitizeTypeName(it) })
-    }
-    /*
-    | C/C++     | Significado       | Kotlin                                      |
-    | --------- | ----------------- | ------------------------------------------- |
-    | char      | byte / Latin-1    | Byte                                        |
-    | char*     | C string          | ByteArray / String (alto nivel)             |
-    | char16_t  | UTF-16 unit       | Char                                        |
-    | char16_t* | UTF-16 string     | CharArray                                   |
-    | char32_t  | UTF-32 code point | Int                                         |
-    | char32_t* | UTF-32 string     | IntArray                                    |
-    | wchar_t   | depende           | ❌ evitar → usar Int o Char según plataforma |
-
-    return when (normalized) {
-        "void" -> UNIT
-        "bool", "boolean" -> BOOLEAN
-        "char" -> CHAR
-        "float", "double" -> DOUBLE
-        "char16_t", "char32_t", "wchar_t", "char32" -> STRING
-        "int32_t", "int32" -> INT
-        "uint", "uint32_t", "uint32" -> U_INT
-        "short", "int16_t", "int16" -> SHORT
-        "ushort", "uint16_t", "uint16" -> U_SHORT
-        "byte", "int8_t", "int8" -> BYTE
-        "ubyte", "uint8_t", "uint8" -> U_BYTE
-        "long", "int", "int64_t", "int64", "intptr_t" -> LONG
-        "ulong", "uint64_t", "uintptr_t", "size_t", "uint64" -> U_LONG
-        "string" -> ClassName(packageName, "GodotString")
-        else -> ClassName(packageName, normalizedType.split(".").map { sanitizeTypeName(it) })
-    }
-     */
 }
 
 fun <T : Documentable.Builder<*>> T.addKdocForBitfield(returnType: String?, prefixKdoc: String? = null): T {
@@ -248,35 +71,55 @@ fun jvmNameAnnotation(name: String): AnnotationSpec.Builder = AnnotationSpec
 
 fun jvmStaticAnnotation() = AnnotationSpec.builder(K_JVM_STATIC).build()
 
+/**
+ * Produces a safe Kotlin identifier for a **method/property/parameter** name.
+ *
+ * - Replaces illegal characters with `_`
+ * - Prepends `_` if starts with a digit
+ * - Converts snake_case → camelCase
+ * - Backtick-escapes Kotlin keywords
+ */
 fun safeIdentifier(name: String): String {
     val trimmed = name.trim()
     if (trimmed.isBlank()) return "_"
-    val sanitized = trimmed.replace(nameRegex, "_")
+    val sanitized = trimmed.replace(NAME_REGEX, "_")
     val fixed = if (sanitized.first().isDigit()) "_$sanitized" else sanitized
     val camelCase = fixed.snakeCaseToCamelCase()
     return if (isKotlinKeyword(camelCase)) "`$camelCase`" else camelCase
 }
 
-private fun isKotlinKeyword(name: String): Boolean = name in kotlinKeywords
-
+/**
+ * Produces a safe Kotlin identifier for a **type name** (class, enum constant).
+ *
+ * Same rules as [safeIdentifier] but appends `_` instead of backtick-escaping,
+ * because type names in KotlinPoet don't support backtick escaping.
+ */
 fun sanitizeTypeName(name: String): String {
     val trimmed = name.trim()
-    check(!trimmed.isBlank()) { "Type name cannot be blank, '$name' given" }
-    val sanitized = trimmed.replace(nameRegex, "_")
+    check(trimmed.isNotBlank()) { "Type name cannot be blank, '$name' given" }
+    val sanitized = trimmed.replace(NAME_REGEX, "_")
     val fixed = if (sanitized.first().isDigit()) "_$sanitized" else sanitized
     return if (isKotlinKeyword(fixed)) "${fixed}_" else fixed
 }
 
-fun String.snakeCaseToCamelCase(): String {
-    val name = this
-    val prefix = name.takeWhile { it == '_' }
-    val core = name.drop(prefix.length)
+/**
+ * Renames Godot built-in class names that clash with core Kotlin/JVM types.
+ *
+ * Keeping these in one place makes future additions trivial.
+ */
+fun String.renameGodotClass(): String = when (this.lowercase()) {
+    "object" -> "GodotObject"
+    "error" -> "GodotError"
+    "string" -> "GodotString"
+    else -> this
+}
 
+fun String.snakeCaseToCamelCase(): String {
+    val prefix = takeWhile { it == '_' }
+    val core = drop(prefix.length)
     return buildString {
         append(prefix)
-
         var upperNext = false
-
         for (c in core) {
             when {
                 c == '_' -> upperNext = true
@@ -292,7 +135,11 @@ fun String.snakeCaseToCamelCase(): String {
     }
 }
 
-private fun checkTypeName(rawType: String): String {
+// ── Kotlin keyword list ───────────────────────────────────────────────────────
+
+fun isKotlinKeyword(name: String): Boolean = name in KOTLIN_KEYWORDS
+
+fun checkAndNormalizeTypeName(rawType: String): String {
     val type = rawType.trim()
     if (type.any { it in ILLEGAL_CHARACTERS_TO_ESCAPE }) {
         error(
@@ -304,3 +151,28 @@ private fun checkTypeName(rawType: String): String {
     check(!type.isBlank()) { "Type name cannot be blank, '$rawType' given" }
     return type
 }
+
+// https://github.com/JetBrains/kotlin/blob/master/compiler/frontend.java/src/org/jetbrains/kotlin/resolve/jvm/checkers/JvmSimpleNameBacktickChecker.kt
+// '.', special handle
+private val ILLEGAL_CHARACTERS_TO_ESCAPE = setOf(';', '[', ']', '/', '<', '>', ':', '\\')
+
+// https://kotlinlang.org/docs/keyword-reference.html
+private val KOTLIN_KEYWORDS = setOf(
+    // Hard keywords
+    "as", "break", "class", "continue", "do", "else", "false", "for", "fun",
+    "if", "in", "interface", "is", "null", "object", "package", "return",
+    "super", "this", "throw", "true", "try", "typealias", "typeof", "val",
+    "var", "when", "while",
+    // Soft keywords
+    "by", "catch", "constructor", "delegate", "dynamic", "field", "file",
+    "finally", "get", "import", "init", "param", "property", "receiver",
+    "set", "setparam", "where",
+    // Modifier keywords
+    "actual", "abstract", "annotation", "companion", "const", "crossinline",
+    "data", "enum", "expect", "external", "final", "infix", "inline", "inner",
+    "internal", "lateinit", "noinline", "open", "operator", "out", "override",
+    "private", "protected", "public", "reified", "sealed", "suspend",
+    "tailrec", "value", "vararg",
+    // Legacy / still problematic
+    "header", "impl", "yield",
+)
