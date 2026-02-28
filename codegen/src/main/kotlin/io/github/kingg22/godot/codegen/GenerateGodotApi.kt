@@ -1,5 +1,6 @@
 package io.github.kingg22.godot.codegen
 
+import io.github.kingg22.godot.codegen.impl.GeneratorBackend
 import io.github.kingg22.godot.codegen.impl.KotlinPoetGenerator
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 import io.github.kingg22.godot.codegen.models.gextensioninterface.GDExtensionInterface
@@ -51,6 +52,7 @@ private fun run(args: Array<String>): Int {
     val parser = OptionParser.builder {
         accepts("--input-interface", listOf("-ii", "--input-file-interface"), "help.input", true)
         accepts("--input-extension", listOf("-ie", "--input-file-extension"), "help.input", true)
+        accepts("--backend", listOf("-b", "--backend"), "help.backend", true)
 
         accepts("--output", listOf("-o", "--output-dir"), "help.output", true)
         accepts("--package", listOf("-p"), "help.package", true)
@@ -93,6 +95,7 @@ private fun run(args: Array<String>): Int {
     val interfaceFile = optionSet.valueOf("--input-interface")?.let { Path(it) }
     val outputDir = Path(optionSet.valueOf("--output")!!).createDirectories()
     val packageName = optionSet.valueOf("--package").orEmpty()
+    val backend = optionSet.valueOf("--backend").orEmpty()
 
     if (!outputDir.exists() || !outputDir.isDirectory()) {
         logger.err("directory.not.found", outputDir)
@@ -114,8 +117,18 @@ private fun run(args: Array<String>): Int {
         return INPUT_ERROR
     }
 
+    if (backend.isBlank()) {
+        logger.err("Missing backend, must specify one of: ${GeneratorBackend.entries.joinToString { it.name }}")
+        return INPUT_ERROR
+    }
+
+    val backendEnum = GeneratorBackend.entries.find { it.name.equals(backend, true) } ?: run {
+        logger.err("Invalid backend: $backend, must be one of: ${GeneratorBackend.entries.joinToString { it.name }}")
+        return INPUT_ERROR
+    }
+
     val json = Json
-    val generator = KotlinPoetGenerator(packageName)
+    val generator = KotlinPoetGenerator(packageName, backendEnum)
 
     try {
         if (interfaceFile != null) {
@@ -125,16 +138,14 @@ private fun run(args: Array<String>): Int {
             val extensionInterface = json.decodeFromStream<GDExtensionInterface>(interfaceFile.inputStream())
             val paths = generator.generate(extensionInterface, outputDir)
             println("---Generated GDExtension Interface files---:")
-            paths.forEach { println(it) }
-            println("----- Total: ${paths.size} -----------------")
+            println("---Total: ${paths.size} => ${paths.firstOrNull()?.parent} ---")
         }
         if (extensionFile != null) {
             println()
             val extensionApi = json.decodeFromStream<ExtensionApi>(extensionFile.inputStream())
             val paths = generator.generate(extensionApi, outputDir)
             println("---Generated Extension API files---")
-            paths.forEach { println(it) }
-            println("--- Total: ${paths.size} ----------")
+            println("---Total: ${paths.size} => ${paths.firstOrNull()?.parent} ---")
         }
     } catch (e: Exception) {
         logger.fatal(e, "file.read.error", interfaceFile)

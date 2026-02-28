@@ -36,28 +36,33 @@ abstract class GenerateGodotTask : JavaExec() {
     @get:[Input Option(option = "package", description = "Target package")]
     abstract val packageName: Property<String>
 
+    @get:[Input Option(option = "backend", description = "Target backend")]
+    abstract val backendName: Property<String>
+
     init {
         group = "codegen"
         description = "Generate Godot Extension API wrappers"
-        argumentProviders += GodotArgsProvider(this)
+        argumentProviders += GodotArgsProvider()
     }
 
-    class GodotArgsProvider(private val task: GenerateGodotTask) : CommandLineArgumentProvider {
+    inner class GodotArgsProvider : CommandLineArgumentProvider {
         override fun asArguments(): Iterable<String> = buildList {
-            if (task.inputInterface.isPresent) {
-                addAll(listOf("--input-interface", task.inputInterface.get().asFile.absolutePath))
+            if (inputInterface.isPresent) {
+                addAll(listOf("--input-interface", inputInterface.get().asFile.absolutePath))
             }
 
-            if (task.inputExtension.isPresent) {
-                addAll(listOf("--input-extension", task.inputExtension.get().asFile.absolutePath))
+            if (inputExtension.isPresent) {
+                addAll(listOf("--input-extension", inputExtension.get().asFile.absolutePath))
             }
 
             addAll(
                 listOf(
                     "--output",
-                    task.outputDir.get().asFile.absolutePath,
+                    outputDir.get().asFile.absolutePath,
                     "--package",
-                    task.packageName.get(),
+                    packageName.get(),
+                    "--backend",
+                    backendName.get(),
                 ),
             )
         }

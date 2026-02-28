@@ -28,5 +28,7 @@ tasks.register<GenerateGodotTask>("generateGodotExtensionApi") {
             .file("godot-version/v4_6_1/extension_api.json"),
     )
 
+    backendName.convention("stubs")
+
     packageName.convention("io.github.kingg22.godot.api")
 }
