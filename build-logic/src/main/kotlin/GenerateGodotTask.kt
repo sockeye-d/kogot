@@ -9,10 +9,7 @@ import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
-import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.options.Option
-import org.gradle.kotlin.dsl.get
-import org.gradle.kotlin.dsl.the
 import org.gradle.process.CommandLineArgumentProvider
 
 @CacheableTask
@@ -41,46 +38,28 @@ abstract class GenerateGodotTask : JavaExec() {
 
     init {
         group = "codegen"
-        val sourceSets = project.the<SourceSetContainer>()
-
-        mainClass.set("io.github.kingg22.godot.codegen.GenerateGodotApiKt")
-        classpath = sourceSets["main"].runtimeClasspath
-
+        description = "Generate Godot Extension API wrappers"
         argumentProviders += GodotArgsProvider(this)
-
-        // 🧹 Limpiar output previo
-        doFirst {
-            outputDir.get().asFile.deleteRecursively()
-        }
-    }
-
-    override fun exec() {
-        require(inputInterface.isPresent || inputExtension.isPresent) {
-            "Either --input-interface or --input-extension must be specified"
-        }
-        super.exec()
     }
 
     class GodotArgsProvider(private val task: GenerateGodotTask) : CommandLineArgumentProvider {
-        override fun asArguments(): Iterable<String> {
-            val args = mutableListOf<String>()
-
+        override fun asArguments(): Iterable<String> = buildList {
             if (task.inputInterface.isPresent) {
-                args += listOf("--input-interface", task.inputInterface.get().asFile.absolutePath)
+                addAll(listOf("--input-interface", task.inputInterface.get().asFile.absolutePath))
             }
 
             if (task.inputExtension.isPresent) {
-                args += listOf("--input-extension", task.inputExtension.get().asFile.absolutePath)
+                addAll(listOf("--input-extension", task.inputExtension.get().asFile.absolutePath))
             }
 
-            args += listOf(
-                "--output",
-                task.outputDir.get().asFile.absolutePath,
-                "--package",
-                task.packageName.get(),
+            addAll(
+                listOf(
+                    "--output",
+                    task.outputDir.get().asFile.absolutePath,
+                    "--package",
+                    task.packageName.get(),
+                ),
             )
-
-            return args
         }
     }
 }
