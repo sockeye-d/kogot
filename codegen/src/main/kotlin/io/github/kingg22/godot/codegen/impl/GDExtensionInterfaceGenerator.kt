@@ -1,16 +1,11 @@
 package io.github.kingg22.godot.codegen.impl
 
-import com.squareup.kotlinpoet.*
-import io.github.kingg22.godot.codegen.models.gextensioninterface.Arguments
-import io.github.kingg22.godot.codegen.models.gextensioninterface.Deprecated
 import io.github.kingg22.godot.codegen.models.gextensioninterface.GDExtensionInterface
-import io.github.kingg22.godot.codegen.models.gextensioninterface.Interface
-import io.github.kingg22.godot.codegen.models.gextensioninterface.Types
-import io.github.kingg22.godot.codegen.models.gextensioninterface.ValueType
 import java.nio.file.Path
 
 class GDExtensionInterfaceGenerator(private val packageName: String) {
-    fun generate(api: GDExtensionInterface, outputDir: Path): List<Path> = api.types.asSequence().map { type ->
+    fun generate(api: GDExtensionInterface, outputDir: Path): List<Path> = emptyList()
+    /*api.types.asSequence().map { type ->
         val file = when (type) {
             is Types.EnumType -> generateEnum(type)
             is Types.HandleType -> generateHandle(type)
@@ -212,3 +207,5 @@ private fun deprecatedAnnotation(deprecated: Deprecated): AnnotationSpec {
 
 private fun returnTypeName(packageName: String, returnValue: ValueType?): TypeName =
     if (returnValue == null) UNIT else typeNameFor(packageName, returnValue.type)
+*/
+}

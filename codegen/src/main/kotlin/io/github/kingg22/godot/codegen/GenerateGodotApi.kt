@@ -119,6 +119,9 @@ private fun run(args: Array<String>): Int {
 
     try {
         if (interfaceFile != null) {
+            System.err.println(
+                "WARNING: Using deprecated GDExtensionInterface No-OP generation, please replace usage with jextract for FFM or cinterop for Kotlin/Native",
+            )
             val extensionInterface = json.decodeFromStream<GDExtensionInterface>(interfaceFile.inputStream())
             val paths = generator.generate(extensionInterface, outputDir)
             println("---Generated GDExtension Interface files---:")
