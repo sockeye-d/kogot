@@ -167,8 +167,7 @@
                         "items": {
                             "required": [
                                 "name",
-                                "value",
-                                "description"
+                                "value"
                             ],
                             "properties": {
                                 "name": {
@@ -198,8 +197,7 @@
                     "return_type",
                     "category",
                     "is_vararg",
-                    "hash",
-                    "description"
+                    "hash"
                 ],
                 "properties": {
                     "name": {
@@ -257,9 +255,7 @@
                     "name",
                     "indexing_return_type",
                     "is_keyed",
-                    "has_destructor",
-                    "brief_description",
-                    "description"
+                    "has_destructor"
                 ],
                 "properties": {
                     "name": {
@@ -280,8 +276,7 @@
                         "items": {
                             "required": [
                                 "name",
-                                "type",
-                                "description"
+                                "type"
                             ],
                             "properties": {
                                 "name": {
@@ -307,8 +302,7 @@
                             "required": [
                                 "name",
                                 "type",
-                                "value",
-                                "description"
+                                "value"
                             ],
                             "properties": {
                                 "name": {
@@ -350,8 +344,7 @@
                                     "items": {
                                         "required": [
                                             "name",
-                                            "value",
-                                            "description"
+                                            "value"
                                         ],
                                         "properties": {
                                             "name": {
@@ -378,9 +371,7 @@
                         "items": {
                             "required": [
                                 "name",
-                                "right_type",
-                                "return_type",
-                                "description"
+                                "right_type"
                             ],
                             "properties": {
                                 "name": {
@@ -413,8 +404,7 @@
                                 "is_vararg",
                                 "is_const",
                                 "is_static",
-                                "hash",
-                                "description"
+                                "hash"
                             ],
                             "properties": {
                                 "name": {
@@ -471,8 +461,7 @@
                         "minItems": 1,
                         "items": {
                             "required": [
-                                "index",
-                                "description"
+                                "index"
                             ],
                             "properties": {
                                 "index": {
@@ -530,9 +519,7 @@
                     "is_refcounted",
                     "is_instantiable",
                     "inherits",
-                    "api_type",
-                    "brief_description",
-                    "description"
+                    "api_type"
                 ],
                 "properties": {
                     "name": {
@@ -560,8 +547,7 @@
                         "items": {
                             "required": [
                                 "name",
-                                "value",
-                                "description"
+                                "value"
                             ],
                             "properties": {
                                 "name": {
@@ -602,8 +588,7 @@
                                     "items": {
                                         "required": [
                                             "name",
-                                            "value",
-                                            "description"
+                                            "value"
                                         ],
                                         "properties": {
                                             "name": {
@@ -634,8 +619,7 @@
                                 "is_vararg",
                                 "is_static",
                                 "is_virtual",
-                                "hash",
-                                "description"
+                                "hash"
                             ],
                             "properties": {
                                 "name": {
@@ -708,8 +692,7 @@
                         "minItems": 1,
                         "items": {
                             "required": [
-                                "name",
-                                "description"
+                                "name"
                             ],
                             "properties": {
                                 "name": {
@@ -732,8 +715,7 @@
                                 "type",
                                 "name",
                                 "setter",
-                                "getter",
-                                "description"
+                                "getter"
                             ],
                             "properties": {
                                 "type": {
