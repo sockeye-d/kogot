@@ -18,6 +18,10 @@ class GodotClass private constructor(
     val properties: List<ClassProperty> = emptyList(),
     val signals: List<Signal> = emptyList(),
 ) : ClassDescriptor {
+    init {
+        check(apiType == "core" || apiType == "editor") { "New api type founded: $apiType" }
+    }
+
     @Serializable
     class ClassMethod private constructor(
         override val name: String,
