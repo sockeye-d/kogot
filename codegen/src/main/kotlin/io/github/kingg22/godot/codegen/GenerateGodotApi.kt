@@ -8,12 +8,15 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import java.io.IOException
+import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import kotlin.io.path.isDirectory
 import kotlin.system.exitProcess
+import kotlin.time.Duration
+import kotlin.time.measureTime
 
 // error codes
 private const val SUCCESS = 0
@@ -142,10 +145,20 @@ private fun run(args: Array<String>): Int {
         }
         if (extensionFile != null) {
             println()
-            val extensionApi = json.decodeFromStream<ExtensionApi>(extensionFile.inputStream())
-            val paths = generator.generate(extensionApi, outputDir)
-            println("---Generated Extension API files---")
-            println("---Total: ${paths.size} => ${paths.firstOrNull()?.parent} ---")
+            println("---Generator Extension API files--- Backend: $backendEnum")
+            val paths = mutableListOf<Path>()
+            var time: Duration? = null
+            try {
+                time = measureTime {
+                    val extensionApi = json.decodeFromStream<ExtensionApi>(extensionFile.inputStream())
+                    val pathSequence = generator.generate(extensionApi, outputDir)
+                    paths.addAll(pathSequence)
+                }
+            } catch (e: Exception) {
+                throw e
+            } finally {
+                println("---Total generated: ${paths.size} in $time to => ${paths.firstOrNull()?.parent} ---")
+            }
         }
     } catch (e: Exception) {
         logger.fatal(e, "file.read.error", interfaceFile)

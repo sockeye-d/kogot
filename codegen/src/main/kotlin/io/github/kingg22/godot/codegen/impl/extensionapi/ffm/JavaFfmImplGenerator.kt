@@ -11,8 +11,8 @@ class JavaFfmImplGenerator(override val typeResolver: TypeResolver, private val 
     CodeImplGenerator.ImplGenerator {
 
     context(context: Context)
-    override fun generate(api: ExtensionApi, outputDir: Path): List<Path> {
+    override fun generate(api: ExtensionApi, outputDir: Path): Sequence<Path> {
         // TODO: generate Java FFM for classes, builtins, utility functions
-        return emptyList()
+        return sequenceOf()
     }
 }

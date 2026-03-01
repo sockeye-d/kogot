@@ -23,7 +23,7 @@ class KotlinPoetGenerator(packageName: String, private val backend: Backend) {
 
     fun generate(api: GDExtensionInterface, outputDir: Path): List<Path> = interfaceGenerator.generate(api, outputDir)
 
-    fun generate(api: ExtensionApi, outputDir: Path): List<Path> = context(Context.buildFromApi(api)) {
+    fun generate(api: ExtensionApi, outputDir: Path): Sequence<Path> = context(Context.buildFromApi(api)) {
         backend.generateAll(api, outputDir)
     }
 }

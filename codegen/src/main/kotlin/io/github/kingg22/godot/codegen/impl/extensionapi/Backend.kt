@@ -26,5 +26,5 @@ interface Backend {
      */
 
     context(_: Context)
-    fun generateAll(api: ExtensionApi, outputDir: Path): List<Path> = codeImplGenerator.generate(api, outputDir)
+    fun generateAll(api: ExtensionApi, outputDir: Path): Sequence<Path> = codeImplGenerator.generate(api, outputDir)
 }

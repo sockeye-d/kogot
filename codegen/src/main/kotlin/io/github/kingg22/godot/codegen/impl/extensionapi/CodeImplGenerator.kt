@@ -7,7 +7,7 @@ interface CodeImplGenerator {
     val typeResolver: TypeResolver
 
     context(context: Context)
-    fun generate(api: ExtensionApi, outputDir: Path): List<Path>
+    fun generate(api: ExtensionApi, outputDir: Path): Sequence<Path>
 
     /**
      * Generates the platform-specific implementation bodies for a specific [Backend].

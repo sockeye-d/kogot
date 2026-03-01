@@ -19,14 +19,14 @@ class KotlinStubGenerator(override val typeResolver: TypeResolver, packageName: 
     private val builtinGen = BuiltinStubGenerator(packageName, typeResolver, enumGen)
     private val nativeGen = NativeStructureStubGenerator(packageName)
     private val utilityGen = UtilityFunctionStubGenerator(packageName, typeResolver)
-    private val variantGen = VariantStubGenerator(packageName, enumGen)
+    private val variantGen = VariantStubGenerator(packageName, enumGen, typeResolver)
 
     init {
         println("WARNING: Kotlin stub generator doesn't generate functional bodies, all throw TODO()")
     }
 
     context(_: Context)
-    override fun generate(api: ExtensionApi, outputDir: Path): List<Path> {
+    override fun generate(api: ExtensionApi, outputDir: Path): Sequence<Path> {
         val paths = mutableListOf<Path>()
 
         val builtinClassesPaths = api.builtinClasses
@@ -62,6 +62,6 @@ class KotlinStubGenerator(override val typeResolver: TypeResolver, packageName: 
             )
         }
 
-        return paths
+        return paths.asSequence()
     }
 }
