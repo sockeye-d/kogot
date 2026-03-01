@@ -1,6 +1,5 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi
 
-import io.github.kingg22.godot.codegen.models.extensionapi.BuiltinClass
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 import io.github.kingg22.godot.codegen.models.extensionapi.GodotClass
 
@@ -32,7 +31,6 @@ class Context private constructor(
     fun isNativeStructure(godotName: String): Boolean = godotName in nativeStructureTypes
     fun isSingleton(godotName: String): Boolean = godotName in singletons
     fun isSingleton(godotClass: GodotClass): Boolean = godotClass.name in singletons
-    fun isSingleton(godotBuiltinClass: BuiltinClass): Boolean = godotBuiltinClass.name in singletons
     fun isFinal(godotName: String): Boolean = godotName in finalClasses
 
     // ── Hierarchy ─────────────────────────────────────────────────────────────
@@ -69,6 +67,10 @@ class Context private constructor(
                 cls.inherits?.takeIf { it.isNotBlank() }?.let { base ->
                     tree.insert(derived = cls.name, base = base)
                 }
+            }
+
+            check(builtinTypes.none { it in singletons }) {
+                "Found a builtin type that is also a singleton: ${builtinTypes.intersect(singletons)}"
             }
 
             return Context(
