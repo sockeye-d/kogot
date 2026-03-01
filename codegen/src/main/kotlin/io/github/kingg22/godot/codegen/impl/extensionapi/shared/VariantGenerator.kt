@@ -7,6 +7,7 @@ import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import io.github.kingg22.godot.codegen.impl.commonConfiguration
+import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.snakeCaseToCamelCase
@@ -19,6 +20,7 @@ class VariantGenerator(
     private val enumGen: EnumGenerator,
     private val typeResolver: TypeResolver,
 ) {
+    context(_: Context)
     fun generate(nestedEnums: List<EnumDescriptor>): FileSpec {
         val variantTypes = nestedEnums.find { it.name == "Variant.Type" }
 

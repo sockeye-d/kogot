@@ -3,6 +3,7 @@ package io.github.kingg22.godot.codegen.impl.extensionapi.stubs
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import io.github.kingg22.godot.codegen.impl.checkAndNormalizeTypeName
+import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.sanitizeTypeName
@@ -25,12 +26,14 @@ class KotlinStubTypeResolver(private val packageName: String) : TypeResolver {
         println("WARNING: using stub type resolver, not resolving pointers, typed arrays, etc.")
     }
 
+    context(_: Context)
     override fun resolve(holder: TypeMetaHolder): TypeName {
         // char32 meta is currently skipped → base type
         if (holder.meta == "char32") return resolve(holder.type)
         return super.resolve(holder)
     }
 
+    context(_: Context)
     override fun resolve(godotType: String): TypeName {
         var type = godotType.trim().removePrefix("const ").trim()
 

@@ -4,6 +4,7 @@ import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.UNIT
 import io.github.kingg22.godot.codegen.impl.commonConfiguration
+import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.withExceptionContext
@@ -19,6 +20,7 @@ class BuiltinStubGenerator(
 ) {
     private val methodGen = MethodStubGenerator(packageName, typeResolver)
 
+    context(_: Context)
     fun generate(cls: BuiltinClass): FileSpec? {
         if (cls.name.lowercase() in MAPPED_GODOT_BUILTIN_CLASSES) return null
         val className = cls.name.renameGodotClass()

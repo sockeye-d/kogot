@@ -7,6 +7,7 @@ import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.UNIT
 import io.github.kingg22.godot.codegen.impl.addKdocForBitfield
+import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
@@ -20,6 +21,7 @@ import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
  * - KDoc for bitfield return types
  */
 class MethodStubGenerator(private val packageName: String, private val typeResolver: TypeResolver) {
+    context(_: Context)
     fun generate(
         name: String,
         returnType: TypeName,
@@ -40,6 +42,7 @@ class MethodStubGenerator(private val packageName: String, private val typeResol
             .apply { if (isOpen) addModifiers(KModifier.OPEN) }
     }
 
+    context(_: Context)
     private fun buildParameters(arguments: List<MethodArg>): List<ParameterSpec> = arguments.mapIndexed { index, arg ->
         val name = methodArgName(arg, index)
         ParameterSpec

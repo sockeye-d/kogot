@@ -11,6 +11,7 @@ import com.squareup.kotlinpoet.UNIT
 import io.github.kingg22.godot.codegen.impl.K_AUTOCLOSEABLE
 import io.github.kingg22.godot.codegen.impl.K_TODO
 import io.github.kingg22.godot.codegen.impl.addKdocForBitfield
+import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.extensionapi.stubs.EnumStubGenerator
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
@@ -104,9 +105,8 @@ class KotlinNativeBuiltinClassGenerator(
         private val COMPARE_OPERATORS = setOf("<", "<=", ">", ">=")
     }
 
-    /**
-     * Generates the [TypeSpec] for [builtinClass], or null if it belongs to [KotlinNativeBuiltinClassGenerator.SKIPPED_TYPES].
-     */
+    /** Generates the [TypeSpec] for [builtinClass], or null if it belongs to [KotlinNativeBuiltinClassGenerator.SKIPPED_TYPES]. */
+    context(_: Context)
     fun generate(builtinClass: BuiltinClass): TypeSpec? {
         if (builtinClass.name.lowercase() in SKIPPED_TYPES) return null
 
@@ -224,6 +224,7 @@ class KotlinNativeBuiltinClassGenerator(
 
     // ── Operator generation ───────────────────────────────────────────────────
 
+    context(_: Context)
     private fun generateOperators(builtinClass: BuiltinClass): List<FunSpec> {
         val result = mutableListOf<FunSpec>()
         var compareToGenerated = false
@@ -268,9 +269,8 @@ class KotlinNativeBuiltinClassGenerator(
         return result
     }
 
-    /**
-     * Builds a standard Kotlin operator fun (plus, minus, times, equals, not, etc).
-     */
+    /** Builds a standard Kotlin operator fun (plus, minus, times, equals, not, etc). */
+    context(_: Context)
     private fun buildKotlinOperator(
         name: String,
         rightType: String?,
@@ -313,6 +313,7 @@ class KotlinNativeBuiltinClassGenerator(
      * Builds `override fun compareTo(other: T): Int` for ordering operators.
      * Kotlin derives <, <=, >, >= from a single compareTo.
      */
+    context(_: Context)
     private fun buildCompareToOperator(builtinClass: BuiltinClass, returnType: String): FunSpec {
         val selfType = typeResolver.resolve(builtinClass.name)
         return FunSpec
@@ -331,6 +332,7 @@ class KotlinNativeBuiltinClassGenerator(
      *
      * Binary ops become `infix fun`, unary ops become regular funs.
      */
+    context(_: Context)
     private fun buildFallbackOperatorMethod(op: BuiltinClass.Operator): FunSpec {
         val safeName = safeIdentifier(op.name) // .replace(" ", "_")
         val returnTypeName = typeResolver.resolve(op.returnType)
@@ -353,6 +355,7 @@ class KotlinNativeBuiltinClassGenerator(
 
     // ── Method generation ─────────────────────────────────────────────────────
 
+    context(_: Context)
     private fun generateMethod(method: BuiltinClass.BuiltinMethod): FunSpec {
         val returnTypeName = method.returnType?.let { typeResolver.resolve(it) } ?: UNIT
 
@@ -376,6 +379,7 @@ class KotlinNativeBuiltinClassGenerator(
 
     // ── Parameter building ────────────────────────────────────────────────────
 
+    context(_: Context)
     private fun buildParameter(arg: MethodArg): ParameterSpec {
         val type = typeResolver.resolve(arg)
         val paramBuilder = ParameterSpec.builder(safeIdentifier(arg.name), type)

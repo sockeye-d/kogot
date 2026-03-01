@@ -20,6 +20,7 @@ interface TypeResolver {
      * Resolves a raw Godot type string (e.g. `"int"`, `"Node"`, `"typedarray::Vector2"`)
      * to a KotlinPoet [TypeName] suitable for the target backend.
      */
+    context(_: Context)
     fun resolve(godotType: String): TypeName
 
     /**
@@ -29,6 +30,7 @@ interface TypeResolver {
      * if [TypeMetaHolder.isRequired] or meta is null, resolves the base type;
      * otherwise applies backend-specific meta mapping.
      */
+    context(_: Context)
     fun resolve(holder: TypeMetaHolder): TypeName {
         if (holder.meta == null || holder.isRequired()) return resolve(holder.type)
         return runCatching { resolve(holder.meta!!) }.getOrDefault(resolve(holder.type))
