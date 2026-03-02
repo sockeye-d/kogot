@@ -168,6 +168,32 @@ fun String.snakeCaseToCamelCase(): String {
     }
 }
 
+private val LOWER_CASE_REGEX = Regex("([a-z])([A-Z])")
+private val UPPER_CASE_REGEX = Regex("([A-Z])([A-Z][a-z])")
+
+/**
+ * Extensión de String para convertir formatos CamelCase o PascalCase
+ * a SCREAMING_SNAKE_CASE.
+ */
+fun String.toScreamingSnakeCase(): String {
+    if (this.isBlank()) return ""
+
+    return this.trim()
+        // 1. Insertar guion bajo entre minúscula/número y una mayúscula
+        // Ejemplo: user1Login -> user1_Login
+        .replace("([a-z0-9])([A-Z])".toRegex(), "$1_$2")
+        // 2. Insertar guion bajo entre una letra y un número (si se desea que el número sea palabra aparte)
+        // Ejemplo: User1 -> USER_1
+        .replace("([a-zA-Z])([0-9])".toRegex(), "$1_$2")
+        // 3. Manejar acrónimos: insertar guion bajo antes de la última mayúscula de una serie
+        // Ejemplo: HTTPResponse -> HTTP_Response
+        .replace("([A-Z])([A-Z][a-z])".toRegex(), "$1_$2")
+        // 4. Convertir todo a mayúsculas
+        .uppercase()
+        // 5. Limpiar posibles guiones bajos duplicados (por si el input ya tenía algunos)
+        .replace("__+".toRegex(), "_")
+}
+
 // ── Kotlin keyword list ───────────────────────────────────────────────────────
 
 fun isKotlinKeyword(name: String): Boolean = name in KOTLIN_KEYWORDS
