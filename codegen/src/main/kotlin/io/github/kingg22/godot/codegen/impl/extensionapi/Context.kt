@@ -42,9 +42,32 @@ class Context(
     fun isBuiltin(godotName: String): Boolean = godotName in builtinTypes
     fun isSingleton(godotName: String): Boolean = godotName in singletons
     fun isSingleton(godotClass: GodotClass): Boolean = godotClass.name in singletons
+
     fun isGodotType(godotName: String): Boolean =
         isBuiltin(godotName) || isSingleton(godotName) || godotName in classes || godotName in globalEnumsTypes ||
             godotName in nestedEnumsTypes.map { it.first }
+
+    fun isNestedEnum(godotName: String): Boolean = nestedEnumsTypes.any {
+        "${it.first}${it.second}" == godotName || it.second == godotName
+    }
+
+    fun getNestedEnumName(godotName: String): String {
+        check(isNestedEnum(godotName)) { "Not a nested enum: $godotName" }
+        return nestedEnumsTypes.first { "${it.first}${it.second}" == godotName || it.second == godotName }.second
+    }
+
+    fun getNestedEnumParent(godotName: String): String {
+        check(isNestedEnum(godotName)) { "Not a nested enum: $godotName" }
+        return nestedEnumsTypes.first { "${it.first}${it.second}" == godotName || it.second == godotName }.first
+    }
+
+    fun getNestedEnumPair(godotName: String): Pair<String, String> {
+        check(isNestedEnum(godotName)) { "Not a nested enum: $godotName" }
+        return nestedEnumsTypes.first { "${it.first}${it.second}" == godotName || it.second == godotName }
+    }
+
+    /** @return `true` if [godotName] is a specialized class (e.g. `Vector2i` is specialized of `Vector2`) and the base exists */
+    fun isSpecializedClass(godotName: String): Boolean = godotName.endsWith('i') && isGodotType(godotName.dropLast(1))
 
     // ── Hierarchy ─────────────────────────────────────────────────────────────
 
