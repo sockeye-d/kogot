@@ -1,8 +1,5 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi
 
-import com.squareup.kotlinpoet.ClassName
-import io.github.kingg22.godot.codegen.impl.extensionapi.PackageRegistry.Companion.resolveCoreSubpackage
-import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 import io.github.kingg22.godot.codegen.models.extensionapi.GodotClass
 import io.github.kingg22.godot.codegen.models.extensionapi.domain.GodotVersion
@@ -15,32 +12,39 @@ import io.github.kingg22.godot.codegen.models.extensionapi.domain.GodotVersion
  *
  * No generation state lives here — this is pure query over the parsed API.
  */
-class Context private constructor(
+class Context(
     private val builtinTypes: Set<String>,
-    private val nativeStructureTypes: Set<String>,
     private val singletons: Set<String>,
-
-    /**
-     * Classes that are "final" in Godot: singletons and abstract engine classes with no virtual interface.
-     *
-     * TODO investigate if this is still true in 4.0
-     */
-    private val finalClasses: Set<String>,
+    private val classes: Set<String>,
+    private val globalEnumsTypes: Set<String>,
+    private val nestedEnumsTypes: Set<Pair<String, String>>,
     private val inheritanceTree: InheritanceTree,
     val godotVersion: GodotVersion,
-    private val packageRegistry: PackageRegistry,
-) {
+    packageRegistry: PackageRegistry,
+) : PackageRegistry by packageRegistry {
     init {
         println("INFO: Context created to generate for Godot: $godotVersion")
     }
 
+    constructor(incompleteContext: IncompleteContext, packageRegistry: PackageRegistry) : this(
+        builtinTypes = incompleteContext.builtinTypes,
+        singletons = incompleteContext.singletons,
+        classes = incompleteContext.classesAndApiType.map { it.first }.toSet(),
+        globalEnumsTypes = incompleteContext.globalEnumsTypes,
+        nestedEnumsTypes = incompleteContext.nestedEnumsTypes,
+        inheritanceTree = incompleteContext.inheritanceTree,
+        godotVersion = incompleteContext.godotVersion,
+        packageRegistry = packageRegistry,
+    )
+
     // ── Type classification ───────────────────────────────────────────────────
 
     fun isBuiltin(godotName: String): Boolean = godotName in builtinTypes
-    fun isNativeStructure(godotName: String): Boolean = godotName in nativeStructureTypes
     fun isSingleton(godotName: String): Boolean = godotName in singletons
     fun isSingleton(godotClass: GodotClass): Boolean = godotClass.name in singletons
-    fun isFinal(godotName: String): Boolean = godotName in finalClasses
+    fun isGodotType(godotName: String): Boolean =
+        isBuiltin(godotName) || isSingleton(godotName) || godotName in classes || godotName in globalEnumsTypes ||
+            godotName in nestedEnumsTypes.map { it.first }
 
     // ── Hierarchy ─────────────────────────────────────────────────────────────
 
@@ -61,36 +65,42 @@ class Context private constructor(
      */
     fun inherits(godotName: String, baseName: String): Boolean = inheritanceTree.inherits(godotName, baseName)
 
-    // ── Package registry ───────────────────────────────────────────────────────────────
-
-    /**
-     * Returns the package for [godotName], or null if not registered
-     * (caller should treat it as a primitive / external type).
-     */
-    fun packageFor(godotName: String): String? = packageRegistry.packageFor(godotName)
-
-    /**
-     * Returns the [ClassName] for [godotName] using its registered package
-     * and the [kotlinName] produced by [renameGodotClass].
-     *
-     * Throws if the type is not registered — forces all generated types
-     * to be registered before code generation starts.
-     */
-    fun classNameFor(godotName: String, kotlinName: String = godotName.renameGodotClass()): ClassName =
-        packageRegistry.classNameFor(godotName, kotlinName)
+    class IncompleteContext(
+        val builtinTypes: Set<String>,
+        val nativeStructureTypes: Set<String>,
+        val singletons: Set<String>,
+        /** List of Class name and API type */
+        val classesAndApiType: Set<Pair<String, String>>,
+        val inheritanceTree: InheritanceTree,
+        val godotVersion: GodotVersion,
+        val globalEnumsTypes: Set<String>,
+        /** List of Parent class and nested enum name */
+        val nestedEnumsTypes: Set<Pair<String, String>>,
+    )
 
     companion object {
-        fun buildFromApi(api: ExtensionApi, rootPackage: String): Context {
+        fun buildFromApi(
+            api: ExtensionApi,
+            rootPackage: String,
+            packageRegistryFactory: PackageRegistryFactory,
+        ): Context {
+            val incompleteContext = buildFromApi(api)
+            val packageRegistry = packageRegistryFactory(rootPackage, incompleteContext)
+            return Context(incompleteContext, packageRegistry)
+        }
+
+        private fun buildFromApi(api: ExtensionApi): IncompleteContext {
             // add Variant as builtin because is absent
             val builtinTypes = mutableSetOf("Variant")
             val nativeStructureTypes = mutableSetOf<String>()
             val singletons = mutableSetOf<String>()
-            val finalClasses = mutableSetOf<String>()
+            val globalEnumsTypes = mutableSetOf<String>()
+            val nestedEnumsTypes = mutableSetOf<Pair<String, String>>()
+            val godotClasses = mutableSetOf<Pair<String, String>>()
             val tree = InheritanceTree()
 
             api.singletons.forEach { singleton ->
                 singletons += singleton.name
-                finalClasses += singleton.name
             }
 
             api.builtinClasses.forEach { builtin ->
@@ -101,7 +111,15 @@ class Context private constructor(
                 nativeStructureTypes += ns.name
             }
 
+            api.globalEnums.forEach { enum ->
+                globalEnumsTypes += enum.name
+            }
+
             api.classes.forEach { cls ->
+                godotClasses += cls.name to cls.apiType
+                cls.enums.forEach { nestedEnum ->
+                    nestedEnumsTypes += cls.name to nestedEnum.name
+                }
                 cls.inherits?.takeIf { it.isNotBlank() }?.let { base ->
                     tree.insert(derived = cls.name, base = base)
                 }
@@ -111,59 +129,15 @@ class Context private constructor(
                 "Found a builtin type that is also a singleton: ${builtinTypes.intersect(singletons)}"
             }
 
-            fun isSingleton(name: String) = name in singletons
-
-            fun buildPackageRegistry(api: ExtensionApi): PackageRegistry {
-                val map = mutableMapOf<String, String>()
-
-                // Builtins
-                api.builtinClasses.forEach { cls ->
-                    map[cls.name] = "$rootPackage.api.builtin"
-                }
-                // Variant is injected manually in Context but not in builtinClasses
-                map["Variant"] = "$rootPackage.api.builtin"
-
-                // Engine classes
-                api.classes.forEach { cls ->
-                    val pkg = when {
-                        isSingleton(cls.name) -> "$rootPackage.api.singleton"
-
-                        // los 79 confiables
-                        cls.apiType == "editor" -> "$rootPackage.api.editor"
-
-                        else -> {
-                            val sub = resolveCoreSubpackage(cls.name, tree)
-                            val subPack = sub?.let { ".$sub" }.orEmpty()
-                            "$rootPackage.api.core$subPack"
-                        }
-                    }
-                    map[cls.name] = pkg
-                }
-
-                // Global enums
-                api.globalEnums.forEach { enum ->
-                    map[enum.name] = "$rootPackage.api.global"
-                }
-
-                // Native structures — manual impl, but types must be resolvable
-                api.nativeStructures.forEach { ns ->
-                    map[ns.name] = "$rootPackage.api.native"
-                }
-
-                // Utility functions → no types per se, but category packages
-                // are registered separately if needed
-
-                return PackageRegistry(map)
-            }
-
-            return Context(
+            return IncompleteContext(
                 builtinTypes = builtinTypes,
                 nativeStructureTypes = nativeStructureTypes,
                 singletons = singletons,
-                finalClasses = finalClasses,
+                classesAndApiType = godotClasses,
                 inheritanceTree = tree,
                 godotVersion = GodotVersion(api.header),
-                packageRegistry = buildPackageRegistry(api),
+                globalEnumsTypes = globalEnumsTypes,
+                nestedEnumsTypes = nestedEnumsTypes,
             )
         }
     }
