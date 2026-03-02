@@ -2,14 +2,11 @@ package io.github.kingg22.godot.codegen.models.extensionapi.domain
 
 import io.github.kingg22.godot.codegen.models.extensionapi.Header
 
-private const val MAX_COMPONENT_VALUE = 255
-
 /**
  * @property hex Full version encoded as hexadecimal with one byte (2 hex digits) per number
  * (e.g., for "3.1.12" it would be 0x03010C)
  * @property status e.g. "stable", "beta", "rc1", "rc2"
  * @property build e.g. "custom_build"
- * @property hash Full Git commit hash.
  * @property timestamp Git commit date UNIX timestamp in seconds, or 0 if unavailable.
  * @property string e.g. "Godot v3.1.4.stable.official.mono"
  */
@@ -21,7 +18,6 @@ data class GodotVersion(
     val hex: Int,
     val status: String,
     val build: String,
-    val hash: String,
     val timestamp: Long,
     val string: String,
 ) : Comparable<GodotVersion> {
@@ -32,7 +28,6 @@ data class GodotVersion(
         "${versionHeader.versionMajor}${versionHeader.versionMinor}${versionHeader.versionPatch}".hexToInt(),
         versionHeader.versionStatus,
         versionHeader.versionBuild,
-        "unknown hash",
         0,
         versionHeader.versionFullName,
     )
