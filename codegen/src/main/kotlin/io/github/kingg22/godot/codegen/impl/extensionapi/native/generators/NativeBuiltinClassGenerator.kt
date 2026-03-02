@@ -221,13 +221,6 @@ class NativeBuiltinClassGenerator(
             classBuilder.addType(companionBuilder.build())
         }
 
-        // ── Enums (generated externally, but nested types are added here if present) ──
-        // Enums are handled by a separate EnumGenerator and linked externally.
-        for (enum in builtinClass.enums) {
-            val enumTypeSpec = enums.generateSpec(enum)
-            classBuilder.addType(enumTypeSpec)
-        }
-
         return classBuilder.build()
     }
 

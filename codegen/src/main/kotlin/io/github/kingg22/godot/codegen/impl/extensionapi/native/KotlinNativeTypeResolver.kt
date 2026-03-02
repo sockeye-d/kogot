@@ -141,11 +141,10 @@ class KotlinNativeTypeResolver : TypeResolver {
             val parentRaw = checkAndNormalizeTypeName(parentType)
             val nestedRaw = checkAndNormalizeTypeName(nestedType)
             val rawQualified = "$parentRaw.$nestedRaw"
-            val kotlinNames = arrayOf(
-                sanitizeTypeName(parentRaw.renameGodotClass()),
-                sanitizeTypeName(nestedRaw.renameGodotClass()),
-            )
-            return context.classNameForOrDefault(rawQualified, *kotlinNames)
+            val parentName = sanitizeTypeName(parentRaw.renameGodotClass())
+            val nestedName = sanitizeTypeName(nestedRaw.renameGodotClass())
+            val topLevelName = parentName + nestedName
+            return context.classNameForOrDefault(rawQualified, topLevelName)
         }
 
         val raw = checkAndNormalizeTypeName(clean)
