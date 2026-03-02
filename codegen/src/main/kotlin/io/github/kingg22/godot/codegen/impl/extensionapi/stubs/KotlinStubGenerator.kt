@@ -13,14 +13,14 @@ import java.nio.file.Path
  * Delegates each entity type to a focused sub-generator, keeping this class
  * as an orchestrator only (no generation logic lives here).
  */
-class KotlinStubGenerator(override val typeResolver: TypeResolver, packageName: String) :
+class KotlinStubGenerator(override val typeResolver: TypeResolver, private val packageName: String) :
     CodeImplGenerator.StubGenerator {
     private val enumGen = EnumStubGenerator(packageName)
     private val classGen = ClassStubGenerator(packageName, typeResolver)
     private val builtinGen = BuiltinStubGenerator(packageName, typeResolver, enumGen)
     private val nativeGen = NativeStructureStubGenerator(packageName)
     private val utilityGen = UtilityFunctionStubGenerator(packageName, typeResolver)
-    private val variantGen = VariantGenerator(packageName, enumGen, typeResolver)
+    private val variantGen = VariantGenerator(enumGen, typeResolver)
 
     init {
         println("WARNING: Kotlin stub generator doesn't generate functional bodies, all throw TODO()")
@@ -51,8 +51,8 @@ class KotlinStubGenerator(override val typeResolver: TypeResolver, packageName: 
         val globalEnumsPaths = globalEnums.map { enumGen.generateFile(it).writeTo(outputDir) }
         paths.addAll(globalEnumsPaths)
 
-        paths.add(variantGen.generate(nestedEnums).writeTo(outputDir))
-        paths.add(utilityGen.generate(api.utilityFunctions).writeTo(outputDir))
+        paths.add(variantGen.generate(nestedEnums).toBuilder(packageName).build().writeTo(outputDir))
+        paths.addAll(utilityGen.generate(api.utilityFunctions).map { it.writeTo(outputDir) })
 
         val nativeStructuresPaths = api.nativeStructures.map { nativeGen.generate(it).writeTo(outputDir) }
         paths.addAll(nativeStructuresPaths)
