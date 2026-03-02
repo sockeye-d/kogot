@@ -7,9 +7,9 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.resolver.EnumeratorShortener
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.sanitizeTypeName
-import io.github.kingg22.godot.codegen.impl.toScreamingSnakeCase
 import io.github.kingg22.godot.codegen.impl.withExceptionContext
 import io.github.kingg22.godot.codegen.models.extensionapi.EnumDescriptor
 
@@ -25,6 +25,7 @@ class NativeEnumGenerator {
         return createFile(spec, spec.name!!, packageFor(descriptor.name))
     }
 
+    context(context: Context)
     fun generateSpec(descriptor: EnumDescriptor): TypeSpec {
         withExceptionContext({ "Generating enum '${descriptor.name}', values count: ${descriptor.values.size}" }) {
             val enumName = enumTypeName(descriptor.name)
@@ -45,37 +46,19 @@ class NativeEnumGenerator {
                 )
             descriptor.description?.takeIf { it.isNotBlank() }?.let { typeBuilder.addKdoc("%S", it) }
 
-            // TODO KeyModifierMask special prefix cases
-            val enumNameScreaming = when (descriptor.name) {
-                "Error" -> "ERR_"
-                "MethodFlags" -> "METHOD_FLAG_"
-                "PropertyUsageFlags" -> "PROPERTY_USAGE_"
-                "VariantOperator" -> "OP_"
-                "VariantType" -> "TYPE_"
-                "Vector2Axis", "Vector2iAxis", "Vector3Axis", "Vector3iAxis", "Vector4Axis", "Vector4iAxis" -> "AXIS_"
-                else -> descriptor.name.toScreamingSnakeCase()
-            }
+            val isNested = context.isNestedEnum(descriptor.name)
+            val parentClass = if (isNested) context.getNestedEnumParent(descriptor.name) else null
 
-            descriptor.values.forEach { enumConstant ->
-                withExceptionContext({ "Error generating enum constant '${enumConstant.name}'" }) {
-                    var enumEntry = enumConstant.name.removePrefix(enumNameScreaming)
-                    while (enumEntry.isNotBlank() && enumEntry.startsWith("_")) {
-                        enumEntry = enumEntry.substring(1)
-                    }
-                    enumEntry = enumEntry.ifBlank {
-                        println("WARNING: Enum constant '${enumConstant.name}' has no prefix, using raw name")
-                        enumConstant.name
-                    }
+            val constants = EnumeratorShortener.shortenEnumeratorNames(
+                parentClass,
+                descriptor.name,
+                descriptor.values.map { it.name },
+            )
 
-                    if (enumEntry.first().isDigit()) {
-                        println(
-                            "WARNING: Enum constant '${enumConstant.name}' starts with digit, restoring original name",
-                        )
-                        enumEntry = enumConstant.name
-                    }
-
+            descriptor.values.zip(constants) { enumConstant, entryName ->
+                withExceptionContext({ "Error generating enum constant '${enumConstant.name}' as $entryName" }) {
                     typeBuilder.addEnumConstant(
-                        sanitizeTypeName(enumEntry),
+                        sanitizeTypeName(entryName),
                         TypeSpec
                             .anonymousClassBuilder()
                             .addSuperclassConstructorParameter("%L", enumConstant.value)
