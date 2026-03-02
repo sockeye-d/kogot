@@ -25,7 +25,7 @@ class KotlinPoetGenerator(
         when (backend) {
             GeneratorBackend.STUBS -> KotlinStubBackend(packageName)
             GeneratorBackend.JAVA_FFM -> JavaFfmBackend(packageName)
-            GeneratorBackend.KOTLIN_NATIVE -> KotlinNativeBackend(packageName)
+            GeneratorBackend.KOTLIN_NATIVE -> KotlinNativeBackend()
         },
         when (backend) {
             GeneratorBackend.STUBS -> StubsPackageRegistry.factory

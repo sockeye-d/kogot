@@ -5,6 +5,7 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeBuiltinClassGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeEnumGenerator
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeVariantGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.stubs.UtilityFunctionStubGenerator
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 import java.nio.file.Path
@@ -12,9 +13,10 @@ import java.nio.file.Path
 /** Generates Kotlin Native implementation bodies (cinterop / GDExtension bindings). */
 class KotlinNativeImplGenerator(
     override val typeResolver: TypeResolver,
-    packageName: String,
-    private val utils: UtilityFunctionStubGenerator =
-        UtilityFunctionStubGenerator(packageName, typeResolver),
+    private val builtinClassGenerator: NativeBuiltinClassGenerator = NativeBuiltinClassGenerator(typeResolver),
+    private val enumGen: NativeEnumGenerator = NativeEnumGenerator(),
+    private val variant: NativeVariantGenerator = NativeVariantGenerator(typeResolver),
+    private val utils: UtilityFunctionStubGenerator = UtilityFunctionStubGenerator(typeResolver),
 ) : CodeImplGenerator.ImplGenerator {
 
     context(context: Context)
@@ -25,15 +27,10 @@ class KotlinNativeImplGenerator(
             )
         }
 
-        // TODO: generate cinterop-based implementations for classes, enums, utility functions
-        val enumGen = NativeEnumGenerator(context)
-        val builtinClassGenerator = NativeBuiltinClassGenerator(typeResolver, enumGen)
-        val variant = NativeVariantGenerator(typeResolver)
-
         val (nestedEnums, globalEnums) = api.globalEnums.partition { it.name.contains(".") }
 
         if (nestedEnums.size > 2) {
-            System.err.println(
+            println(
                 "WARNING: Nested enums (${nestedEnums.size}) [${nestedEnums.joinToString(postfix = "]") { it.name }}",
             )
         }
@@ -46,7 +43,7 @@ class KotlinNativeImplGenerator(
         yieldAll(nestedEnumsPaths)
 
         // Builtin missing: Variant
-        yield(variant.generate(nestedEnums).writeTo(outputDir))
+        yield(variant.generateFile(nestedEnums.find { it.name == "Variant.Type" }).writeTo(outputDir))
 
         val builtinClassesPaths = api.builtinClasses.asSequence()
             .mapNotNull { builtinClassGenerator.generateFile(it) }
@@ -62,6 +59,7 @@ class KotlinNativeImplGenerator(
                 }
             }
             .map { enumGen.generateFile(it).writeTo(outputDir) }
+
         yieldAll(builtinEnumPaths)
 
         val utilityFunctionsPaths = utils.generate(api.utilityFunctions).map { it.writeTo(outputDir) }
