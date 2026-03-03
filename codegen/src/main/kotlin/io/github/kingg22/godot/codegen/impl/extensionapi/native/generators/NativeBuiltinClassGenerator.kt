@@ -1,16 +1,12 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi.native.generators
 
-import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.INT
 import com.squareup.kotlinpoet.KModifier
-import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
-import com.squareup.kotlinpoet.UNIT
 import io.github.kingg22.godot.codegen.impl.K_AUTOCLOSEABLE
-import io.github.kingg22.godot.codegen.impl.K_TODO
 import io.github.kingg22.godot.codegen.impl.addKdocForBitfield
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
@@ -18,7 +14,6 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.models.extensionapi.BuiltinClass
-import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
 import io.github.kingg22.godot.codegen.utils.filterValuesNotNull
 
 /**
@@ -37,7 +32,8 @@ import io.github.kingg22.godot.codegen.utils.filterValuesNotNull
  */
 class NativeBuiltinClassGenerator(
     private val typeResolver: TypeResolver,
-    private val body: BodyGenerator = BodyGenerator(),
+    private val body: BodyGenerator,
+    private val methodGen: NativeMethodGenerator,
 ) {
     companion object {
         /**
@@ -168,7 +164,7 @@ class NativeBuiltinClassGenerator(
             val ctorBuilder = FunSpec.constructorBuilder()
             // ctor.description?.takeIf { it.isNotBlank() }?.let { ctorBuilder.addKdoc(it) }
             ctor.arguments.forEach { arg ->
-                ctorBuilder.addParameter(buildParameter(arg))
+                ctorBuilder.addParameter(methodGen.buildParameter(arg))
             }
             ctorBuilder.addCode(body.todoBody())
             classBuilder.addFunction(ctorBuilder.build())
@@ -356,39 +352,12 @@ class NativeBuiltinClassGenerator(
     // ── Method generation ─────────────────────────────────────────────────────
 
     context(_: Context)
-    private fun generateMethod(method: BuiltinClass.BuiltinMethod): FunSpec {
-        val returnTypeName = method.returnType?.let { typeResolver.resolve(it) } ?: UNIT
-
-        val builder = FunSpec
-            .builder(safeIdentifier(method.name))
-            .returns(returnTypeName)
-            .addCode(body.todoBody())
-
-        /*
-        val kdoc = buildKdoc(description = listOfNotNull(method.description))
-        if (kdoc.isNotBlank()) builder.addKdoc(kdoc)
-         */
-        builder.addKdocForBitfield(method.returnType)
-
-        method.arguments.forEach { arg ->
-            builder.addParameter(buildParameter(arg))
-        }
-
-        return builder.build()
-    }
-
-    // ── Parameter building ────────────────────────────────────────────────────
-
-    context(_: Context)
-    private fun buildParameter(arg: MethodArg): ParameterSpec {
-        val type = typeResolver.resolve(arg)
-        val paramBuilder = ParameterSpec.builder(safeIdentifier(arg.name), type)
-        arg.defaultValue?.let { _ ->
-            // Pass the default value as TODO(); impl layer will fix it
-            paramBuilder.defaultValue("%L", "TODO()")
-        }
-        return paramBuilder.build()
-    }
+    private fun generateMethod(method: BuiltinClass.BuiltinMethod): FunSpec = methodGen.buildMethod(
+        name = method.name,
+        returnType = method.returnType,
+        isVararg = method.isVararg,
+        arguments = method.arguments,
+    )
 
     // Helpers
     private fun isOperatorMethod(method: BuiltinClass.BuiltinMethod): Boolean = method.arguments.size <= 1
@@ -402,21 +371,5 @@ class NativeBuiltinClassGenerator(
         if (method.returnType != operator.returnType) return false
         if (operator.rightType != null && method.arguments[0].type != operator.rightType) return false
         return true
-    }
-
-    // ── BodyGenerator ──────────────────────────────────────────────────
-
-    /**
-     * Responsible solely for generating function/property bodies.
-     *
-     * Currently produces stubs (`TODO()`). The impl layer will replace
-     * these with actual native calls via cinterop.
-     */
-    class BodyGenerator {
-        fun todoBody(): CodeBlock = CodeBlock.of("%M()", K_TODO)
-
-        fun todoGetter(): FunSpec = FunSpec.getterBuilder()
-            .addCode(todoBody())
-            .build()
     }
 }
