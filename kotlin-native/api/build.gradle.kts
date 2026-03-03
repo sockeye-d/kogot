@@ -17,6 +17,10 @@ val listOfNativeBuildType = if (isRelease) {
 kotlin {
     compilerOptions {
         explicitApi()
+        optIn.addAll(
+            "kotlinx.cinterop.ExperimentalForeignApi",
+            "kotlin.experimental.ExperimentalNativeApi",
+        )
     }
 
     // linux
