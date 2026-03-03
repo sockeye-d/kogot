@@ -188,6 +188,9 @@ class KotlinNativeTypeResolver : TypeResolver {
 
             "double" -> DOUBLE
 
+            // Basado en el header de la API
+            "real_t" -> if (context.isDoublePrecision) DOUBLE else FLOAT
+
             // String → generated GodotString wrapper
             "string" -> context.classNameForOrDefault("String")
 
@@ -278,6 +281,7 @@ class KotlinNativeTypeResolver : TypeResolver {
         val COPAQUE_POINTER = ClassName("kotlinx.cinterop", "COpaquePointer")
         val C_POINTER = ClassName("kotlinx.cinterop", "CPointer")
         val C_POINTER_VAR_OF = ClassName("kotlinx.cinterop", "CPointerVarOf")
+        val C_STRUCT_VAR = ClassName("kotlinx.cinterop", "CStructVar")
 
         // CVar types (used for pointer targets)
         val BYTE_VAR = ClassName("kotlinx.cinterop", "ByteVar")
