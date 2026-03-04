@@ -1,5 +1,6 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi
 
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.resolver.EnumConstantResolver
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 import io.github.kingg22.godot.codegen.models.extensionapi.GodotClass
 import io.github.kingg22.godot.codegen.models.extensionapi.domain.GodotVersion
@@ -19,6 +20,7 @@ class Context(
     private val globalEnumsTypes: Set<String>,
     private val nestedEnumsTypes: Set<Pair<String, String>>,
     private val inheritanceTree: InheritanceTree,
+    private val enumConstantResolver: EnumConstantResolver,
     val godotVersion: GodotVersion,
     packageRegistry: PackageRegistry,
     val precision: String,
@@ -34,6 +36,7 @@ class Context(
         globalEnumsTypes = incompleteContext.globalEnumsTypes,
         nestedEnumsTypes = incompleteContext.nestedEnumsTypes,
         inheritanceTree = incompleteContext.inheritanceTree,
+        enumConstantResolver = incompleteContext.enumConstantResolver,
         godotVersion = incompleteContext.godotVersion,
         packageRegistry = packageRegistry,
         precision = precision,
@@ -60,6 +63,11 @@ class Context(
 
     fun getNestedEnumParent(godotName: String): String {
         check(isNestedEnum(godotName)) { "Not a nested enum: $godotName" }
+        return nestedEnumsTypes.first { it.second == godotName || "${it.first}${it.second}" == godotName }.first
+    }
+
+    fun getNestedEnumParentOrNull(godotName: String): String? {
+        if (!isNestedEnum(godotName)) return null
         return nestedEnumsTypes.first { it.second == godotName || "${it.first}${it.second}" == godotName }.first
     }
 
@@ -92,6 +100,16 @@ class Context(
      */
     fun inherits(godotName: String, baseName: String): Boolean = inheritanceTree.inherits(godotName, baseName)
 
+    // Enums Constants
+    fun resolveEnumConstant(parentClass: String?, enumName: String, value: Long): String? =
+        enumConstantResolver.resolveConstant(parentClass, enumName, value)
+
+    fun getConstantEnumsWithValueFor(parentClass: String?, enumName: String) =
+        enumConstantResolver.getAllConstantsWithValue(parentClass, enumName)
+
+    fun getConstantEnumNamesFor(parentClass: String?, enumName: String) =
+        enumConstantResolver.getAllConstantsNames(parentClass, enumName)
+
     class IncompleteContext(
         val builtinTypes: Set<String>,
         val nativeStructureTypes: Set<String>,
@@ -103,6 +121,7 @@ class Context(
         val globalEnumsTypes: Set<String>,
         /** List of Parent class and nested enum name */
         val nestedEnumsTypes: Set<Pair<String, String>>,
+        val enumConstantResolver: EnumConstantResolver,
     )
 
     companion object {
@@ -164,6 +183,8 @@ class Context(
                 "Found a builtin type that is also a singleton: ${builtinTypes.intersect(singletons)}"
             }
 
+            val enumResolver = EnumConstantResolver.build(api)
+
             return IncompleteContext(
                 builtinTypes = builtinTypes,
                 nativeStructureTypes = nativeStructureTypes,
@@ -173,6 +194,7 @@ class Context(
                 godotVersion = GodotVersion(api.header),
                 globalEnumsTypes = globalEnumsTypes,
                 nestedEnumsTypes = nestedEnumsTypes,
+                enumConstantResolver = enumResolver,
             )
         }
     }
