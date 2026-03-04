@@ -6,6 +6,7 @@ import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.UNIT
+import io.github.kingg22.godot.codegen.impl.addKdocForBitfield
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
@@ -42,12 +43,15 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
         arguments: List<MethodArg>,
         extraModifiers: List<KModifier> = emptyList(),
     ): FunSpec {
+        val kotlinName = safeIdentifier(name)
         val builder = FunSpec
-            .builder(safeIdentifier(name))
+            .builder(kotlinName)
             .addModifiers(extraModifiers)
             .returns(returnType)
             .addCode(body.todoBody())
-            .fixAccidentalOverride(name, returnType)
+            .apply {
+                if (name != kotlinName) addKdoc("Original name: `%L`", name)
+            }.fixAccidentalOverride(name, returnType)
 
         // Fixed args always come first
         arguments.forEach { arg ->
@@ -72,7 +76,7 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
     context(context: Context)
     private fun FunSpec.Builder.fixAccidentalOverride(name: String, returnType: TypeName): FunSpec.Builder {
         when (name) {
-            "toString" if returnType == context.classNameFor("String", "GodotString") -> {
+            "to_string" if returnType == context.classNameFor("String", "GodotString") -> {
                 println("INFO: renaming toString() → toGodotString() to avoid Any clash")
                 return build()
                     .toBuilder("toGodotString")
@@ -136,8 +140,14 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
     context(_: Context)
     fun buildParameter(arg: MethodArg): ParameterSpec {
         val type = typeResolver.resolve(arg)
-        val paramBuilder = ParameterSpec.builder(safeIdentifier(arg.name), type)
-        arg.defaultValue?.let { _ ->
+        val kotlinName = safeIdentifier(arg.name)
+        val paramBuilder = ParameterSpec
+            .builder(kotlinName, type)
+            .addKdocForBitfield(arg.type)
+        if (arg.name != kotlinName) paramBuilder.addKdoc("Original name: `%L`", arg.name)
+        arg.defaultValue?.let { value ->
+            // FIXME remove kdoc when is implemented
+            paramBuilder.addKdoc("Default value: `%L`", value)
             paramBuilder.defaultValue(body.todoDefaultValueParam())
         }
         return paramBuilder.build()
