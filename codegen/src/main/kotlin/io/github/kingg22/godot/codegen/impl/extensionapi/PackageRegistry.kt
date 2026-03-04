@@ -54,4 +54,6 @@ interface PackageRegistry {
     fun packageForUtilityFun(): String
 
     fun packageForUtilObject(): String = packageForOrDefault("GD")
+
+    fun classNameOfExperimentalAnnotation(): ClassName = classNameForOrDefault("ExperimentalGodotApi")
 }

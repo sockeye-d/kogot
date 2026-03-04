@@ -44,6 +44,13 @@ class NativePackageRegistry internal constructor(private val typeToPackage: Map<
         return "$rootPackage.api.utils"
     }
 
+    override fun packageForUtilObject(): String = packageForUtilityFun()
+
+    override fun classNameOfExperimentalAnnotation(): ClassName = ClassName(
+        if (rootPackage.endsWith(".api")) rootPackage else "$rootPackage.api",
+        "ExperimentalGodotApi",
+    )
+
     companion object {
         val factory: PackageRegistryFactory = { rootPackage, context ->
             fun isSingleton(name: String) = name in context.singletons

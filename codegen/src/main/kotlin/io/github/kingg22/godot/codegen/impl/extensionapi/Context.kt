@@ -20,6 +20,7 @@ class Context(
     private val globalEnumsTypes: Set<String>,
     private val inheritanceTree: InheritanceTree,
     private val enumConstantResolver: EnumConstantResolver,
+    private val experimentalTypesRegistry: ExperimentalTypesRegistry,
     val godotVersion: GodotVersion,
     packageRegistry: PackageRegistry,
     val precision: String,
@@ -28,13 +29,19 @@ class Context(
         println("INFO: Context created to generate for Godot: $godotVersion")
     }
 
-    constructor(incompleteContext: IncompleteContext, packageRegistry: PackageRegistry, precision: String) : this(
+    constructor(
+        incompleteContext: IncompleteContext,
+        packageRegistry: PackageRegistry,
+        precision: String,
+        experimentalTypesRegistry: ExperimentalTypesRegistry,
+    ) : this(
         builtinTypes = incompleteContext.builtinTypes,
         singletons = incompleteContext.singletons,
         classes = incompleteContext.classesAndApiType.map { it.first }.toSet(),
         globalEnumsTypes = incompleteContext.globalEnumsTypes,
         inheritanceTree = incompleteContext.inheritanceTree,
         enumConstantResolver = incompleteContext.enumConstantResolver,
+        experimentalTypesRegistry = experimentalTypesRegistry,
         godotVersion = incompleteContext.godotVersion,
         packageRegistry = packageRegistry,
         precision = precision,
@@ -83,6 +90,13 @@ class Context(
     fun getConstantEnumNamesFor(parentClass: String?, enumName: String) =
         enumConstantResolver.getAllConstantsNames(parentClass, enumName)
 
+    // experimental types
+    fun isExperimentalType(className: String, memberName: String? = null): Boolean =
+        experimentalTypesRegistry.isExperimental(className, memberName)
+
+    fun getReasonOfExperimental(className: String, memberName: String? = null): String? =
+        experimentalTypesRegistry.getReason(className, memberName)
+
     class IncompleteContext(
         val builtinTypes: Set<String>,
         val nativeStructureTypes: Set<String>,
@@ -105,7 +119,12 @@ class Context(
         ): Context {
             val incompleteContext = buildFromApi(api)
             val packageRegistry = packageRegistryFactory(rootPackage, incompleteContext)
-            return Context(incompleteContext, packageRegistry, api.header.precision)
+            val experimentalTypesRegistry = if (incompleteContext.godotVersion.compareTo(4, 6, 1) == 0) {
+                ExperimentalTypesRegistry.v4_6_1
+            } else {
+                error("Missing experimental types registry for Godot version ${incompleteContext.godotVersion}")
+            }
+            return Context(incompleteContext, packageRegistry, api.header.precision, experimentalTypesRegistry)
         }
 
         private fun buildFromApi(api: ExtensionApi): IncompleteContext {
