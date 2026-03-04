@@ -42,6 +42,7 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
         isVararg: Boolean,
         arguments: List<MethodArg>,
         extraModifiers: List<KModifier> = emptyList(),
+        methodKdoc: String? = null,
     ): FunSpec {
         val kotlinName = safeIdentifier(name)
         val builder = FunSpec
@@ -50,6 +51,9 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
             .returns(returnType)
             .addCode(body.todoBody())
             .apply {
+                if (!methodKdoc.isNullOrEmpty()) {
+                    addKdoc("%S", methodKdoc.replace("/*", "").replace("*/", ""))
+                }
                 if (name != kotlinName) addKdoc("Original name: `%L`", name)
             }.fixAccidentalOverride(name, returnType)
 
@@ -105,9 +109,10 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
         isVararg: Boolean,
         arguments: List<MethodArg>,
         extraModifiers: List<KModifier> = emptyList(),
+        methodKdoc: String? = null,
     ): FunSpec {
         val returnTypeName = returnType?.let { typeResolver.resolve(it) } ?: UNIT
-        return buildMethod(name, returnTypeName, isVararg, arguments, extraModifiers)
+        return buildMethod(name, returnTypeName, isVararg, arguments, extraModifiers, methodKdoc)
     }
 
     /**
@@ -126,9 +131,10 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
         isVararg: Boolean,
         arguments: List<MethodArg>,
         extraModifiers: List<KModifier> = emptyList(),
+        methodKdoc: String? = null,
     ): FunSpec {
         val returnTypeName = returnType?.let { typeResolver.resolve(it) } ?: UNIT
-        return buildMethod(name, returnTypeName, isVararg, arguments, extraModifiers)
+        return buildMethod(name, returnTypeName, isVararg, arguments, extraModifiers, methodKdoc)
     }
 
     /**
@@ -160,6 +166,7 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
         isVararg = method.isVararg,
         arguments = method.arguments,
         extraModifiers = modifiers.toList(),
+        methodKdoc = method.description,
     )
 
     context(_: Context)
@@ -169,6 +176,7 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
         isVararg = method.isVararg,
         arguments = method.arguments,
         extraModifiers = modifiers.toList(),
+        methodKdoc = method.description,
     )
 
     context(_: Context)
