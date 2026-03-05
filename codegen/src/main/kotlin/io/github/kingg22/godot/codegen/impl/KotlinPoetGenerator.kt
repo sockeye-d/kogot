@@ -10,16 +10,12 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.native.NativePackageReg
 import io.github.kingg22.godot.codegen.impl.extensionapi.stubs.KotlinStubBackend
 import io.github.kingg22.godot.codegen.impl.extensionapi.stubs.StubsPackageRegistry
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
-import io.github.kingg22.godot.codegen.models.gextensioninterface.GDExtensionInterface
-import java.nio.file.Path
 
 class KotlinPoetGenerator(
     private val packageName: String,
     private val backend: Backend,
     private val packageRegistryFactory: PackageRegistryFactory,
 ) {
-    private val interfaceGenerator = GDExtensionInterfaceGenerator(packageName)
-
     constructor(packageName: String, backend: GeneratorBackend) : this(
         packageName,
         when (backend) {
@@ -34,11 +30,9 @@ class KotlinPoetGenerator(
         },
     )
 
-    fun generate(api: GDExtensionInterface, outputDir: Path): List<Path> = interfaceGenerator.generate(api, outputDir)
-
-    fun generate(api: ExtensionApi, outputDir: Path): Sequence<Path> = context(
+    fun generate(api: ExtensionApi) = context(
         Context.buildFromApi(api, packageName, packageRegistryFactory),
     ) {
-        backend.generateAll(api, outputDir)
+        backend.generateAll(api)
     }
 }

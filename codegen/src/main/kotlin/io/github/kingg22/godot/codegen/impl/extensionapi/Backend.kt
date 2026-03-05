@@ -1,7 +1,7 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi
 
+import com.squareup.kotlinpoet.FileSpec
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
-import java.nio.file.Path
 
 /**
  * A **Backend** owns everything target-specific:
@@ -26,5 +26,5 @@ interface Backend {
      */
 
     context(_: Context)
-    fun generateAll(api: ExtensionApi, outputDir: Path): Sequence<Path> = codeImplGenerator.generate(api, outputDir)
+    fun generateAll(api: ExtensionApi): Sequence<FileSpec> = codeImplGenerator.generate(api)
 }

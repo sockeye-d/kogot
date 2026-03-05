@@ -1,13 +1,13 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi
 
+import com.squareup.kotlinpoet.FileSpec
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
-import java.nio.file.Path
 
 interface CodeImplGenerator {
     val typeResolver: TypeResolver
 
     context(context: Context)
-    fun generate(api: ExtensionApi, outputDir: Path): Sequence<Path>
+    fun generate(api: ExtensionApi): Sequence<FileSpec>
 
     /**
      * Generates the platform-specific implementation bodies for a specific [Backend].

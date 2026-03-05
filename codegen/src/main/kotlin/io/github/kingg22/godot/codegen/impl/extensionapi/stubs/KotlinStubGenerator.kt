@@ -1,10 +1,10 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi.stubs
 
+import com.squareup.kotlinpoet.FileSpec
 import io.github.kingg22.godot.codegen.impl.extensionapi.CodeImplGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
-import java.nio.file.Path
 
 /**
  * Generates Kotlin stubs for the full Godot extension API.
@@ -26,18 +26,20 @@ class KotlinStubGenerator(override val typeResolver: TypeResolver, private val p
     }
 
     context(_: Context)
-    override fun generate(api: ExtensionApi, outputDir: Path): Sequence<Path> {
-        val paths = mutableListOf<Path>()
-
-        val builtinClassesPaths = api.builtinClasses
+    override fun generate(api: ExtensionApi): Sequence<FileSpec> = sequence {
+        val builtinClassesPaths = api.builtinClasses.asSequence()
             .mapNotNull { builtinGen.generate(it) }
-            .map { it.writeTo(outputDir) }
-        paths.addAll(builtinClassesPaths)
+        yieldAll(builtinClassesPaths)
 
-        val godotClassesPaths = api.classes
+        val godotClassesPaths = api.classes.asSequence()
             .map { classGen.generate(it) }
-            .map { it.writeTo(outputDir) }
-        paths.addAll(godotClassesPaths)
+        yieldAll(godotClassesPaths)
+
+        yieldAll(utilityGen.generate(api.utilityFunctions))
+
+        val nativeStructuresPaths = api.nativeStructures.asSequence()
+            .map { nativeGen.generate(it) }
+        yieldAll(nativeStructuresPaths)
 
         val (nestedEnums, globalEnums) = api.globalEnums.partition { it.name.contains(".") }
 
@@ -47,21 +49,16 @@ class KotlinStubGenerator(override val typeResolver: TypeResolver, private val p
             )
         }
 
-        val globalEnumsPaths = globalEnums.map { enumGen.generateFile(it).writeTo(outputDir) }
-        paths.addAll(globalEnumsPaths)
+        val globalEnumsPaths = globalEnums.asSequence()
+            .map { enumGen.generateFile(it) }
+        yieldAll(globalEnumsPaths)
 
-        paths.add(variantGen.generate(nestedEnums).toBuilder(packageName).build().writeTo(outputDir))
-        paths.addAll(utilityGen.generate(api.utilityFunctions).map { it.writeTo(outputDir) })
-
-        val nativeStructuresPaths = api.nativeStructures.map { nativeGen.generate(it).writeTo(outputDir) }
-        paths.addAll(nativeStructuresPaths)
+        yield(variantGen.generate(nestedEnums).toBuilder(packageName).build())
 
         if (api.globalConstants.isNotEmpty()) {
             System.err.println(
                 "WARNING: Global constants not supported yet. Found: [${api.globalConstants.joinToString()}]",
             )
         }
-
-        return paths.asSequence()
     }
 }

@@ -1,5 +1,6 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi.native
 
+import com.squareup.kotlinpoet.FileSpec
 import io.github.kingg22.godot.codegen.impl.extensionapi.CodeImplGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
@@ -13,7 +14,6 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.Nativ
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeUtilityFunctionGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeVariantGenerator
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
-import java.nio.file.Path
 
 /** Generates Kotlin Native implementation bodies (cinterop / GDExtension bindings). */
 class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeImplGenerator.ImplGenerator {
@@ -28,14 +28,33 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
     private val utils = NativeUtilityFunctionGenerator(methodGenerator)
 
     context(context: Context)
-    override fun generate(api: ExtensionApi, outputDir: Path): Sequence<Path> = sequence {
-        if (api.globalConstants.isNotEmpty()) {
-            System.err.println(
-                "WARNING: Global constants not supported yet. Found: [${api.globalConstants.joinToString()}]",
-            )
+    override fun generate(api: ExtensionApi): Sequence<FileSpec> = sequence {
+        val builtinClassesPaths = api.builtinClasses.asSequence().mapNotNull {
+            builtinClass.generateFile(it)
         }
 
+        yieldAll(builtinClassesPaths)
+
+        yield(utils.generateFile(api.utilityFunctions))
+
+        val nativeStructuresPaths = api.nativeStructures.asSequence().mapNotNull {
+            nativeStructure.generateFile(it)
+        }
+
+        yieldAll(nativeStructuresPaths)
+
+        val godotClassesPaths = api.classes.asSequence().map {
+            engineClass.generateFile(it)
+        }
+
+        yieldAll(godotClassesPaths)
+
         val (nestedEnums, globalEnums) = api.globalEnums.partition { it.name.contains(".") }
+
+        val globalEnumsPaths = globalEnums.asSequence().map {
+            enumGen.generateFile(it)
+        }
+        yieldAll(globalEnumsPaths)
 
         if (nestedEnums.size > 2) {
             println(
@@ -43,30 +62,13 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
             )
         }
 
-        val globalEnumsPaths = globalEnums.map { enumGen.generateFile(it).writeTo(outputDir) }
-        yieldAll(globalEnumsPaths)
-
         // Builtin missing: Variant
-        yield(variant.generateFile(nestedEnums).writeTo(outputDir))
+        yield(variant.generateFile(nestedEnums))
 
-        val builtinClassesPaths = api.builtinClasses.asSequence()
-            .mapNotNull { builtinClass.generateFile(it) }
-            .map { it.writeTo(outputDir) }
-
-        yieldAll(builtinClassesPaths)
-
-        val utilityFunctionsPaths = utils.generateFile(api.utilityFunctions).writeTo(outputDir)
-
-        yield(utilityFunctionsPaths)
-
-        val godotClassesPaths = api.classes.asSequence().map { engineClass.generateFile(it).writeTo(outputDir) }
-
-        yieldAll(godotClassesPaths)
-
-        val nativeStructuresPaths = api.nativeStructures.asSequence().mapNotNull {
-            nativeStructure.generateFile(it)?.writeTo(outputDir)
+        if (api.globalConstants.isNotEmpty()) {
+            System.err.println(
+                "WARNING: Global constants not supported yet. Found: [${api.globalConstants.joinToString()}]",
+            )
         }
-
-        yieldAll(nativeStructuresPaths)
     }
 }
