@@ -159,6 +159,10 @@ class NativeEngineClassGenerator(
             propBuilder.addKdoc("%S", it.replace("*/", "").replace("/*", ""))
         }
 
+        if (property.name != safeName) {
+            propBuilder.addKdoc("\n\nOriginal name: %S", property.name)
+        }
+
         if (property.type.contains(",")) {
             val (includedTypes, excludedTypes) = parsePropertyTypes(property.type)
             propBuilder.addKdoc("\n\nAccepts: %L", includedTypes.joinToString())
@@ -270,14 +274,20 @@ class NativeEngineClassGenerator(
             typeResolver.resolve(property.type)
         }
 
+        val kotlinName = safeIdentifier(property.name)
+
         val propBuilder = PropertySpec
-            .builder(safeIdentifier(property.name), memberType)
+            .builder(kotlinName, memberType)
             .mutable(property.setter != null)
             .experimentalApiAnnotation(className, property.name)
 
         // KDoc: descripción de la property
         property.description?.takeIf { it.isNotBlank() }?.let {
             propBuilder.addKdoc("%S", it.replace("*/", "").replace("/*", ""))
+        }
+
+        if (property.name != kotlinName) {
+            propBuilder.addKdoc("\n\nOriginal name: %S", property.name)
         }
 
         propBuilder.getter(
