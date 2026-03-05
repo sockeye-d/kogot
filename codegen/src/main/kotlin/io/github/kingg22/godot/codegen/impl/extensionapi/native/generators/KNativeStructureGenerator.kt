@@ -2,6 +2,7 @@ package io.github.kingg22.godot.codegen.impl.extensionapi.native.generators
 
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
+import io.github.kingg22.godot.codegen.impl.K_SUPPRESS
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
@@ -206,6 +207,12 @@ class KNativeStructureGenerator(private val typeResolver: TypeResolver, private 
                 TypeSpec.companionObjectBuilder()
                     .superclass(C_STRUCT_VAR_TYPE)
                     .addSuperclassConstructorParameter("size = %L, align = %L", calculateStructSize(fields), 0)
+                    .addAnnotation(
+                        AnnotationSpec
+                            .builder(K_SUPPRESS)
+                            .addMember("%S", "DEPRECATION")
+                            .build(),
+                    )
                     .build(),
             )
             .build()
