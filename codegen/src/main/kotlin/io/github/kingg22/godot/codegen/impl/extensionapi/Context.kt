@@ -1,6 +1,7 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi
 
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.resolver.EnumConstantResolver
+import io.github.kingg22.godot.codegen.models.extensionapi.BuiltinClass
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 import io.github.kingg22.godot.codegen.models.extensionapi.GodotClass
 import io.github.kingg22.godot.codegen.models.extensionapi.domain.GodotVersion
@@ -14,6 +15,7 @@ import io.github.kingg22.godot.codegen.models.extensionapi.domain.GodotVersion
  * No generation state lives here — this is pure query over the parsed API.
  */
 class Context(
+    val extensionApi: ExtensionApi,
     private val builtinTypes: Set<String>,
     private val singletons: Set<String>,
     private val classes: Set<String>,
@@ -31,11 +33,13 @@ class Context(
     }
 
     constructor(
+        extensionApi: ExtensionApi,
         incompleteContext: IncompleteContext,
         packageRegistry: PackageRegistry,
         precision: String,
         experimentalTypesRegistry: ExperimentalTypesRegistry,
     ) : this(
+        extensionApi = extensionApi,
         builtinTypes = incompleteContext.builtinTypes,
         singletons = incompleteContext.singletons,
         classes = incompleteContext.classesAndApiType.map { it.first }.toSet(),
@@ -99,6 +103,16 @@ class Context(
     fun getReasonOfExperimental(className: String, memberName: String? = null): String? =
         experimentalTypesRegistry.getReason(className, memberName)
 
+    // ── API Lookups ───────────────────────────────────────────────────────
+
+    fun findBuiltinClass(name: String): BuiltinClass? = extensionApi.builtinClasses.find { it.name == name }
+
+    fun findEngineClass(name: String): GodotClass? = extensionApi.classes.find { it.name == name }
+
+    fun findConstructor(className: String, argCount: Int): BuiltinClass.Constructor? = findBuiltinClass(className)
+        ?.constructors
+        ?.find { it.arguments.size == argCount }
+
     class IncompleteContext(
         val builtinTypes: Set<String>,
         val nativeStructureTypes: Set<String>,
@@ -126,7 +140,7 @@ class Context(
             } else {
                 error("Missing experimental types registry for Godot version ${incompleteContext.godotVersion}")
             }
-            return Context(incompleteContext, packageRegistry, api.header.precision, experimentalTypesRegistry)
+            return Context(api, incompleteContext, packageRegistry, api.header.precision, experimentalTypesRegistry)
         }
 
         private fun buildFromApi(api: ExtensionApi): IncompleteContext {
