@@ -1,6 +1,6 @@
 package io.github.kingg22.godot.codegen.models.extensionapi
 
-interface MethodDescriptor :
+sealed interface MethodDescriptor :
     Named,
     Hashable,
     Documentable {
