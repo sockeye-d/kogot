@@ -120,8 +120,11 @@ class KotlinNativeTypeResolver : TypeResolver {
     context(context: Context)
     private fun resolvePlain(type: String): TypeName {
         val clean = type.removePrefix("const ").trim()
-            .removePrefix("enum::").trim()
-            .removePrefix("bitfield::").trim()
+
+        if (clean.startsWith("bitfield::")) {
+            // For now the bitfield of enums returns Long (typed EnumMask value class is a future improvement)
+            return LONG
+        }
 
         if (clean.startsWith("typedarray::")) {
             /*
@@ -140,8 +143,9 @@ class KotlinNativeTypeResolver : TypeResolver {
             return context.classNameForOrDefault("Dictionary")
         }
 
-        // Nested classes handler in native is top level
-        if (clean.contains('.')) {
+        // Nested enum class handler
+        if (clean.startsWith("enum::") && clean.contains('.')) {
+            val clean = clean.removePrefix("enum::")
             val parentType = clean.substringBeforeLast('.')
             val nestedType = clean.substringAfterLast('.')
             val parentRaw = checkAndNormalizeTypeName(parentType)
@@ -158,6 +162,12 @@ class KotlinNativeTypeResolver : TypeResolver {
             }
 
             return context.classNameForOrDefault(rawQualified, parentName, nestedName)
+        }
+
+        if (clean.startsWith("enum::")) {
+            val rawName = checkAndNormalizeTypeName(clean.removePrefix("enum::"))
+            val kotlinName = sanitizeTypeName(rawName.renameGodotClass())
+            return context.classNameForOrDefault(rawName, kotlinName)
         }
 
         val raw = checkAndNormalizeTypeName(clean)
@@ -290,11 +300,6 @@ class KotlinNativeTypeResolver : TypeResolver {
         val className = sanitizeTypeName(ns.renameGodotClass())
         return context.classNameForOrDefault(ns, className)
     }
-
-    /** Wraps a TypeName in CPointerVarOf<T> for double-pointer scenarios. */
-    private fun toCPointerVarOf(inner: TypeName): TypeName = C_POINTER_VAR_OF.parameterizedBy(inner)
-
-    // ── TypeName constants ────────────────────────────────────────────────────
 
     companion object {
         val COPAQUE_POINTER = ClassName("kotlinx.cinterop", "COpaquePointer")
