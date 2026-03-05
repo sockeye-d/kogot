@@ -4,6 +4,7 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.CodeImplGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.BodyGenerator
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.DefaultValueGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.KNativeStructureGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeBuiltinClassGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeEngineClassGenerator
@@ -17,13 +18,14 @@ import java.nio.file.Path
 /** Generates Kotlin Native implementation bodies (cinterop / GDExtension bindings). */
 class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeImplGenerator.ImplGenerator {
     private val bodyGenerator = BodyGenerator()
-    private val methodGenerator = NativeMethodGenerator(typeResolver, bodyGenerator)
+    private val defaultValue = DefaultValueGenerator(typeResolver)
+    private val methodGenerator = NativeMethodGenerator(typeResolver, bodyGenerator, defaultValue)
     private val enumGen = NativeEnumGenerator()
     private val builtinClass = NativeBuiltinClassGenerator(typeResolver, bodyGenerator, methodGenerator, enumGen)
     private val engineClass = NativeEngineClassGenerator(typeResolver, bodyGenerator, methodGenerator, enumGen)
     private val variant = NativeVariantGenerator(typeResolver, enumGen)
     private val nativeStructure = KNativeStructureGenerator(typeResolver, bodyGenerator)
-    private val utils = NativeUtilityFunctionGenerator(typeResolver, methodGenerator)
+    private val utils = NativeUtilityFunctionGenerator(methodGenerator)
 
     context(context: Context)
     override fun generate(api: ExtensionApi, outputDir: Path): Sequence<Path> = sequence {

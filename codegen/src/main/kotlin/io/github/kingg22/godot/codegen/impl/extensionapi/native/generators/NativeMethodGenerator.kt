@@ -10,10 +10,12 @@ import io.github.kingg22.godot.codegen.impl.addKdocForBitfield
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
+import io.github.kingg22.godot.codegen.impl.withExceptionContext
 import io.github.kingg22.godot.codegen.models.extensionapi.BuiltinClass
 import io.github.kingg22.godot.codegen.models.extensionapi.GodotClass
 import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
 import io.github.kingg22.godot.codegen.models.extensionapi.MethodDescriptor
+import io.github.kingg22.godot.codegen.models.extensionapi.UtilityFunction
 
 /**
  * Shared method/parameter generation logic used by both builtin class
@@ -24,7 +26,11 @@ import io.github.kingg22.godot.codegen.models.extensionapi.MethodDescriptor
  *
  * @param body provides CodeBlock bodies (stub TODO() or real cinterop calls)
  */
-class NativeMethodGenerator(private val typeResolver: TypeResolver, private val body: BodyGenerator) {
+class NativeMethodGenerator(
+    private val typeResolver: TypeResolver,
+    private val body: BodyGenerator,
+    private val defaultValueGenerator: DefaultValueGenerator,
+) {
 
     /**
      * Builds a [FunSpec] from raw method data.
@@ -37,69 +43,58 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
      */
     context(context: Context)
     fun buildMethod(
-        name: String,
-        returnType: TypeName,
-        isVararg: Boolean,
-        arguments: List<MethodArg>,
+        method: MethodDescriptor,
         className: String,
-        extraModifiers: List<KModifier> = emptyList(),
-        methodKdoc: String? = null,
-        originalReturnType: String? = null,
+        vararg modifiers: KModifier,
+        block: FunSpec.Builder.() -> Unit = {},
     ): FunSpec {
-        val kotlinName = safeIdentifier(name)
-        val builder = FunSpec
-            .builder(kotlinName)
-            .addModifiers(extraModifiers)
-            .returns(returnType)
-            .addCode(body.todoBody())
-            .addKdocIfPresent(methodKdoc)
-            .apply { if (originalReturnType != null) addKdoc("\nOriginal return type: `%L`", originalReturnType) }
-            .fixAccidentalOverride(name, returnType)
-            .experimentalApiAnnotation(className, name)
+        withExceptionContext({ "Generating method $className.'${method.name}'" }) {
+            val (originalReturnType, returnType) = when (method) {
+                is BuiltinClass.BuiltinMethod ->
+                    method.returnType to (method.returnType?.let { typeResolver.resolve(it) } ?: UNIT)
 
-        // Fixed args always come first
-        arguments.forEach { arg ->
-            require(!isVararg || safeIdentifier(arg.name) != "args") {
-                "Vararg method '$name' has a fixed arg named 'args' — rename it to avoid clash"
+                is GodotClass.ClassMethod ->
+                    method.returnValue?.let { "${it.type}, meta: ${it.meta}" } to
+                        (method.returnValue?.let { typeResolver.resolve(it) } ?: UNIT)
+
+                is UtilityFunction -> method.returnType to (method.returnType?.let { typeResolver.resolve(it) } ?: UNIT)
             }
-            builder.addParameter(buildParameter(arg))
+
+            val name = method.name
+            val isVararg = method.isVararg
+            val arguments = method.arguments
+
+            val kotlinName = safeIdentifier(name)
+            val builder = FunSpec
+                .builder(kotlinName)
+                .addModifiers(*modifiers)
+                .returns(returnType)
+                .addCode(body.todoBody())
+                .addKdocIfPresent(method)
+                .apply { if (name != kotlinName) addKdoc("\n\nOriginal name: `%S`", name) }
+                .apply { if (originalReturnType != null) addKdoc("\n\nOriginal return type: `%L`", originalReturnType) }
+                .fixAccidentalOverride(name, returnType)
+                .experimentalApiAnnotation(className, name)
+
+            // Fixed args always come first
+            arguments.forEach { arg ->
+                require(!isVararg || safeIdentifier(arg.name) != "args") {
+                    "Vararg method '$name' has a fixed arg named 'args' — rename it to avoid clash"
+                }
+                builder.addParameter(buildParameter(arg))
+            }
+
+            // Trailing vararg only after all fixed args
+            if (isVararg) {
+                builder.addParameter(
+                    ParameterSpec
+                        .builder("args", context.classNameFor("Variant"), KModifier.VARARG)
+                        .build(),
+                )
+            }
+
+            return builder.apply(block).build()
         }
-
-        // Trailing vararg only after all fixed args
-        if (isVararg) {
-            builder.addParameter(
-                ParameterSpec
-                    .builder("args", context.classNameFor("Variant"), KModifier.VARARG)
-                    .build(),
-            )
-        }
-
-        return builder.build()
-    }
-
-    context(_: Context)
-    fun buildMethod(method: MethodDescriptor, className: String, vararg modifiers: KModifier): FunSpec {
-        val (originalReturnType, typeName) = when (method) {
-            is BuiltinClass.BuiltinMethod ->
-                method.returnType to (method.returnType?.let { typeResolver.resolve(it) } ?: UNIT)
-
-            is GodotClass.ClassMethod ->
-                method.returnValue?.let { "${it.type}, meta: ${it.meta}" } to
-                    (method.returnValue?.let { typeResolver.resolve(it) } ?: UNIT)
-
-            else -> error("Unknown method type: ${method::class}")
-        }
-
-        return buildMethod(
-            name = method.name,
-            returnType = typeName,
-            isVararg = method.isVararg,
-            arguments = method.arguments,
-            className = className,
-            extraModifiers = modifiers.toList(),
-            methodKdoc = method.description,
-            originalReturnType = originalReturnType,
-        )
     }
 
     context(context: Context)
@@ -124,26 +119,43 @@ class NativeMethodGenerator(private val typeResolver: TypeResolver, private val 
      * Default values from Godot JSON are emitted as `TODO()` —
      * the impl layer replaces them with actual expressions.
      */
-    context(_: Context)
+    context(context: Context)
     fun buildParameter(arg: MethodArg): ParameterSpec {
-        val type = typeResolver.resolve(arg)
-        val kotlinName = safeIdentifier(arg.name)
-        val paramBuilder = ParameterSpec
-            .builder(kotlinName, type)
-        if (arg.name != kotlinName) paramBuilder.addKdoc("Original name: `%S`", arg.name)
-        paramBuilder.addKdoc(
-            "\nOriginal type: `%L`, meta type: `%L`",
-            arg.type,
-            arg.meta ?: "--",
-        )
-        arg.defaultValue?.let { value ->
-            // FIXME remove kdoc when is implemented
-            paramBuilder.addKdoc("\nDefault value: `%L`", value)
-            paramBuilder.defaultValue(body.todoDefaultValueParam())
+        withExceptionContext({ "Generating parameter '${arg.name}': ${arg.type} = ${arg.defaultValue ?: "--"}" }) {
+            val isNullable = arg.type != "Variant" && arg.defaultValue?.equals("null") ?: false
+            val type = typeResolver.resolve(arg).copy(nullable = isNullable)
+            val kotlinName = safeIdentifier(arg.name)
+            val paramBuilder = ParameterSpec.builder(kotlinName, type)
+            // val isConstructor = methodName == CONSTRUCTOR_NAME
+
+            // Documentación
+            if (arg.name != kotlinName) {
+                paramBuilder.addKdoc("Original name: `%S`", arg.name)
+            }
+            paramBuilder.addKdoc(
+                "\nOriginal type: `%L`, meta type: `%L`",
+                arg.type,
+                arg.meta ?: "--",
+            )
+
+            // Default value
+            arg.defaultValue?.let { value ->
+                val defaultCode = defaultValueGenerator.generate(arg, type)
+                paramBuilder.addKdoc("\nDefault value (unparsed): `%L`", value)
+
+                @Suppress("VerboseNullabilityAndEmptiness")
+                if (defaultCode != null && defaultCode.isNotEmpty()) {
+                    paramBuilder.defaultValue(defaultCode)
+                } else {
+                    // Fallback si no se puede parsear
+                    paramBuilder.defaultValue(body.todoDefaultValueParam())
+                }
+            }
+
+            return paramBuilder
+                .addKdocForBitfield(arg.type)
+                .build()
         }
-        return paramBuilder
-            .addKdocForBitfield(arg.type)
-            .build()
     }
 
     context(_: Context)
