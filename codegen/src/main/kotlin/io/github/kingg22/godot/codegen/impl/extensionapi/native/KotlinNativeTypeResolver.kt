@@ -79,32 +79,27 @@ class KotlinNativeTypeResolver : TypeResolver {
         val inner = type.removeSuffix("*").trim().removePrefix("const ").trim()
 
         return when {
-            // void* or opaque handles → COpaquePointer
+            // 1. void* y handles GDExtension → COpaquePointer?
             inner == "void" || isOpaqueHandle(inner) -> COPAQUE_POINTER
 
-            // Multi-level pointers (e.g. Object**) → CPointer<CPointerVar<T>>
-            inner.endsWith("*") -> {
-                /*
-                val innerType = resolvePointer(inner)
-                C_POINTER.parameterizedBy(toCPointerVarOf(innerType))
-                 */
-                COPAQUE_POINTER
-            }
+            // 2. Punteros multilevel → COpaquePointer (no tipable sin CPointed)
+            inner.endsWith("*") -> COPAQUE_POINTER
 
-            // Primitive pointer → CPointer<XVar> (e.g. int* → CPointer<IntVar>)
+            // 3. Primitivos → CPointer<XVar> (e.g. int* → CPointer<IntVar>)
             isPrimitive(inner) -> {
                 val varType = primitiveToVarType(inner)
                 C_POINTER.parameterizedBy(varType)
             }
 
-            // Known generated class → CPointer<GeneratedClass>
-            else -> {
-                /*
-                val innerTypeName = resolvePlain(inner)
-                C_POINTER.parameterizedBy(innerTypeName).copy(nullable = true)
-                 */
-                COPAQUE_POINTER
+            // 4. Estructuras C nativas (definidas en .def) → CPointer<T>?
+            isNativeStruct(inner) -> {
+                val structType = resolveNativeStruct(inner)
+                C_POINTER.parameterizedBy(structType)
             }
+
+            // 5. Clases Godot (builtin o engine) → COpaquePointer?
+            // NO USAR CPointer<GeneratedClass> porque no heredan CPointed
+            else -> COPAQUE_POINTER
         }
     }
 
@@ -283,6 +278,19 @@ class KotlinNativeTypeResolver : TypeResolver {
         }
     }
 
+    context(context: Context)
+    private fun isNativeStruct(type: String): Boolean {
+        // Buscar en las estructuras nativas del contexto
+        return context.nativeStructureTypes.contains(type)
+    }
+
+    context(context: Context)
+    private fun resolveNativeStruct(type: String): TypeName {
+        val ns = context.nativeStructureTypes.find { it == type } ?: error("Unknown native struct: $type")
+        val className = sanitizeTypeName(ns.renameGodotClass())
+        return context.classNameForOrDefault(ns, className)
+    }
+
     /** Wraps a TypeName in CPointerVarOf<T> for double-pointer scenarios. */
     private fun toCPointerVarOf(inner: TypeName): TypeName = C_POINTER_VAR_OF.parameterizedBy(inner)
 
@@ -293,6 +301,10 @@ class KotlinNativeTypeResolver : TypeResolver {
         val C_POINTER = ClassName("kotlinx.cinterop", "CPointer")
         val C_POINTER_VAR_OF = ClassName("kotlinx.cinterop", "CPointerVarOf")
         val C_STRUCT_VAR = ClassName("kotlinx.cinterop", "CStructVar")
+        val C_STRUCT_VAR_TYPE = ClassName("kotlinx.cinterop", "CStructVar", "Type")
+        val C_ARRAY_POINTER = ClassName("kotlinx.cinterop", "CArrayPointer")
+        val C_NATIVE_PTR = ClassName("kotlinx.cinterop", "NativePtr")
+        val C_MEMBER_AT_FUN = MemberName("kotlinx.cinterop", "memberAt")
 
         // CVar types (used for pointer targets)
         val BYTE_VAR = ClassName("kotlinx.cinterop", "ByteVar")

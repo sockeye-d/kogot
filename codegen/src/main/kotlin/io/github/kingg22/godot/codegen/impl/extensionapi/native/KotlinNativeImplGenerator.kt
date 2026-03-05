@@ -61,8 +61,8 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
 
         yieldAll(godotClassesPaths)
 
-        val nativeStructuresPaths = api.nativeStructures.asSequence().map {
-            nativeStructure.generateFile(it).writeTo(outputDir)
+        val nativeStructuresPaths = api.nativeStructures.asSequence().mapNotNull {
+            nativeStructure.generateFile(it)?.writeTo(outputDir)
         }
 
         yieldAll(nativeStructuresPaths)

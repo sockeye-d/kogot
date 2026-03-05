@@ -15,6 +15,7 @@ fun EmptyContext(
     singletons = emptySet(),
     classes = emptySet(),
     globalEnumsTypes = emptySet(),
+    nativeStructureTypes = emptySet(),
     enumConstantResolver = EnumConstantResolver.empty(),
     experimentalTypesRegistry = ExperimentalTypesRegistry.empty,
     inheritanceTree = tree,
