@@ -33,7 +33,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     }
 
     context(context: Context)
-    private fun parseDefaultValue(value: String, kotlinType: TypeName, godotType: String): CodeBlock? = when {
+    private fun parseDefaultValue(value: String, kotlinType: TypeName?, godotType: String): CodeBlock? = when {
         // nil → Variant.NIL (object singleton)
         godotType == "Variant" && (value == "nil" || value == "null") -> {
             val variantClass = context.classNameForOrDefault("Variant")
@@ -60,7 +60,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         // TypedArray literals: Array[RID]([]) → Array()
         isTypedArrayLiteral(value) -> parseTypedArrayLiteral(value)
 
-        // Numeric literals - PUEDE SER: primitivo, enum, o variant
+        // Si kotlinType es null, parseNumericValue lo manejará vía inferencia básica o fallbacks
         isNumericLiteral(value) -> parseNumericValue(value, kotlinType, godotType)
 
         // Empty array: [], Array[], PackedStringArray()
@@ -99,7 +99,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
 
     // Numeric Values (primitivos, enums, o variants)
     context(context: Context)
-    private fun parseNumericValue(value: String, kotlinType: TypeName, godotType: String): CodeBlock = when {
+    private fun parseNumericValue(value: String, kotlinType: TypeName?, godotType: String): CodeBlock = when {
         // 1. Es un Enum → buscar constant por valor
         godotType.startsWith("enum::") -> parseEnumFromValue(value.toLong(), godotType)
 
@@ -108,12 +108,24 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
 
         // 3. Es Bitfield Enum -> Generar
         godotType.startsWith("bitfield::") -> {
-            if (kotlinType != LONG) error("Bitfield enum must be Long, got $kotlinType")
+            // Si no hay tipo (recursión), asumimos Long por defecto para bitfields
+            if (kotlinType != null && kotlinType != LONG) error("Bitfield enum must be Long, got $kotlinType")
             CodeBlock.of("%LL", value.toLong())
         }
 
-        // 4. Es primitivo → aplicar sufijos según tipo
-        else -> parseNumericLiteral(value, kotlinType)
+        else -> {
+            // Si no tenemos el TypeName de Kotlin, usamos una versión simplificada de literales
+            if (kotlinType != null) {
+                parseNumericLiteral(value, kotlinType)
+            } else {
+                // Inferencia básica para llamadas recursivas sin TypeResolver a mano
+                if (value.contains('.') || value.contains('e', ignoreCase = true)) {
+                    CodeBlock.of("${value}f")
+                } else {
+                    CodeBlock.of(value)
+                }
+            }
+        }
     }
 
     // Enum from numeric value
@@ -374,40 +386,17 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         return CodeBlock.of("%T(%L)", kotlinClass, finalArgsCode)
     }
 
-    // FIXME can be replaced with recursion call of parseDefaultValue()
     context(context: Context)
-    private fun convertConstructorArgument(value: String, expectedParam: MethodArg): CodeBlock = when {
-        // Nested constructor call, recursion
-        isConstructorCall(value) -> parseConstructorCall(value)
-
-        // NodePath literals: ^"path" → NodePath("path")
-        (value.startsWith("^\"") || (value.startsWith('"') && expectedParam.type == "NodePath")) &&
-            value.endsWith('"') -> parseNodePathLiteral(value)
-
-        // StringName literals: &"text" → StringName("text")
-        (value.startsWith("&\"") || (value.startsWith('"') && expectedParam.type == "StringName")) &&
-            value.endsWith('"') -> parseStringNameLiteral(value)
-
-        // String literal
-        value.startsWith('"') && value.endsWith('"') && expectedParam.type == "String" -> parseStringLiteral(value)
-
-        // Numeric literal
-        isNumericLiteral(value) -> {
-            val expectedType = typeResolver.resolve(expectedParam)
-            parseNumericValue(value, expectedType, expectedParam.type)
-        }
-
-        // Boolean
-        value == "true" || value == "false" -> CodeBlock.of(value)
-
-        // Enum constant
-        isEnumConstant(value) -> parseEnumConstant(value, expectedParam.type)
-
-        // Fallback
-        else -> {
-            println("WARN: Unknown constructor arg pattern: '$value'")
-            CodeBlock.of(value)
-        }
+    private fun convertConstructorArgument(value: String, expectedParam: MethodArg): CodeBlock {
+        val expectedType = typeResolver.resolve(expectedParam)
+        return parseDefaultValue(value, expectedType, expectedParam.type)
+            ?: run {
+                // Fallback al valor crudo si parseDefaultValue devuelve null
+                println(
+                    "WARN: Unable to parse default value '$value' for ${expectedParam.name}: ${expectedParam.type} on constructor args, using raw value",
+                )
+                CodeBlock.of(value)
+            }
     }
 
     // Fallback cuando no encontramos el constructor
