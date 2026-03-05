@@ -8,12 +8,15 @@ class UtilityFunction(
     override val name: String,
     @SerialName("return_type") val returnType: String? = null,
     val category: String,
-    @SerialName("is_vararg") val isVararg: Boolean,
+    @SerialName("is_vararg") override val isVararg: Boolean,
     override val hash: Long,
     override val description: String? = null,
-    val arguments: List<MethodArg> = emptyList(),
+    override val arguments: List<MethodArg> = emptyList(),
 ) : Hashable,
     Named,
-    Documentable {
+    Documentable,
+    MethodDescriptor {
     override val hashCompatibility: List<Long> = emptyList()
+    override val isConst: Boolean = false
+    override val isStatic: Boolean = true
 }
