@@ -5,6 +5,7 @@ import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.INT
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.STRING
 import com.squareup.kotlinpoet.TypeSpec
 import io.github.kingg22.godot.codegen.impl.K_AUTOCLOSEABLE
 import io.github.kingg22.godot.codegen.impl.addKdocForBitfield
@@ -166,13 +167,29 @@ class NativeBuiltinClassGenerator(
                 .constructorBuilder()
                 .addKdocIfPresent(ctor)
 
-            ctor.arguments.forEach { arg ->
-                ctorBuilder.addParameter(methodGen.buildParameter(arg))
+            val argumentSpecs = ctor.arguments.map { arg ->
+                methodGen.buildParameter(arg)
             }
+
+            ctorBuilder.addParameters(argumentSpecs)
 
             ctorBuilder.addCode(body.todoBody())
 
             classBuilder.addFunction(ctorBuilder.build())
+        }
+
+        // ── Special constructors for String types ─────────────────────────────
+        when (builtinClass.name) {
+            "String", "StringName", "NodePath" -> {
+                classBuilder.addFunction(
+                    FunSpec
+                        .constructorBuilder()
+                        .addParameter("value", STRING) // kotlin.String
+                        .addKdoc("Creates a %L from a Kotlin String.", kotlinName)
+                        .addCode(body.todoBody())
+                        .build(),
+                )
+            }
         }
 
         // ── Operators ────────────────────────────────────────────────────────
