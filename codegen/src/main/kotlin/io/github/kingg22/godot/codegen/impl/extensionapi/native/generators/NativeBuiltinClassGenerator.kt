@@ -192,7 +192,10 @@ class NativeBuiltinClassGenerator(
 
         instanceMethods.forEach { method ->
             var methodSpec = methodGen.buildMethod(method, builtinClass.name)
-            if (builtinClass.isKeyed && (method.name == "get" || method.name == "set")) {
+            if ((method.name == "get" && method.arguments.size == 1) ||
+                (method.name == "set" && method.arguments.size == 2) ||
+                (builtinClass.isKeyed && (method.name == "get" || method.name == "set"))
+            ) {
                 methodSpec = methodSpec.toBuilder().addModifiers(KModifier.OPERATOR).build()
             }
             if (builtinClass.operators.any { compareMethodOperator(method, it) }) {
