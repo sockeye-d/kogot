@@ -78,6 +78,12 @@ class NativePackageRegistry internal constructor(private val typeToPackage: Map<
                     register(cls, kotlinName)
                 } else {
                     register(cls, "$rootPackage.api.builtin")
+
+                    // NUEVO: Registrar typealiases para clases genéricas
+                    when (cls) {
+                        "Array" -> register("VariantArray", "$rootPackage.api.builtin")
+                        // Futuro: "Dictionary" -> register("VariantDictionary", "$rootPackage.api.builtin")
+                    }
                 }
             }
 
