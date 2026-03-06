@@ -10,6 +10,7 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.native.NativePackageReg
 import io.github.kingg22.godot.codegen.impl.extensionapi.stubs.KotlinStubBackend
 import io.github.kingg22.godot.codegen.impl.extensionapi.stubs.StubsPackageRegistry
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
+import io.github.kingg22.godot.codegen.models.internal.GeneratorBackend
 
 class KotlinPoetGenerator(
     private val packageName: String,

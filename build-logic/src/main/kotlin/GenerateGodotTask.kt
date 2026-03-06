@@ -5,6 +5,7 @@ import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -37,11 +38,27 @@ abstract class GenerateGodotTask : JavaExec() {
     @get:[Input Option(option = "backend", description = "Target backend")]
     abstract val backendName: Property<String>
 
+    @get:[Input Optional Option(option = "kind", description = "Target kind")]
+    abstract val outputKindName: Property<String>
+
+    @get:[Input Optional Option(option = "generate-docs", description = "Generate docs")]
+    abstract val generateDocs: Property<Boolean>
+
     init {
         group = "codegen"
         description = "Generate Godot Extension API wrappers"
         mainClass.set("io.github.kingg22.godot.codegen.GenerateGodotApiKt")
         argumentProviders += CommandLineArgumentProvider {
+            val optionals = buildList {
+                if (outputKindName.isPresent) {
+                    add("--kind")
+                    add(outputKindName.get())
+                }
+                if (generateDocs.isPresent) {
+                    add("--generate-docs")
+                }
+            }.toTypedArray()
+
             listOf(
                 "--input-interface",
                 inputInterface.get().asFile.absolutePath,
@@ -53,7 +70,7 @@ abstract class GenerateGodotTask : JavaExec() {
                 packageName.get(),
                 "--backend",
                 backendName.get(),
-
+                *optionals,
             )
         }
     }

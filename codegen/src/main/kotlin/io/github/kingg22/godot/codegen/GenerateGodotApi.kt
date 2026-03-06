@@ -7,15 +7,17 @@ import com.github.ajalt.clikt.core.terminal
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.boolean
 import com.github.ajalt.clikt.parameters.types.enum
 import com.github.ajalt.clikt.parameters.types.inputStream
 import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.mordant.rendering.AnsiLevel
 import com.github.ajalt.mordant.terminal.Terminal
-import io.github.kingg22.godot.codegen.impl.GeneratorBackend
 import io.github.kingg22.godot.codegen.impl.KotlinPoetGenerator
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 import io.github.kingg22.godot.codegen.models.extensioninterface.GDExtensionInterface
+import io.github.kingg22.godot.codegen.models.internal.GeneratorBackend
+import io.github.kingg22.godot.codegen.models.internal.GeneratorKind
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
@@ -45,6 +47,14 @@ private class CodegenCommand : CliktCommand("Generador de Extension API para God
     private val backend by option("-b", "--backend", help = "Backend de generación")
         .enum<GeneratorBackend>(ignoreCase = true)
         .required()
+
+    private val kind by option("-k", "--kind", help = "Tipo de generación")
+        .enum<GeneratorKind>(ignoreCase = true)
+        .default(GeneratorKind.API)
+
+    private val generateDocs by option("--docs", "--generate-docs", help = "Generar los KDocs o no")
+        .boolean()
+        .default(true)
 
     private val outputDir by option("-o", "--output", "--output-dir", help = "Directorio de salida")
         .path(canBeFile = false)
