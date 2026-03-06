@@ -6,6 +6,13 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.withExceptionContext
 import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
 
+private val TYPED_ARRAY_REGEX = Regex("""Array\[[\w:]+]\(.*\)""")
+private val NUMERIC_LITERAL_REGEX = Regex("""-?\d+(\.\d+)?([eE][+-]?\d+)?""", RegexOption.IGNORE_CASE)
+private val EMPTY_ARRAY_REGEX = Regex("""Packed\w+Array\(\)""")
+private val CLASS_CONSTRUCTOR_REGEX = Regex("""[A-Z][a-zA-Z0-9]*\(.*\)""")
+private val NUMERIC_RAW_REGEX = Regex("""-?\d+(\.\d+)?([eE][+-]?\d+)?""")
+private val ENUM_CONSTANT_REGEX = Regex("""[A-Z_][A-Z0-9_]*""")
+
 /**
  * Generates default value expressions for function parameters.
  *
@@ -23,12 +30,16 @@ import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
  * - Special cases: `nil` → `Variant.NIL`
  */
 class DefaultValueGenerator(private val typeResolver: TypeResolver) {
+    private val cache = LinkedHashMap<Pair<MethodArg, TypeName>, CodeBlock>(2048)
 
     context(_: Context)
     fun generate(argument: MethodArg, resolvedType: TypeName): CodeBlock? {
-        val defaultValue = argument.defaultValue?.trim() ?: return null
-        withExceptionContext({ "parse default value '$defaultValue' for type $resolvedType" }) {
-            return parseDefaultValue(defaultValue, resolvedType, argument.type)
+        val defaultValue = argument.defaultValue?.trim()
+        if (defaultValue.isNullOrBlank()) return null
+        return cache.getOrPut(argument to resolvedType) {
+            withExceptionContext({ "parse default value '$defaultValue' for type $resolvedType" }) {
+                parseDefaultValue(defaultValue, resolvedType, argument.type) ?: return null
+            }
         }
     }
 
@@ -92,9 +103,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     private fun isNumericLiteral(value: String): Boolean {
         // Soporta: 123, -45, 1.5, 1e-05, 2.5e10
         // NO esperamos sufijos de Kotlin (u, f, L) - esos los agregamos nosotros
-        return value.matches(
-            Regex("""-?\d+(\.\d+)?([eE][+-]?\d+)?""", RegexOption.IGNORE_CASE),
-        )
+        return value.matches(NUMERIC_LITERAL_REGEX)
     }
 
     // Numeric Values (primitivos, enums, o variants)
@@ -250,7 +259,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     // TypedArray Literals
     private fun isTypedArrayLiteral(value: String): Boolean {
         // Array[Type]([...]) o Array[Type](datos)
-        return value.matches(Regex("""Array\[[\w:]+]\(.*\)"""))
+        return value.matches(TYPED_ARRAY_REGEX)
     }
 
     context(context: Context)
@@ -296,7 +305,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     // Arrays
     private fun isEmptyArray(value: String): Boolean = value == "[]" ||
         value == "Array[]" ||
-        value.matches(Regex("""Packed\w+Array\(\)"""))
+        value.matches(EMPTY_ARRAY_REGEX)
 
     context(context: Context)
     private fun parseEmptyArray(value: String): CodeBlock {
@@ -319,7 +328,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     }
 
     // Constructor Calls
-    private fun isConstructorCall(value: String): Boolean = value.matches(Regex("""[A-Z][a-zA-Z0-9]*\(.*\)"""))
+    private fun isConstructorCall(value: String): Boolean = value.matches(CLASS_CONSTRUCTOR_REGEX)
 
     // Constructor Calls (mejorado con constructor resolution)
     context(context: Context)
@@ -404,7 +413,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     private fun parseConstructorWithRawArgs(kotlinClass: ClassName, rawArgs: List<String>): CodeBlock {
         val convertedArgs = rawArgs.map { arg ->
             when {
-                arg.matches(Regex("""-?\d+(\.\d+)?([eE][+-]?\d+)?""")) -> {
+                arg.matches(NUMERIC_RAW_REGEX) -> {
                     if (arg.contains('.') || arg.contains('e', ignoreCase = true)) {
                         "${arg}f"
                     } else {
@@ -465,7 +474,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     }
 
     // Enum Constants
-    private fun isEnumConstant(value: String): Boolean = value.matches(Regex("""[A-Z_][A-Z0-9_]*"""))
+    private fun isEnumConstant(value: String): Boolean = value.matches(ENUM_CONSTANT_REGEX)
 
     context(context: Context)
     private fun parseEnumConstant(value: String, godotType: String): CodeBlock {

@@ -34,6 +34,7 @@ fun <T : KDocumentable.Builder<T>> T.addKdocIfPresent(description: String?): T {
     return this
 }
 
+@Suppress("NOTHING_TO_INLINE")
 context(_: Context)
-fun <T : KDocumentable.Builder<T>> T.addKdocIfPresent(documentable: Documentable): T =
+inline fun <T : KDocumentable.Builder<T>> T.addKdocIfPresent(documentable: Documentable): T =
     addKdocIfPresent(documentable.description)

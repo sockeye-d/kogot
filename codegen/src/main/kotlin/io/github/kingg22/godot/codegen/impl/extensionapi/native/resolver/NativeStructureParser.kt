@@ -1,5 +1,7 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi.native.resolver
 
+private val WHITESPACE_REGEX = Regex("\\s+")
+
 object NativeStructureParser {
     data class NativeStructureField(
         val name: String,
@@ -26,7 +28,7 @@ object NativeStructureParser {
             .split(";")
             .filter { it.trim().isNotBlank() }
             .mapNotNull { rawVar ->
-                val parts = rawVar.trim().split(Regex("\\s+"), limit = 3)
+                val parts = rawVar.trim().split(WHITESPACE_REGEX, limit = 3)
                 if (parts.size < 2) return@mapNotNull null
 
                 var fieldType = parts[0].trim()

@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-class MethodArg(
+data class MethodArg(
     override val name: String,
     override val type: String,
     override val meta: String? = null,

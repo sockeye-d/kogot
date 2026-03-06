@@ -127,28 +127,30 @@ fun sanitizeTypeName(name: String): String {
     }
 }
 
-/**
- * Renombra clases de Godot que colisionan con tipos de Kotlin.
- * Realiza un chequeo rápido previo.
- */
-fun String.renameGodotClass(): String = when (val loweredStr = this.lowercase()) {
-    "object" -> "GodotObject"
+fun String.renameGodotClass(): String {
+    // 1. Comparación de longitud y contenido sin crear objetos nuevos.
+    // Usamos ignoreCase = true para evitar el .lowercase()
+    if (this.equals("object", ignoreCase = true)) return "GodotObject"
+    if (this.equals("error", ignoreCase = true)) return "GodotError"
+    if (this.equals("string", ignoreCase = true)) return "GodotString"
+    if (this.equals("array", ignoreCase = true)) return "GodotArray"
+    if (this.equals("range", ignoreCase = true)) return "GodotRange"
 
-    "error" -> "GodotError"
-
-    "string" -> "GodotString"
-
-    "array" -> "GodotArray"
-
-    "range" -> "GodotRange"
-
-    else -> {
-        if (this.all { it.isUpperCase() }) {
-            loweredStr.replaceFirstChar(Char::uppercaseChar)
-        } else {
-            this
-        }
+    // 2. Chequeo de "All Upper Case" manualmente
+    if (isAllUpperCase(this)) {
+        return this.lowercase().replaceFirstChar { it.uppercaseChar() }
     }
+
+    return this
+}
+
+/** Verifica si todos los caracteres son mayúsculas sin crear iteradores. */
+private fun isAllUpperCase(str: String): Boolean {
+    if (str.isEmpty()) return false
+    for (i in 0 until str.length) {
+        if (!str[i].isUpperCase()) return false
+    }
+    return true
 }
 
 fun String.snakeCaseToCamelCase(): String {
@@ -172,6 +174,11 @@ fun String.snakeCaseToCamelCase(): String {
     }
 }
 
+private val WORDS_REGEX = "([a-z0-9])([A-Z])".toRegex()
+private val WORDS_2_REGEX = "([a-zA-Z])([0-9])".toRegex()
+private val ABC_REGEX = "([A-Z])([A-Z][a-z])".toRegex()
+private val UNDERSCORES_REGEX = "__+".toRegex()
+
 /**
  * Extensión de String para convertir formatos CamelCase o PascalCase
  * a SCREAMING_SNAKE_CASE.
@@ -182,17 +189,17 @@ fun String.toScreamingSnakeCase(): String {
     return this.trim()
         // 1. Insertar guion bajo entre minúscula/número y una mayúscula
         // Ejemplo: user1Login -> user1_Login
-        .replace("([a-z0-9])([A-Z])".toRegex(), "$1_$2")
+        .replace(WORDS_REGEX, "$1_$2")
         // 2. Insertar guion bajo entre una letra y un número (si se desea que el número sea palabra aparte)
         // Ejemplo: User1 -> USER_1
-        .replace("([a-zA-Z])([0-9])".toRegex(), "$1_$2")
+        .replace(WORDS_2_REGEX, "$1_$2")
         // 3. Manejar acrónimos: insertar guion bajo antes de la última mayúscula de una serie
         // Ejemplo: HTTPResponse -> HTTP_Response
-        .replace("([A-Z])([A-Z][a-z])".toRegex(), "$1_$2")
+        .replace(ABC_REGEX, "$1_$2")
         // 4. Convertir todo a mayúsculas
         .uppercase()
         // 5. Limpiar posibles guiones bajos duplicados (por si el input ya tenía algunos)
-        .replace("__+".toRegex(), "_")
+        .replace(UNDERSCORES_REGEX, "_")
 }
 
 fun String.screamingToPascalCase(): String = this
