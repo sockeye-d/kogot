@@ -13,6 +13,7 @@ import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
+import io.github.kingg22.godot.codegen.impl.renameGodotTypedClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.models.extensionapi.BuiltinClass
 import io.github.kingg22.godot.codegen.utils.filterValuesNotNull
@@ -37,6 +38,8 @@ class NativeBuiltinClassGenerator(
     private val defaultValueGenerator: DefaultValueGenerator,
     private val methodGen: NativeMethodGenerator,
     private val enumGenerator: NativeEnumGenerator,
+    private val genericInterceptor: GenericBuiltinInterceptor,
+    private val typeAliasGenerator: TypeAliasGenerator,
 ) {
     companion object {
         /**
@@ -103,25 +106,43 @@ class NativeBuiltinClassGenerator(
         private val COMPARE_OPERATORS = setOf("<", "<=", ">", ">=")
     }
 
-    /** Generates the [com.squareup.kotlinpoet.FileSpec] for [builtinClass], or null if it belongs to [NativeBuiltinClassGenerator.SKIPPED_TYPES]. */
+    /** Generates the [FileSpec] for [builtinClass], or null if it belongs to [NativeBuiltinClassGenerator.SKIPPED_TYPES]. */
     context(context: Context)
     fun generateFile(builtinClass: BuiltinClass): FileSpec? {
         val spec = generate(builtinClass) ?: return null
         val godotName = builtinClass.name
-        return createFile(spec, spec.name!!, context.packageForOrDefault(godotName))
+        return createFile(spec.name!!, context.packageForOrDefault(godotName)) {
+            typeAliasGenerator.generateTypeAliasSpec(builtinClass)?.let { addTypeAlias(it) }
+            addType(spec)
+        }
     }
 
-    /** Generates the [com.squareup.kotlinpoet.TypeSpec] for [builtinClass], or null if it belongs to [NativeBuiltinClassGenerator.SKIPPED_TYPES]. */
+    /** Generates the [TypeSpec] for [builtinClass], or null if it belongs to [NativeBuiltinClassGenerator.SKIPPED_TYPES]. */
     context(context: Context)
     fun generate(builtinClass: BuiltinClass): TypeSpec? {
         if (builtinClass.name.lowercase() in SKIPPED_TYPES) return null
+        val requiresGenerics = genericInterceptor.requiresGenerics(builtinClass)
 
-        val kotlinName = builtinClass.name.renameGodotClass()
-        val classBuilder = TypeSpec.classBuilder(kotlinName)
+        val kotlinName = if (requiresGenerics) {
+            builtinClass.name.renameGodotTypedClass()
+        } else {
+            builtinClass.name.renameGodotClass()
+        }
+        val classBuilder = TypeSpec
+            .classBuilder(kotlinName)
             .experimentalApiAnnotation(builtinClass.name)
             .addKdocIfPresent(builtinClass)
 
-        // Indexable builtins implement operator get/set; keyed ones implement Map-like access.
+        // ── GENERIC INTERCEPTION ──────────────────────────────────────────────
+        val genericConfig = if (requiresGenerics) {
+            val config = genericInterceptor.getGenericConfig(builtinClass)
+            config?.typeVariables?.forEach { typeVar ->
+                classBuilder.addTypeVariable(typeVar)
+            }
+            config
+        } else {
+            null
+        }
 
         // ── Destructor annotation / marker ───────────────────────────────────
         if (builtinClass.hasDestructor) {
@@ -136,7 +157,6 @@ class NativeBuiltinClassGenerator(
         }
 
         // ── Members (fields like x, y, z) ────────────────────────────────────
-        // FIXME needs to be mutable?
         builtinClass.members.forEach { member ->
             val memberType = typeResolver.resolve(member.type)
 
@@ -194,19 +214,21 @@ class NativeBuiltinClassGenerator(
         }
 
         // ── Operators ────────────────────────────────────────────────────────
-        classBuilder.addFunctions(generateOperators(builtinClass))
+        classBuilder.addFunctions(generateOperators(builtinClass, genericConfig))
 
         // ── Instance methods ──────────────────────────────────────────────────
         val (staticMethods, instanceMethods) = builtinClass.methods.partition { it.isStatic }
 
         instanceMethods.forEach { method ->
-            var methodSpec = methodGen.buildMethod(method, builtinClass.name)
+            var methodSpec = buildMethodWithGenericTransform(method, builtinClass.name, genericConfig)
+
             if ((method.name == "get" && method.arguments.size == 1) ||
                 (method.name == "set" && method.arguments.size == 2) ||
                 (builtinClass.isKeyed && (method.name == "get" || method.name == "set"))
             ) {
                 methodSpec = methodSpec.toBuilder().addModifiers(KModifier.OPERATOR).build()
             }
+
             if (builtinClass.operators.any { compareMethodOperator(method, it) }) {
                 val existingOperator = builtinClass.operators.first { compareMethodOperator(method, it) }
                 println(
@@ -214,6 +236,7 @@ class NativeBuiltinClassGenerator(
                 )
                 return@forEach
             }
+
             classBuilder.addFunction(methodSpec)
         }
 
@@ -249,10 +272,51 @@ class NativeBuiltinClassGenerator(
         return classBuilder.build()
     }
 
-    // ── Operator generation ───────────────────────────────────────────────────
-
+    // ── Method generation with generic transformation ─────────────────────────
     context(_: Context)
-    private fun generateOperators(builtinClass: BuiltinClass): List<FunSpec> {
+    private fun buildMethodWithGenericTransform(
+        method: BuiltinClass.BuiltinMethod,
+        className: String,
+        genericConfig: GenericBuiltinInterceptor.GenericConfig?,
+    ): FunSpec {
+        // Si no hay config genérica, usar generador normal
+        if (genericConfig == null) {
+            return methodGen.buildMethod(method, className)
+        }
+
+        // Resolver tipo de retorno original
+        val originalReturnType = method.returnType?.let { typeResolver.resolve(it) }
+
+        // Transformar con config genérica
+        val transformedReturnType = genericConfig.transformReturnType(method, originalReturnType)
+
+        // Construir método con tipo transformado
+        return methodGen.buildMethod(method, className) {
+            if (transformedReturnType != null && transformedReturnType != originalReturnType) {
+                returns(transformedReturnType)
+            }
+
+            // Transformar parámetros
+            parameters.clear()
+            method.arguments.forEachIndexed { index, arg ->
+                val originalType = typeResolver.resolve(arg)
+                val transformedType = genericConfig.transformParameterType(method, index, originalType)
+                addParameter(
+                    methodGen
+                        .buildParameter(arg)
+                        .toBuilder(type = transformedType)
+                        .build(),
+                )
+            }
+        }
+    }
+
+    // ── Operator generation ───────────────────────────────────────────────────
+    context(_: Context)
+    private fun generateOperators(
+        builtinClass: BuiltinClass,
+        genericConfig: GenericBuiltinInterceptor.GenericConfig?,
+    ): List<FunSpec> {
         val result = mutableListOf<FunSpec>()
         var compareToGenerated = false
 
@@ -280,6 +344,8 @@ class NativeBuiltinClassGenerator(
                         rightType = op.rightType,
                         returnType = op.returnType,
                         description = op.description,
+                        genericConfig = genericConfig,
+                        operator = op,
                     )
                 }
 
@@ -303,8 +369,15 @@ class NativeBuiltinClassGenerator(
         rightType: String?,
         returnType: String,
         description: String?,
+        genericConfig: GenericBuiltinInterceptor.GenericConfig?,
+        operator: BuiltinClass.Operator,
     ): FunSpec {
-        val returnTypeName = typeResolver.resolve(returnType)
+        val originalReturnType = typeResolver.resolve(returnType)
+
+        // Transformar tipo de retorno si hay config genérica
+        val returnTypeName = genericConfig?.transformOperatorReturnType(operator, originalReturnType)
+            ?: originalReturnType
+
         val builder = FunSpec
             .builder(name)
             .apply {

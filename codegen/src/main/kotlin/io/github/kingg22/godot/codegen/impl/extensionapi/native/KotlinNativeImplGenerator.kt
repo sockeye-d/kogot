@@ -4,15 +4,7 @@ import com.squareup.kotlinpoet.FileSpec
 import io.github.kingg22.godot.codegen.impl.extensionapi.CodeImplGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.BodyGenerator
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.DefaultValueGenerator
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.KNativeStructureGenerator
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeBuiltinClassGenerator
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeEngineClassGenerator
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeEnumGenerator
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeMethodGenerator
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeUtilityFunctionGenerator
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.NativeVariantGenerator
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.*
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 
 /** Generates Kotlin Native implementation bodies (cinterop / GDExtension bindings). */
@@ -20,13 +12,17 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
     private val bodyGenerator = BodyGenerator()
     private val defaultValue = DefaultValueGenerator(typeResolver)
     private val methodGenerator = NativeMethodGenerator(typeResolver, bodyGenerator, defaultValue)
+    private val genericInterceptor = GenericBuiltinInterceptor(typeResolver)
     private val enumGen = NativeEnumGenerator()
+    private val typeAliasGen = TypeAliasGenerator(genericInterceptor)
     private val builtinClass = NativeBuiltinClassGenerator(
         typeResolver,
         bodyGenerator,
         defaultValue,
         methodGenerator,
         enumGen,
+        genericInterceptor,
+        typeAliasGen,
     )
     private val engineClass = NativeEngineClassGenerator(typeResolver, bodyGenerator, methodGenerator, enumGen)
     private val variant = NativeVariantGenerator(typeResolver, enumGen)
