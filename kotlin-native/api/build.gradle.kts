@@ -22,6 +22,7 @@ kotlin {
             "kotlinx.cinterop.ExperimentalForeignApi",
             "kotlin.experimental.ExperimentalNativeApi",
             "io.github.kingg22.godot.api.ExperimentalGodotApi",
+            "io.github.kingg22.godot.api.ExperimentalGodotKotlin",
         )
         freeCompilerArgs.addAll("-Xcontext-sensitive-resolution")
     }
@@ -29,6 +30,8 @@ kotlin {
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     dependencies {
         api(libs.jetbrains.annotations)
+        api(projects.kotlinNativeFfm)
+        implementation(projects.kotlinNativeRuntime)
     }
 
     applyDefaultHierarchyTemplate()
