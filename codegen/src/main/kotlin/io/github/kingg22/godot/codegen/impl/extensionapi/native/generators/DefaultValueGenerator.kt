@@ -176,9 +176,10 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
 
         // 3. Es Bitfield Enum -> Generar
         godotType.startsWith("bitfield::") -> {
-            // Si no hay tipo (recursión), asumimos Long por defecto para bitfields
-            if (kotlinType != null && kotlinType != LONG) error("Bitfield enum must be Long, got $kotlinType")
-            CodeBlock.of("%LL", value.toLong())
+            check(kotlinType != null && kotlinType is ParameterizedTypeName) {
+                "Bitfield type must be EnumMask parameterized, got: $kotlinType"
+            }
+            CodeBlock.of("%T(%L)", kotlinType.rawType, value.toLong())
         }
 
         else -> {
@@ -610,29 +611,29 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     }
 
     // Bitfield Combinations
+    // Para default values: FLAG_A | FLAG_B → EnumMask.of(Flags.A, Flags.B)
     context(context: Context)
     private fun parseBitfieldCombination(value: String, godotType: String): CodeBlock {
-        // FLAG_A | FLAG_B → Flags.A.value or Flags.B.value
-        //
-        // DECISIÓN: Generar como Long directo usando .value
-        // Alternativa futura: crear typed mask
-
         val parts = value.split('|').map { it.trim() }
+        val enumTypeStr = godotType.removePrefix("bitfield::")
+
+        val enumMaskClass = context.classNameForOrDefault("EnumMask")
 
         // Parsear cada parte como enum constant
         val resolvedParts = parts.map { part ->
-            parseEnumConstant(part, godotType)
+            parseEnumConstant(part, "enum::$enumTypeStr")
         }
 
-        // Combinar con OR bit a bit
+        // EnumMask.of(Flag.A, Flag.B, Flag.C)
         return CodeBlock.builder()
+            .add("%T.of(", enumMaskClass)
             .apply {
                 resolvedParts.forEachIndexed { index, part ->
-                    if (index > 0) add(" or ")
+                    if (index > 0) add(", ")
                     add(part)
-                    add(".value") // Acceder al valor Long del enum
                 }
             }
+            .add(")")
             .build()
     }
 }
