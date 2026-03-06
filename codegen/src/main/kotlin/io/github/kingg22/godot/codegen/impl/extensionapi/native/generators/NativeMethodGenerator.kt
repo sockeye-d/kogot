@@ -1,6 +1,5 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi.native.generators
 
-import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
@@ -64,7 +63,7 @@ class NativeMethodGenerator(
             val isVararg = method.isVararg
             val arguments = method.arguments
 
-            val kotlinName = safeIdentifier(name)
+            val kotlinName = safeIdentifier(name).fixAccidentalOverride(name, returnType)
             val builder = FunSpec
                 .builder(kotlinName)
                 .addModifiers(*modifiers)
@@ -73,7 +72,6 @@ class NativeMethodGenerator(
                 .addKdocIfPresent(method)
                 .apply { if (name != kotlinName) addKdoc("\n\nOriginal name: `%S`", name) }
                 .apply { if (originalReturnType != null) addKdoc("\n\nOriginal return type: `%L`", originalReturnType) }
-                .fixAccidentalOverride(name, returnType)
                 .experimentalApiAnnotation(className, name)
 
             // Fixed args always come first
@@ -98,19 +96,14 @@ class NativeMethodGenerator(
     }
 
     context(context: Context)
-    private fun FunSpec.Builder.fixAccidentalOverride(name: String, returnType: TypeName): FunSpec.Builder {
-        when (name) {
-            "to_string" if returnType == context.classNameFor("String", "GodotString") -> {
-                println("INFO: renaming toString() → toGodotString() to avoid Any clash")
-                return build()
-                    .toBuilder("toGodotString")
-                    .addKdoc(
-                        "\n\nGenerated Note: Original name was `toString`, renamed to avoid conflict with [Any.toString].",
-                    )
-            }
+    private fun String.fixAccidentalOverride(godotName: String, returnType: TypeName): String = when (godotName) {
+        "to_string" if this == "toString" && returnType == context.classNameFor("String", "GodotString") -> {
+            println("INFO: renaming toString() → toGodotString() to avoid Any clash")
 
-            else -> return this
+            "toGodotString"
         }
+
+        else -> this
     }
 
     /**
@@ -123,7 +116,8 @@ class NativeMethodGenerator(
     fun buildParameter(arg: MethodArg): ParameterSpec {
         withExceptionContext({ "Generating parameter '${arg.name}': ${arg.type} = ${arg.defaultValue ?: "--"}" }) {
             val isNullable = arg.type != "Variant" && arg.defaultValue?.equals("null") ?: false
-            val type = typeResolver.resolve(arg).copy(nullable = isNullable)
+            val rawType = typeResolver.resolve(arg)
+            val type = if (isNullable) rawType.copy(nullable = true) else rawType
             val kotlinName = safeIdentifier(arg.name)
             val paramBuilder = ParameterSpec.builder(kotlinName, type)
             // val isConstructor = methodName == CONSTRUCTOR_NAME
@@ -157,15 +151,4 @@ class NativeMethodGenerator(
                 .build()
         }
     }
-
-    context(_: Context)
-    fun generateExtension(
-        method: GodotClass.ClassMethod,
-        receiver: ClassName,
-        className: String = receiver.simpleName,
-        vararg modifiers: KModifier,
-    ): FunSpec = buildMethod(method, className, *modifiers)
-        .toBuilder()
-        .receiver(receiver)
-        .build()
 }
