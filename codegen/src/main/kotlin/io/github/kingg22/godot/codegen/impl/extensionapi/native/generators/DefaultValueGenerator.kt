@@ -8,10 +8,56 @@ import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
 
 private val TYPED_ARRAY_REGEX = Regex("""Array\[[\w:]+]\(.*\)""")
 private val NUMERIC_LITERAL_REGEX = Regex("""-?\d+(\.\d+)?([eE][+-]?\d+)?""", RegexOption.IGNORE_CASE)
+private val INF_LITERAL_REGEX = Regex("""(?i).*inf.*""")
 private val EMPTY_ARRAY_REGEX = Regex("""Packed\w+Array\(\)""")
 private val CLASS_CONSTRUCTOR_REGEX = Regex("""[A-Z][a-zA-Z0-9]*\(.*\)""")
 private val NUMERIC_RAW_REGEX = Regex("""-?\d+(\.\d+)?([eE][+-]?\d+)?""")
 private val ENUM_CONSTANT_REGEX = Regex("""[A-Z_][A-Z0-9_]*""")
+
+/**
+ * Mapeos especiales para constructores que Godot serializa flat
+ * pero Kotlin espera agrupados.
+ */
+private val SPECIAL_CONSTRUCTOR_MAPPINGS = mapOf(
+    // Transform3D: 12 floats → 4 Vector3
+    "Transform3D" to ConstructorMapper(
+        rawArgCount = 12,
+        targetArgCount = 4,
+        groupingSize = 3,
+        groupType = "Vector3",
+    ),
+
+    // Transform2D: 6 floats → 3 Vector2
+    "Transform2D" to ConstructorMapper(
+        rawArgCount = 6,
+        targetArgCount = 3,
+        groupingSize = 2,
+        groupType = "Vector2",
+    ),
+
+    // Basis: 9 floats → 3 Vector3
+    "Basis" to ConstructorMapper(
+        rawArgCount = 9,
+        targetArgCount = 3,
+        groupingSize = 3,
+        groupType = "Vector3",
+    ),
+
+    // Projection: 16 floats → 4 Vector4
+    "Projection" to ConstructorMapper(
+        rawArgCount = 16,
+        targetArgCount = 4,
+        groupingSize = 4,
+        groupType = "Vector4",
+    ),
+)
+
+private data class ConstructorMapper(
+    val rawArgCount: Int,
+    val targetArgCount: Int,
+    val groupingSize: Int,
+    val groupType: String,
+)
 
 /**
  * Generates default value expressions for function parameters.
@@ -52,6 +98,12 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
 
     context(context: Context)
     private fun parseDefaultValue(value: String, kotlinType: TypeName?, godotType: String): CodeBlock? = when {
+        // Infinity
+        value.equals("inf", ignoreCase = true) -> parseInfinityConstant(value, godotType)
+
+        // NaN
+        value.equals("nan", ignoreCase = true) -> parseNaNConstant(value, godotType)
+
         // nil → Variant.NIL (object singleton)
         godotType == "Variant" && (value == "nil" || value == "null") -> {
             val variantClass = context.classNameForOrDefault("Variant")
@@ -141,6 +193,48 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
                     CodeBlock.of(value)
                 }
             }
+        }
+    }
+
+    private fun parseInfinityConstant(value: String, type: String): CodeBlock {
+        // Determinar si es float o double
+        val isDouble = type == "double"
+
+        return when {
+            // Positivo: inf, INF, 1.#INF
+            value.matches(INF_LITERAL_REGEX) && !value.startsWith("-") -> {
+                if (isDouble) {
+                    CodeBlock.of("%T.POSITIVE_INFINITY", DOUBLE)
+                } else {
+                    CodeBlock.of("%T.POSITIVE_INFINITY", FLOAT)
+                }
+            }
+
+            // Negativo: -inf, -INF, -1.#INF
+            value.startsWith("-") -> {
+                if (isDouble) {
+                    CodeBlock.of("%T.NEGATIVE_INFINITY", DOUBLE)
+                } else {
+                    CodeBlock.of("%T.NEGATIVE_INFINITY", FLOAT)
+                }
+            }
+
+            else -> {
+                if (isDouble) {
+                    CodeBlock.of("%T.POSITIVE_INFINITY", DOUBLE)
+                } else {
+                    CodeBlock.of("%T.POSITIVE_INFINITY", FLOAT)
+                }
+            }
+        }
+    }
+
+    private fun parseNaNConstant(value: String, type: String): CodeBlock {
+        val isDouble = type == "double"
+        return if (isDouble) {
+            CodeBlock.of("%T.NaN", DOUBLE)
+        } else {
+            CodeBlock.of("%T.NaN", FLOAT)
         }
     }
 
@@ -540,45 +634,5 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
                 }
             }
             .build()
-    }
-
-    companion object {
-        /**
-         * Mapeos especiales para constructores que Godot serializa flat
-         * pero Kotlin espera agrupados.
-         */
-        private val SPECIAL_CONSTRUCTOR_MAPPINGS = mapOf(
-            // Transform3D: 12 floats → 4 Vector3
-            "Transform3D" to ConstructorMapper(
-                rawArgCount = 12,
-                targetArgCount = 4,
-                groupingSize = 3,
-                groupType = "Vector3",
-            ),
-
-            // Transform2D: 6 floats → 3 Vector2
-            "Transform2D" to ConstructorMapper(
-                rawArgCount = 6,
-                targetArgCount = 3,
-                groupingSize = 2,
-                groupType = "Vector2",
-            ),
-
-            /* Projection: 16 floats → 4 Vector4
-            "Projection" to ConstructorMapper(
-                rawArgCount = 16,
-                targetArgCount = 4,
-                groupingSize = 4,
-                groupType = "Vector4",
-            ),
-             */
-        )
-
-        data class ConstructorMapper(
-            val rawArgCount: Int,
-            val targetArgCount: Int,
-            val groupingSize: Int,
-            val groupType: String,
-        )
     }
 }
