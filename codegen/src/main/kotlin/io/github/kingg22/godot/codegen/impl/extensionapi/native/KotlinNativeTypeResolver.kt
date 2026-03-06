@@ -9,6 +9,47 @@ import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.sanitizeTypeName
 import io.github.kingg22.godot.codegen.models.extensionapi.TypeMetaHolder
 
+val COPAQUE_POINTER = ClassName("kotlinx.cinterop", "COpaquePointer")
+val C_POINTER = ClassName("kotlinx.cinterop", "CPointer")
+val C_POINTER_VAR_OF = ClassName("kotlinx.cinterop", "CPointerVarOf")
+val C_STRUCT_VAR = ClassName("kotlinx.cinterop", "CStructVar")
+val C_STRUCT_VAR_TYPE = ClassName("kotlinx.cinterop", "CStructVar", "Type")
+val C_ARRAY_POINTER = ClassName("kotlinx.cinterop", "CArrayPointer")
+val C_NATIVE_PTR = ClassName("kotlinx.cinterop", "NativePtr")
+val C_MEMBER_AT_FUN = MemberName("kotlinx.cinterop", "memberAt")
+
+// CVar types (used for pointer targets)
+val BYTE_VAR = ClassName("kotlinx.cinterop", "ByteVar")
+val SHORT_VAR = ClassName("kotlinx.cinterop", "ShortVar")
+val INT_VAR = ClassName("kotlinx.cinterop", "IntVar")
+val LONG_VAR = ClassName("kotlinx.cinterop", "LongVar")
+val U_BYTE_VAR = ClassName("kotlinx.cinterop", "UByteVar")
+val U_SHORT_VAR = ClassName("kotlinx.cinterop", "UShortVar")
+val U_INT_VAR = ClassName("kotlinx.cinterop", "UIntVar")
+val U_LONG_VAR = ClassName("kotlinx.cinterop", "ULongVar")
+val FLOAT_VAR = ClassName("kotlinx.cinterop", "FloatVar")
+val DOUBLE_VAR = ClassName("kotlinx.cinterop", "DoubleVar")
+
+val PRIMITIVE_NUMERIC_TYPES = setOf(
+    "int8_t", "int8",
+    "short", "int16_t", "int16",
+    "int", "int32_t", "int32",
+    "long long", "int64_t", "int64", "long", "intptr_t",
+    "float", "double",
+)
+
+private val PRIMITIVE_TYPES = PRIMITIVE_NUMERIC_TYPES + setOf(
+    "char", "int8_t", "int8",
+    "short", "int16_t", "int16",
+    "int", "int32_t", "int32",
+    "long long", "int64_t", "int64", "long", "intptr_t",
+    "uchar", "unsigned char", "uint8_t", "uint8",
+    "unsigned short", "ushort", "uint16_t", "uint16", "char16_t",
+    "unsigned int", "uint", "uint32_t", "uint32", "char32_t",
+    "unsigned long long", "ulong", "uint64_t", "uint64",
+    "uintptr_t", "size_t",
+)
+
 /**
  * TypeResolver for Kotlin Native (cinterop) backend.
  *
@@ -300,47 +341,5 @@ class KotlinNativeTypeResolver : TypeResolver {
         val className = sanitizeTypeName(ns.renameGodotClass())
         return context.classNameForOrDefault(ns, className)
     }
-
-    companion object {
-        val COPAQUE_POINTER = ClassName("kotlinx.cinterop", "COpaquePointer")
-        val C_POINTER = ClassName("kotlinx.cinterop", "CPointer")
-        val C_POINTER_VAR_OF = ClassName("kotlinx.cinterop", "CPointerVarOf")
-        val C_STRUCT_VAR = ClassName("kotlinx.cinterop", "CStructVar")
-        val C_STRUCT_VAR_TYPE = ClassName("kotlinx.cinterop", "CStructVar", "Type")
-        val C_ARRAY_POINTER = ClassName("kotlinx.cinterop", "CArrayPointer")
-        val C_NATIVE_PTR = ClassName("kotlinx.cinterop", "NativePtr")
-        val C_MEMBER_AT_FUN = MemberName("kotlinx.cinterop", "memberAt")
-
-        // CVar types (used for pointer targets)
-        val BYTE_VAR = ClassName("kotlinx.cinterop", "ByteVar")
-        val SHORT_VAR = ClassName("kotlinx.cinterop", "ShortVar")
-        val INT_VAR = ClassName("kotlinx.cinterop", "IntVar")
-        val LONG_VAR = ClassName("kotlinx.cinterop", "LongVar")
-        val U_BYTE_VAR = ClassName("kotlinx.cinterop", "UByteVar")
-        val U_SHORT_VAR = ClassName("kotlinx.cinterop", "UShortVar")
-        val U_INT_VAR = ClassName("kotlinx.cinterop", "UIntVar")
-        val U_LONG_VAR = ClassName("kotlinx.cinterop", "ULongVar")
-        val FLOAT_VAR = ClassName("kotlinx.cinterop", "FloatVar")
-        val DOUBLE_VAR = ClassName("kotlinx.cinterop", "DoubleVar")
-
-        val PRIMITIVE_NUMERIC_TYPES = setOf(
-            "int8_t", "int8",
-            "short", "int16_t", "int16",
-            "int", "int32_t", "int32",
-            "long long", "int64_t", "int64", "long", "intptr_t",
-            "float", "double",
-        )
-
-        private val PRIMITIVE_TYPES = PRIMITIVE_NUMERIC_TYPES + setOf(
-            "char", "int8_t", "int8",
-            "short", "int16_t", "int16",
-            "int", "int32_t", "int32",
-            "long long", "int64_t", "int64", "long", "intptr_t",
-            "uchar", "unsigned char", "uint8_t", "uint8",
-            "unsigned short", "ushort", "uint16_t", "uint16", "char16_t",
-            "unsigned int", "uint", "uint32_t", "uint32", "char32_t",
-            "unsigned long long", "ulong", "uint64_t", "uint64",
-            "uintptr_t", "size_t",
-        )
-    }
+    companion object
 }

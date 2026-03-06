@@ -131,19 +131,15 @@ private val TYPES_EXPECTED = mapOf(
      */
 
     // ── Pointers ──────────────────────────────────────────────────────────────
-    "void*" to KotlinNativeTypeResolver.COPAQUE_POINTER,
-    "const void*" to KotlinNativeTypeResolver.COPAQUE_POINTER,
-    "const Glyph*" to KotlinNativeTypeResolver.COPAQUE_POINTER,
-    "AudioFrame*" to KotlinNativeTypeResolver.COPAQUE_POINTER,
-    "float*" to KotlinNativeTypeResolver.C_POINTER
-        .parameterizedBy(KotlinNativeTypeResolver.FLOAT_VAR),
-    "int32_t*" to KotlinNativeTypeResolver.C_POINTER
-        .parameterizedBy(KotlinNativeTypeResolver.INT_VAR),
-    "uint8_t*" to KotlinNativeTypeResolver.C_POINTER
-        .parameterizedBy(KotlinNativeTypeResolver.U_BYTE_VAR),
-    "const uint8_t*" to KotlinNativeTypeResolver.C_POINTER
-        .parameterizedBy(KotlinNativeTypeResolver.U_BYTE_VAR),
+    "void*" to COPAQUE_POINTER,
+    "const void*" to COPAQUE_POINTER,
+    "const Glyph*" to COPAQUE_POINTER,
+    "AudioFrame*" to COPAQUE_POINTER,
+    "float*" to C_POINTER.parameterizedBy(FLOAT_VAR),
+    "int32_t*" to C_POINTER.parameterizedBy(INT_VAR),
+    "uint8_t*" to C_POINTER.parameterizedBy(U_BYTE_VAR),
+    "const uint8_t*" to C_POINTER.parameterizedBy(U_BYTE_VAR),
     // const uint8_t** → CPointer<CPointerVarOf<CPointer<UByteVar>>>
-    "const uint8_t **" to KotlinNativeTypeResolver.COPAQUE_POINTER,
-    "CaretInfo*" to KotlinNativeTypeResolver.COPAQUE_POINTER,
+    "const uint8_t **" to COPAQUE_POINTER,
+    "CaretInfo*" to COPAQUE_POINTER,
 )
