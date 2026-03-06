@@ -8,7 +8,7 @@ class EngineClass private constructor(
     override val name: String,
     @SerialName("is_refcounted") val isRefcounted: Boolean,
     @SerialName("is_instantiable") val isInstantiable: Boolean,
-    @SerialName("brief_description") override val briefDescription: String,
+    @SerialName("brief_description") override val briefDescription: String? = null,
     @SerialName("api_type") val apiType: String,
     override val description: String? = null,
     val inherits: String? = null,
