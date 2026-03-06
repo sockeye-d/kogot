@@ -134,13 +134,16 @@ class KotlinNativeTypeResolver : TypeResolver {
         val clean = type.removePrefix("const ").trim()
 
         if (clean.startsWith("bitfield::")) {
-            // For now the bitfield of enums returns Long (typed EnumMask value class is a future improvement)
-            return LONG
+            // bitfield::EnumName → EnumMask<EnumName>
+            val enumTypeStr = clean.removePrefix("bitfield::")
+            val enumTypeName = resolve("enum::$enumTypeStr")
+            val enumMaskClass = context.classNameForOrDefault("EnumMask")
+            return enumMaskClass.parameterizedBy(enumTypeName)
         }
 
         if (clean.startsWith("typedarray::")) {
             // typedarray::Node → Array<Node>
-            val innerType = clean.removePrefix("typedarray::").trim()
+            val innerType = clean.removePrefix("typedarray::")
             val godotArrayClass = context.classNameForOrDefault("Array", "GodotArray", typedClass = true)
 
             // Resolver el tipo interno
@@ -152,7 +155,7 @@ class KotlinNativeTypeResolver : TypeResolver {
         if (clean.startsWith("typeddictionary")) {
             // typeddictionary::KeyType:ValueType → Dictionary<KeyType, ValueType>
             // Ejemplo: typeddictionary::int:String → Dictionary<Int, GodotString>
-            val innerPart = clean.removePrefix("typeddictionary::").trim()
+            val innerPart = clean.removePrefix("typeddictionary::")
 
             // Split por ':' para obtener K y V
             val parts = innerPart.split(",", ";", limit = 2)
