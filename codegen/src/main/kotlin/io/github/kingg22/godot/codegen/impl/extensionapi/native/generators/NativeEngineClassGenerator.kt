@@ -12,11 +12,14 @@ import com.squareup.kotlinpoet.TypeSpec
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.KotlinNativeTypeResolver
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.PRIMITIVE_NUMERIC_TYPES
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.impl.withExceptionContext
 import io.github.kingg22.godot.codegen.models.extensionapi.GodotClass
+
+private val lazyMethod = MemberName("kotlin", "lazy")
+private val lazyMode = ClassName("kotlin", "LazyThreadSafetyMode")
 
 class NativeEngineClassGenerator(
     private val typeResolver: TypeResolver,
@@ -24,10 +27,6 @@ class NativeEngineClassGenerator(
     private val methodGen: NativeMethodGenerator,
     private val enumGenerator: NativeEnumGenerator,
 ) {
-    companion object {
-        val lazyMethod = MemberName("kotlin", "lazy")
-        val lazyMode = ClassName("kotlin", "LazyThreadSafetyMode")
-    }
 
     context(context: Context)
     fun generateFile(cls: GodotClass): FileSpec {
@@ -48,8 +47,7 @@ class NativeEngineClassGenerator(
             val (staticMethods, instanceMethods) = cls.methods.partition { it.isStatic }
 
             // Sintetizar properties desde métodos getter/setter
-            // first: used methods, second: standalone methods
-            val (_, standaloneMethods) = generateProperties(cls, instanceMethods, classBuilder)
+            val standaloneMethods = generateProperties(cls, instanceMethods, classBuilder)
 
             // Métodos standalone (no forman parte de una property)
             standaloneMethods.forEach {
@@ -97,14 +95,14 @@ class NativeEngineClassGenerator(
     /**
      * Genera properties Kotlin desde cls.properties.
      *
-     * @return Set de nombres de métodos usados (getter/setter) para excluirlos después
+     * @return Set de nombres de métodos no usados
      */
     context(context: Context)
     private fun generateProperties(
         cls: GodotClass,
         methods: List<GodotClass.ClassMethod>,
         classBuilder: TypeSpec.Builder,
-    ): Pair<List<GodotClass.ClassMethod>, List<GodotClass.ClassMethod>> {
+    ): List<GodotClass.ClassMethod> {
         val usedMethodNames = mutableSetOf<String>()
 
         cls.properties.forEach { property ->
@@ -120,7 +118,7 @@ class NativeEngineClassGenerator(
             }
         }
 
-        return methods.partition { it.name in usedMethodNames }
+        return methods.filterNot { it.name in usedMethodNames }
     }
 
     context(context: Context)
@@ -230,7 +228,7 @@ class NativeEngineClassGenerator(
         val firstArg = method.arguments.first()
 
         // Fast path, the first argument is a primitive type
-        if (firstArg.type in KotlinNativeTypeResolver.PRIMITIVE_NUMERIC_TYPES) {
+        if (firstArg.type in PRIMITIVE_NUMERIC_TYPES) {
             return CodeBlock.of(indexValue.toString())
         }
 
