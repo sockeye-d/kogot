@@ -56,10 +56,12 @@ project(":jvm-ffm-runtime").projectDir = file("jvm-ffm/runtime")
 include(
     "kotlin-native-ffm",
     "kotlin-native-api",
+    "kotlin-native-runtime",
 )
 
 project(":kotlin-native-ffm").projectDir = file("kotlin-native/ffm")
 project(":kotlin-native-api").projectDir = file("kotlin-native/api")
+project(":kotlin-native-runtime").projectDir = file("kotlin-native/runtime")
 
 // codegen and processor
 include("codegen", "processor")
