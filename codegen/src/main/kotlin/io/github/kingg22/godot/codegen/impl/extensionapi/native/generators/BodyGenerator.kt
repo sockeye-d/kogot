@@ -17,6 +17,4 @@ class BodyGenerator {
         .getterBuilder()
         .addCode(todoBody())
         .build()
-
-    fun todoDefaultValueParam(): CodeBlock = todoBody()
 }

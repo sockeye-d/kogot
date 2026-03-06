@@ -134,16 +134,12 @@ class NativeMethodGenerator(
 
             // Default value
             arg.defaultValue?.let { value ->
-                val defaultCode = defaultValueGenerator.generate(arg, type)
                 paramBuilder.addKdoc("\nDefault value (unparsed): `%L`", value)
-
-                @Suppress("VerboseNullabilityAndEmptiness")
-                if (defaultCode != null && defaultCode.isNotEmpty()) {
-                    paramBuilder.defaultValue(defaultCode)
-                } else {
-                    // Fallback si no se puede parsear
-                    paramBuilder.defaultValue(body.todoDefaultValueParam())
+                val defaultCode = defaultValueGenerator.generate(arg, type)
+                check(defaultCode?.isNotEmpty() == true) {
+                    "Failed to generate default value for ${arg.name}: ${arg.type} = $value"
                 }
+                paramBuilder.defaultValue(defaultCode)
             }
 
             return paramBuilder
