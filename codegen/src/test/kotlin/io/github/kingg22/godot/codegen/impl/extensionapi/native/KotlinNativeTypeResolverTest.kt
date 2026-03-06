@@ -90,7 +90,7 @@ private val TYPES_EXPECTED = mapOf(
     "StringName" to ClassName("", "StringName"),
     "Callable" to ClassName("", "Callable"),
     "Object" to ClassName("", "GodotObject"), // rename: Object colisiona con java.lang.Object
-    "Array" to ClassName("", "GodotArray"), // rename: Array colisiona con kotlin.Array
+    "Array" to ClassName("", "VariantArray"), // rename: Array colisiona con kotlin.Array y este es untyped
     "Dictionary" to ClassName("", "Dictionary"),
     "RID" to ClassName("", "Rid"),
     "Range" to ClassName("", "GodotRange"), // rename: colisiona con kotlin.ranges.IntRange etc
@@ -117,15 +117,18 @@ private val TYPES_EXPECTED = mapOf(
     // ── typedarray ────────────────────────────────────────────────────────────
     // FIXME idiomatic flow
 
-    /*
-    "typedarray::Dictionary" to LIST.parameterizedBy(ClassName("", "Dictionary")),
-    "typedarray::Vector2i" to LIST.parameterizedBy(ClassName("", "Vector2i")),
-    "typedarray::String" to LIST.parameterizedBy(ClassName("", "GodotString")),
-    "typedarray::int" to LIST.parameterizedBy(INT),
-    "typedarray::RegExMatch" to LIST.parameterizedBy(ClassName("", "RegExMatch")),
-    "typedarray::RDPipelineSpecializationConstant" to
-        LIST.parameterizedBy(ClassName("", "RDPipelineSpecializationConstant")),
-     */
+    "typedarray::Dictionary" to ClassName("", "GodotArray")
+        .parameterizedBy(ClassName("", "Dictionary")),
+    "typedarray::Vector2i" to ClassName("", "GodotArray")
+        .parameterizedBy(ClassName("", "Vector2i")),
+    "typedarray::String" to ClassName("", "GodotArray")
+        .parameterizedBy(ClassName("", "GodotString")),
+    "typedarray::int" to ClassName("", "GodotArray")
+        .parameterizedBy(INT),
+    "typedarray::RegExMatch" to ClassName("", "GodotArray")
+        .parameterizedBy(ClassName("", "RegExMatch")),
+    "typedarray::RDPipelineSpecializationConstant" to ClassName("", "GodotArray")
+        .parameterizedBy(ClassName("", "RDPipelineSpecializationConstant")),
 
     // ── Pointers ──────────────────────────────────────────────────────────────
     "void*" to COPAQUE_POINTER,

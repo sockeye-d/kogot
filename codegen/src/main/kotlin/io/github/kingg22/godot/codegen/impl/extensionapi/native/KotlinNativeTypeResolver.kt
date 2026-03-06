@@ -9,35 +9,6 @@ import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.sanitizeTypeName
 import io.github.kingg22.godot.codegen.models.extensionapi.TypeMetaHolder
 
-val COPAQUE_POINTER = ClassName("kotlinx.cinterop", "COpaquePointer")
-val C_POINTER = ClassName("kotlinx.cinterop", "CPointer")
-val C_POINTER_VAR_OF = ClassName("kotlinx.cinterop", "CPointerVarOf")
-val C_STRUCT_VAR = ClassName("kotlinx.cinterop", "CStructVar")
-val C_STRUCT_VAR_TYPE = ClassName("kotlinx.cinterop", "CStructVar", "Type")
-val C_ARRAY_POINTER = ClassName("kotlinx.cinterop", "CArrayPointer")
-val C_NATIVE_PTR = ClassName("kotlinx.cinterop", "NativePtr")
-val C_MEMBER_AT_FUN = MemberName("kotlinx.cinterop", "memberAt")
-
-// CVar types (used for pointer targets)
-val BYTE_VAR = ClassName("kotlinx.cinterop", "ByteVar")
-val SHORT_VAR = ClassName("kotlinx.cinterop", "ShortVar")
-val INT_VAR = ClassName("kotlinx.cinterop", "IntVar")
-val LONG_VAR = ClassName("kotlinx.cinterop", "LongVar")
-val U_BYTE_VAR = ClassName("kotlinx.cinterop", "UByteVar")
-val U_SHORT_VAR = ClassName("kotlinx.cinterop", "UShortVar")
-val U_INT_VAR = ClassName("kotlinx.cinterop", "UIntVar")
-val U_LONG_VAR = ClassName("kotlinx.cinterop", "ULongVar")
-val FLOAT_VAR = ClassName("kotlinx.cinterop", "FloatVar")
-val DOUBLE_VAR = ClassName("kotlinx.cinterop", "DoubleVar")
-
-val PRIMITIVE_NUMERIC_TYPES = setOf(
-    "int8_t", "int8",
-    "short", "int16_t", "int16",
-    "int", "int32_t", "int32",
-    "long long", "int64_t", "int64", "long", "intptr_t",
-    "float", "double",
-)
-
 private val PRIMITIVE_TYPES = PRIMITIVE_NUMERIC_TYPES + setOf(
     "char", "int8_t", "int8",
     "short", "int16_t", "int16",
@@ -61,7 +32,7 @@ private val PRIMITIVE_TYPES = PRIMITIVE_NUMERIC_TYPES + setOf(
  * - Primitive pointers (int*, float*, etc.) → `CPointer<IntVar>`, `CPointer<FloatVar>`, etc.
  * - void* → `COpaquePointer`
  * - const X* → same as X* (const is not expressible in Kotlin Native types directly)
- * - typedarray::X → `CPointer<GodotArray>` (pointer to array) (nullable) // FIXME can be idiomatic?
+ * - typedarray::X → `Array<X>` (parameterized generic type)
  *
  * ## Numeric mapping (C → Kotlin Native)
  * | C                         | Kotlin        |
@@ -168,19 +139,19 @@ class KotlinNativeTypeResolver : TypeResolver {
         }
 
         if (clean.startsWith("typedarray::")) {
-            /*
-            // typedarray in native → CPointer<GodotArray> or similar;
-            // for now map to the inner type pointer to stay ABI-accurate
-            // val inner = resolveOf(clean.removePrefix("typedarray::"))
-            val godotArrayClass = context.classNameForOrDefault("Array", "GodotArray")
-            return C_POINTER.parameterizedBy(godotArrayClass).copy(nullable = true)
-             */
-            return context.classNameForOrDefault("Array", "GodotArray")
+            // typedarray::Node → Array<Node>
+            val innerType = clean.removePrefix("typedarray::").trim()
+            val arrayPackage = context.packageForOrDefault("Array")
+
+            // Resolver el tipo interno
+            val innerTypeName = resolve(innerType)
+
+            return ClassName(arrayPackage, "GodotArray").parameterizedBy(innerTypeName)
         }
 
         if (clean.startsWith("typeddictionary")) {
             // Currently is not supported a typeddict
-            // for now map as Dictorionary
+            // for now map as Dictionary
             return context.classNameForOrDefault("Dictionary")
         }
 
@@ -341,5 +312,4 @@ class KotlinNativeTypeResolver : TypeResolver {
         val className = sanitizeTypeName(ns.renameGodotClass())
         return context.classNameForOrDefault(ns, className)
     }
-    companion object
 }
