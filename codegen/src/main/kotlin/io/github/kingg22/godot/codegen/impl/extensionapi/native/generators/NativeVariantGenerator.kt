@@ -12,13 +12,13 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.screamingToPascalCase
 import io.github.kingg22.godot.codegen.impl.withExceptionContext
-import io.github.kingg22.godot.codegen.models.extensionapi.EnumDescriptor
+import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedEnum
 
 /** Generates the sealed `Variant` class without nested enums (native backend emits them top-level). */
 class NativeVariantGenerator(private val typeResolver: TypeResolver, private val enumGenerator: NativeEnumGenerator) {
 
     context(context: Context)
-    fun generateSpec(variantEnums: List<EnumDescriptor>): TypeSpec {
+    fun generateSpec(variantEnums: List<ResolvedEnum>): TypeSpec {
         val spec = generateSpec(variantEnums.find { it.name == "Variant.Type" }).toBuilder()
         val enumsSpec = variantEnums.map { enum -> enumGenerator.generateSpec(enum) }
         spec.addTypes(enumsSpec)
@@ -26,71 +26,71 @@ class NativeVariantGenerator(private val typeResolver: TypeResolver, private val
     }
 
     context(context: Context)
-    fun generateFile(variantEnums: List<EnumDescriptor>): FileSpec = createFile(
+    fun generateFile(variantEnums: List<ResolvedEnum>): FileSpec = createFile(
         type = generateSpec(variantEnums = variantEnums),
         fileName = "Variant",
         packageName = context.packageForOrDefault("Variant"),
     )
 
     context(context: Context)
-    fun generateSpec(variantTypes: EnumDescriptor?): TypeSpec {
-        return withExceptionContext({ "Generating Variant class, nested enums count: ${variantTypes?.values?.size}" }) {
-            val variantClassName = ClassName(context.packageForOrDefault("Variant"), "Variant")
+    fun generateSpec(variantTypes: ResolvedEnum?): TypeSpec = withExceptionContext({
+        "Generating Variant class, nested enums count: ${variantTypes?.raw?.values?.size}"
+    }) {
+        val variantClassName = ClassName(context.packageForOrDefault("Variant"), "Variant")
 
-            val typeBuilder = TypeSpec
-                .classBuilder(variantClassName)
-                .addModifiers(KModifier.SEALED)
+        val typeBuilder = TypeSpec
+            .classBuilder(variantClassName)
+            .addModifiers(KModifier.SEALED)
 
-            if (variantTypes == null) println("WARNING: Variant types are null, generating empty Variant class")
+        if (variantTypes == null) println("WARNING: Variant types are null, generating empty Variant class")
 
-            variantTypes?.values?.forEach { variantType ->
-                withExceptionContext({ "Generating Variant subclass '${variantType.name}'" }) {
-                    val enumValueName = variantType.name // "TYPE_PACKED_BYTE_ARRAY"
-                    val subclassName = enumValueName.removePrefix("TYPE_").takeUnless { it == "MAX" } ?: return@forEach
+        variantTypes?.raw?.values?.forEach { variantType ->
+            withExceptionContext({ "Generating Variant subclass '${variantType.name}'" }) {
+                val enumValueName = variantType.name // "TYPE_PACKED_BYTE_ARRAY"
+                val subclassName = enumValueName.removePrefix("TYPE_").takeUnless { it == "MAX" } ?: return@forEach
 
-                    if (subclassName == "NIL") {
-                        typeBuilder.addType(
-                            TypeSpec
-                                .objectBuilder("NIL")
-                                .superclass(variantClassName)
-                                .addKdocIfPresent(variantType)
-                                .build(),
-                        )
-                        return@forEach
-                    }
-
-                    val godotTypeName = subclassName.screamingToPascalCase()
-
-                    val valueType = typeResolver.resolve(godotTypeName.renameGodotClass())
-
-                    val variantTypeSpec = TypeSpec
-                        .classBuilder(subclassName)
-                        .superclass(variantClassName)
-                        .primaryConstructor(
-                            FunSpec
-                                .constructorBuilder()
-                                .addParameter("value", valueType)
-                                .build(),
-                        )
-                        .addProperty(
-                            PropertySpec
-                                .builder("value", valueType)
-                                .initializer("value")
-                                .build(),
-                        )
-                        .addKdocIfPresent(variantType)
-                        .build()
-
-                    typeBuilder.addType(variantTypeSpec)
+                if (subclassName == "NIL") {
+                    typeBuilder.addType(
+                        TypeSpec
+                            .objectBuilder("NIL")
+                            .superclass(variantClassName)
+                            .addKdocIfPresent(variantType)
+                            .build(),
+                    )
+                    return@forEach
                 }
-            }
 
-            typeBuilder.build()
+                val godotTypeName = subclassName.screamingToPascalCase()
+
+                val valueType = typeResolver.resolve(godotTypeName.renameGodotClass())
+
+                val variantTypeSpec = TypeSpec
+                    .classBuilder(subclassName)
+                    .superclass(variantClassName)
+                    .primaryConstructor(
+                        FunSpec
+                            .constructorBuilder()
+                            .addParameter("value", valueType)
+                            .build(),
+                    )
+                    .addProperty(
+                        PropertySpec
+                            .builder("value", valueType)
+                            .initializer("value")
+                            .build(),
+                    )
+                    .addKdocIfPresent(variantType)
+                    .build()
+
+                typeBuilder.addType(variantTypeSpec)
+            }
         }
+
+        typeBuilder.build()
     }
 
     context(context: Context)
-    fun generateFile(variantTypes: EnumDescriptor?): FileSpec = createFile(
+    fun generateFile(variantTypes: ResolvedEnum?): FileSpec = createFile(
         type = generateSpec(variantTypes = variantTypes),
         fileName = "Variant",
         packageName = context.packageForOrDefault("Variant"),

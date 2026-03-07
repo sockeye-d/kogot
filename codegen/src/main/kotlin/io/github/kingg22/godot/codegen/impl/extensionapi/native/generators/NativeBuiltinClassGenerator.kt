@@ -15,6 +15,7 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.models.extensionapi.BuiltinClass
+import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedBuiltinClass
 import io.github.kingg22.godot.codegen.utils.filterValuesNotNull
 
 /**
@@ -107,33 +108,34 @@ class NativeBuiltinClassGenerator(
 
     /** Generates the [FileSpec] for [builtinClass], or null if it belongs to [NativeBuiltinClassGenerator.SKIPPED_TYPES]. */
     context(context: Context)
-    fun generateFile(builtinClass: BuiltinClass): FileSpec? {
+    fun generateFile(builtinClass: ResolvedBuiltinClass): FileSpec? {
         val spec = generate(builtinClass) ?: return null
         val godotName = builtinClass.name
         return createFile(spec.name!!, context.packageForOrDefault(godotName)) {
-            typeAliasGenerator.generateTypeAliasSpec(builtinClass)?.let { addTypeAlias(it) }
+            typeAliasGenerator.generateTypeAliasSpec(builtinClass.raw)?.let { addTypeAlias(it) }
             addType(spec)
         }
     }
 
     /** Generates the [TypeSpec] for [builtinClass], or null if it belongs to [NativeBuiltinClassGenerator.SKIPPED_TYPES]. */
     context(context: Context)
-    fun generate(builtinClass: BuiltinClass): TypeSpec? {
+    fun generate(builtinClass: ResolvedBuiltinClass): TypeSpec? {
+        val raw = builtinClass.raw
         if (builtinClass.name.lowercase() in SKIPPED_TYPES) return null
-        val requiresGenerics = genericInterceptor.requiresGenerics(builtinClass)
+        val requiresGenerics = genericInterceptor.requiresGenerics(raw)
 
         val kotlinName = builtinClass.name.renameGodotClass(requiresGenerics)
 
         val classBuilder = TypeSpec
             .classBuilder(kotlinName)
             .experimentalApiAnnotation(builtinClass.name)
-            .addKdocIfPresent(builtinClass)
+            .addKdocIfPresent(raw)
 
         body.configureStorageBackedBuiltin(builtinClass, classBuilder)
 
         // ── GENERIC INTERCEPTION ──────────────────────────────────────────────
         val genericConfig = if (requiresGenerics) {
-            val config = genericInterceptor.getGenericConfig(builtinClass)
+            val config = genericInterceptor.getGenericConfig(raw)
             config?.typeVariables?.forEach { typeVar ->
                 classBuilder.addTypeVariable(typeVar)
             }
@@ -149,7 +151,7 @@ class NativeBuiltinClassGenerator(
         }
 
         // ── Members (fields like x, y, z) ────────────────────────────────────
-        builtinClass.members.forEach { member ->
+        raw.members.forEach { member ->
             val memberType = typeResolver.resolve(member.type)
 
             val propBuilder = PropertySpec
@@ -175,10 +177,10 @@ class NativeBuiltinClassGenerator(
         // Godot constructors become secondary constructors (or companion factory funs if static-style).
         // No primary constructor is ever generated for builtins.
         // Index 0 is always the no-arg constructor.
-        builtinClass.constructors.forEach { ctor ->
+        builtinClass.constructors.filter { it.raw != null }.forEach { ctor ->
             val ctorBuilder = FunSpec
                 .constructorBuilder()
-                .addKdocIfPresent(ctor)
+                .addKdocIfPresent(ctor.raw!!)
 
             val argumentSpecs = ctor.arguments.map { arg ->
                 methodGen.buildParameter(arg)
@@ -205,10 +207,10 @@ class NativeBuiltinClassGenerator(
         }
 
         // ── Operators ────────────────────────────────────────────────────────
-        classBuilder.addFunctions(generateOperators(builtinClass, genericConfig))
+        classBuilder.addFunctions(generateOperators(raw, genericConfig))
 
         // ── Instance methods ──────────────────────────────────────────────────
-        val (staticMethods, instanceMethods) = builtinClass.methods.partition { it.isStatic }
+        val (staticMethods, instanceMethods) = raw.methods.partition { it.isStatic }
 
         instanceMethods.forEach { method ->
             var methodSpec = buildMethodWithGenericTransform(method, builtinClass.name, genericConfig)
@@ -220,8 +222,8 @@ class NativeBuiltinClassGenerator(
                 methodSpec = methodSpec.toBuilder().addModifiers(KModifier.OPERATOR).build()
             }
 
-            if (builtinClass.operators.any { compareMethodOperator(method, it) }) {
-                val existingOperator = builtinClass.operators.first { compareMethodOperator(method, it) }
+            if (raw.operators.any { compareMethodOperator(method, it) }) {
+                val existingOperator = raw.operators.first { compareMethodOperator(method, it) }
                 println(
                     "INFO: Skipping operator overload for ${builtinClass.name}.${method.name}(${existingOperator.rightType}): ${existingOperator.returnType} because it's already defined as operator",
                 )
@@ -233,10 +235,10 @@ class NativeBuiltinClassGenerator(
 
         // ── Companion object (constants + static methods) ─────────────────────
         val companionBuilder = TypeSpec.companionObjectBuilder()
-        val companionHasContent = staticMethods.isNotEmpty() || builtinClass.constants.isNotEmpty()
+        val companionHasContent = staticMethods.isNotEmpty() || raw.constants.isNotEmpty()
 
         // Constants
-        builtinClass.constants.forEach { constant ->
+        raw.constants.forEach { constant ->
             val constType = typeResolver.resolve(constant.type)
 
             val propBuilder = PropertySpec.builder(constant.name, constType)
@@ -256,8 +258,8 @@ class NativeBuiltinClassGenerator(
         }
 
         builtinClass.enums.forEach { enum ->
-            if (context.isSpecializedClass(enum.name)) return@forEach
-            classBuilder.addType(enumGenerator.generateSpec(enum, builtinClass.name))
+            if (context.isSpecializedClass(enum.shortName)) return@forEach
+            classBuilder.addType(enumGenerator.generateSpec(enum))
         }
 
         return classBuilder.build()

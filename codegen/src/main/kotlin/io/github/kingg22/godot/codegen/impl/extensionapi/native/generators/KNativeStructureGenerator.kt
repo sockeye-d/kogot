@@ -12,19 +12,19 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.native.resolver.NativeS
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.impl.sanitizeTypeName
-import io.github.kingg22.godot.codegen.models.extensionapi.NativeStructure
+import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedNativeStructure
 
 class KNativeStructureGenerator(private val typeResolver: TypeResolver, private val body: BodyGenerator) {
 
     context(context: Context)
-    fun generateFile(ns: NativeStructure): FileSpec? {
+    fun generateFile(ns: ResolvedNativeStructure): FileSpec? {
         val spec = generateSpec(ns) ?: return null
         return createFile(spec, spec.name!!, context.packageForOrDefault(spec.name!!))
     }
 
     context(_: Context)
-    fun generateSpec(ns: NativeStructure): TypeSpec? {
-        val fields = NativeStructureParser.parseFormat(ns.format)
+    fun generateSpec(ns: ResolvedNativeStructure): TypeSpec? {
+        val fields = NativeStructureParser.parseFormat(ns.raw.format)
 
         // Determinar si la estructura puede ser CStructVar pura
         val canBeCStructVar = canGenerateAsCStructVar(fields)
@@ -39,7 +39,7 @@ class KNativeStructureGenerator(private val typeResolver: TypeResolver, private 
 
     // ESTRATEGIA 1: CStructVar (compatible con cinterop)
     context(_: Context)
-    private fun generateCStructVar(ns: NativeStructure, fields: List<NativeStructureField>): TypeSpec {
+    private fun generateCStructVar(ns: ResolvedNativeStructure, fields: List<NativeStructureField>): TypeSpec {
         println(
             "WARNING: Generating CStructVar for ${ns.name} with fields: ${fields.joinToString { it.name }}, " +
                 "must be defined in header file",
@@ -133,7 +133,7 @@ class KNativeStructureGenerator(private val typeResolver: TypeResolver, private 
 
     // ESTRATEGIA 2: Wrapper Opaco (para estructuras con tipos de API)
     context(context: Context)
-    private fun generateOpaqueWrapper(ns: NativeStructure, fields: List<NativeStructureField>): TypeSpec {
+    private fun generateOpaqueWrapper(ns: ResolvedNativeStructure, fields: List<NativeStructureField>): TypeSpec {
         val className = sanitizeTypeName(ns.name.renameGodotClass())
 
         return TypeSpec

@@ -18,6 +18,7 @@ import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.impl.withExceptionContext
 import io.github.kingg22.godot.codegen.models.extensionapi.EngineClass
+import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedEngineClass
 
 class NativeEngineClassGenerator(
     private val typeResolver: TypeResolver,
@@ -27,25 +28,26 @@ class NativeEngineClassGenerator(
 ) {
 
     context(context: Context)
-    fun generateFile(cls: EngineClass): FileSpec {
+    fun generateFile(cls: ResolvedEngineClass): FileSpec {
         val packageName = context.packageForOrDefault(cls.name)
         val spec = generateSpec(cls)
         return createFile(spec, spec.name!!, packageName)
     }
 
     context(context: Context)
-    fun generateSpec(cls: EngineClass): TypeSpec {
+    fun generateSpec(cls: ResolvedEngineClass): TypeSpec {
+        val raw = cls.raw
         withExceptionContext({ "Generating class '${cls.name}'" }) {
             val classNameStr = cls.name.renameGodotClass()
             val packageName = context.packageForOrDefault(cls.name)
             val className = ClassName(packageName, classNameStr)
-            val isSingleton = context.isSingleton(cls)
-            val classBuilder = buildBaseClass(cls, className, isSingleton)
+            val isSingleton = cls.isSingleton
+            val classBuilder = buildBaseClass(raw, className, isSingleton)
 
-            val (staticMethods, instanceMethods) = cls.methods.partition { it.isStatic }
+            val (staticMethods, instanceMethods) = raw.methods.partition { it.isStatic }
 
             // Sintetizar properties desde métodos getter/setter
-            val standaloneMethods = generateProperties(cls, instanceMethods, classBuilder)
+            val standaloneMethods = generateProperties(raw, instanceMethods, classBuilder)
 
             // Métodos standalone (no forman parte de una property)
             standaloneMethods.forEach {
@@ -60,7 +62,7 @@ class NativeEngineClassGenerator(
                 companionBuilder.addSingletonInstance(className)
             }
 
-            cls.constants.forEach { constant ->
+            raw.constants.forEach { constant ->
                 withExceptionContext({ "Error generating class constant '${constant.name}'" }) {
                     companionBuilder.addProperty(
                         PropertySpec
@@ -77,13 +79,13 @@ class NativeEngineClassGenerator(
                 companionBuilder.addFunction(methodGen.buildMethod(it, cls.name))
             }
 
-            if (isSingleton || cls.constants.isNotEmpty() || staticMethods.isNotEmpty()) {
+            if (isSingleton || raw.constants.isNotEmpty() || staticMethods.isNotEmpty()) {
                 classBuilder.addType(companionBuilder.build())
             }
 
             cls.enums.forEach { enum ->
-                if (context.isSpecializedClass(enum.name)) return@forEach
-                classBuilder.addType(enumGenerator.generateSpec(enum, cls.name))
+                if (context.isSpecializedClass(enum.shortName)) return@forEach
+                classBuilder.addType(enumGenerator.generateSpec(enum))
             }
 
             return classBuilder.build()

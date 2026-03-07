@@ -31,7 +31,7 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
 
     context(context: Context)
     override fun generate(api: ExtensionApi): Sequence<FileSpec> = sequence {
-        val builtinClassesPaths = api.builtinClasses.asSequence().mapNotNull {
+        val builtinClassesPaths = context.model.builtins.asSequence().mapNotNull {
             builtinClass.generateFile(it)
         }
 
@@ -39,19 +39,19 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
 
         yield(utils.generateFile(api.utilityFunctions))
 
-        val nativeStructuresPaths = api.nativeStructures.asSequence().mapNotNull {
+        val nativeStructuresPaths = context.model.nativeStructures.asSequence().mapNotNull {
             nativeStructure.generateFile(it)
         }
 
         yieldAll(nativeStructuresPaths)
 
-        val godotClassesPaths = api.classes.asSequence().map {
+        val godotClassesPaths = context.model.engineClasses.asSequence().map {
             engineClass.generateFile(it)
         }
 
         yieldAll(godotClassesPaths)
 
-        val (nestedEnums, globalEnums) = api.globalEnums.partition { it.name.contains(".") }
+        val (nestedEnums, globalEnums) = context.model.globalEnums.partition { it.ownerName != null }
 
         val globalEnumsPaths = globalEnums.asSequence().map {
             enumGen.generateFile(it)
