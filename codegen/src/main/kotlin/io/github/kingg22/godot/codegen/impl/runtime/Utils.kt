@@ -67,3 +67,15 @@ fun functionPointerPropertyName(iface: Interface): String {
 fun prefixOf(iface: Interface): String = prefixOf(iface.name)
 
 fun prefixOf(symbolName: String): String = symbolName.substringBefore('_')
+
+fun implementationNameForPrefix(prefix: String): String {
+    val canonical = when (prefix) {
+        "classdb" -> "ClassDB"
+        "mem" -> "Memory"
+        "packed" -> "PackedArray"
+        "ref" -> "Reference"
+        "worker" -> "WorkerThreadPool"
+        else -> prefix.snakeCaseToCamelCase().replaceFirstChar(Char::uppercaseChar)
+    }
+    return "${canonical}Binding"
+}

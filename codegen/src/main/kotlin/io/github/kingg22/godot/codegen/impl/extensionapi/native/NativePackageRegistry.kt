@@ -17,24 +17,17 @@ import io.github.kingg22.godot.codegen.impl.renameGodotClass
  *
  * The resolver handles types NOT registered here (primitives, void, etc.) directly without a package lookup.
  */
-class NativePackageRegistry internal constructor(private val typeToPackage: Map<String, String>, rootPackage: String) :
+class NativePackageRegistry private constructor(private val typeToPackage: Map<String, String>, rootPackage: String) :
     PackageRegistry {
     override val rootPackage = if (rootPackage.endsWith(".api")) rootPackage else "$rootPackage.api"
 
     init {
-        println("INFO: Native PackageRegistry created with ${typeToPackage.size} entries")
+        println("INFO: Native Package Registry created with ${typeToPackage.size} entries")
     }
 
     override fun packageFor(godotName: String): String? = typeToPackage[godotName]
 
-    override fun classNameFor(godotName: String, vararg kotlinName: String): ClassName {
-        val pkg = packageFor(godotName) ?: error("Type '$godotName' is not registered in PackageRegistry")
-        return ClassName(pkg, *kotlinName)
-    }
-
-    override fun packageForUtilityFun(): String = "$rootPackage.utils"
-
-    override fun packageForUtilObject(): String = packageForUtilityFun()
+    override fun packageForUtilObject(): String = "$rootPackage.utils"
 
     override fun classNameOfExperimentalAnnotation(): ClassName = ClassName(rootPackage, "ExperimentalGodotApi")
 

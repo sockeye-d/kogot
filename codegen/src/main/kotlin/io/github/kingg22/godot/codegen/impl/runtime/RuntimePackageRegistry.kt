@@ -23,20 +23,13 @@ class RuntimePackageRegistry(packageStr: String, interfaceModel: GDExtensionInte
             .map { it.name.substringBefore('_') }
             .distinct()
             .forEach { prefix ->
-                put(bindingClassName(prefix).simpleName, rootPackage)
+                put(implementationNameForPrefix(prefix), rootPackage)
             }
     }
 
     override fun packageFor(godotName: String): String? = typeToPackage[godotName]
 
-    override fun classNameFor(godotName: String, vararg kotlinName: String): ClassName {
-        val pkg = packageFor(godotName) ?: error("Type '$godotName' is not registered in RuntimePackageRegistry")
-        return ClassName(pkg, *kotlinName)
-    }
-
-    override fun packageForUtilityFun(): String = rootPackage
-
-    fun bindingClassName(prefix: String): ClassName = ClassName(rootPackage, classNameForPrefix(prefix))
+    fun bindingClassName(prefix: String): ClassName = ClassName(rootPackage, implementationNameForPrefix(prefix))
 
     fun bindingProcAddressHolderMember(): MemberName = MemberName(rootPackage, "bindingProcAddressHolder")
 
@@ -45,16 +38,4 @@ class RuntimePackageRegistry(packageStr: String, interfaceModel: GDExtensionInte
     fun booleanResultClassName(): ClassName = ClassName(rootPackage, "BindingBooleanResult")
 
     fun callErrorInfoClassName(): ClassName = ClassName(rootPackage, "BindingCallErrorInfo")
-
-    private fun classNameForPrefix(prefix: String): String {
-        val name = when (prefix) {
-            "classdb" -> "ClassDB"
-            "mem" -> "Memory"
-            "packed" -> "PackedArray"
-            "ref" -> "Reference"
-            "worker" -> "WorkerThreadPool"
-            else -> prefix.snakeCaseToCamelCase().replaceFirstChar(Char::uppercaseChar)
-        }
-        return "${name}Binding"
-    }
 }

@@ -1,8 +1,10 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi
 
 import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.MemberName
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedApiModel
+import kotlin.collections.ifEmpty
 
 typealias PackageRegistryFactory = (rootPackage: String, model: ResolvedApiModel) -> PackageRegistry
 
@@ -22,7 +24,10 @@ interface PackageRegistry {
      * Throws if the type is not registered — forces all generated types
      * to be registered before code generation starts.
      */
-    fun classNameFor(godotName: String, vararg kotlinName: String = arrayOf(godotName.renameGodotClass())): ClassName
+    fun classNameFor(godotName: String, vararg kotlinName: String = arrayOf(godotName.renameGodotClass())): ClassName {
+        val pkg = packageFor(godotName) ?: error("Type '$godotName' is not registered in PackageRegistry")
+        return ClassName(pkg, *kotlinName)
+    }
 
     /**
      * @see classNameFor
@@ -50,15 +55,25 @@ interface PackageRegistry {
         return classNameForOrNull(godotName, *kotlinNames) ?: ClassName(rootPackage, *kotlinNames)
     }
 
+    fun memberNameForOrDefault(
+        godotName: String,
+        kotlinName: String? = null,
+        typedClass: Boolean = false,
+        isExtension: Boolean = false,
+    ): MemberName {
+        val kotlinNames: String = kotlinName?.renameGodotClass(typedClass) ?: godotName.renameGodotClass(typedClass)
+        return packageFor(godotName)?.let { MemberName(it, kotlinNames, isExtension) }
+            ?: MemberName(rootPackage, kotlinNames, isExtension)
+    }
+
     /**
      * @see packageFor
      * @return default package if not registered
      */
     fun packageForOrDefault(godotName: String): String = packageFor(godotName) ?: rootPackage
 
-    fun packageForUtilityFun(): String
+    fun packageForUtilObject(): String = TODO("This package registry does not support utility functions")
 
-    fun packageForUtilObject(): String = packageForOrDefault("GD")
-
-    fun classNameOfExperimentalAnnotation(): ClassName = classNameForOrDefault("ExperimentalGodotApi")
+    fun classNameOfExperimentalAnnotation(): ClassName =
+        TODO("This package registry does not support experimental annotation")
 }
