@@ -129,6 +129,8 @@ class NativeBuiltinClassGenerator(
             .experimentalApiAnnotation(builtinClass.name)
             .addKdocIfPresent(builtinClass)
 
+        body.configureStorageBackedBuiltin(builtinClass, classBuilder)
+
         // ── GENERIC INTERCEPTION ──────────────────────────────────────────────
         val genericConfig = if (requiresGenerics) {
             val config = genericInterceptor.getGenericConfig(builtinClass)
@@ -143,13 +145,7 @@ class NativeBuiltinClassGenerator(
         // ── Destructor annotation / marker ───────────────────────────────────
         if (builtinClass.hasDestructor) {
             classBuilder.addSuperinterface(K_AUTOCLOSEABLE)
-            classBuilder.addFunction(
-                FunSpec
-                    .builder("close")
-                    .addModifiers(KModifier.OVERRIDE)
-                    .addCode(body.todoBody())
-                    .build(),
-            )
+            classBuilder.addFunction(body.buildCloseFunction(builtinClass))
         }
 
         // ── Members (fields like x, y, z) ────────────────────────────────────
@@ -189,8 +185,7 @@ class NativeBuiltinClassGenerator(
             }
 
             ctorBuilder.addParameters(argumentSpecs)
-
-            ctorBuilder.addCode(body.todoBody())
+            ctorBuilder.addCode(body.constructorBodyFor(builtinClass, ctor, ctorBuilder))
 
             classBuilder.addFunction(ctorBuilder.build())
         }
@@ -203,7 +198,7 @@ class NativeBuiltinClassGenerator(
                         .constructorBuilder()
                         .addParameter("value", STRING) // kotlin.String
                         .addKdoc("Creates a %L from a Kotlin String.", kotlinName)
-                        .addCode(body.todoBody())
+                        .apply { addCode(body.stringConstructorBodyFor(builtinClass, this)) }
                         .build(),
                 )
             }
