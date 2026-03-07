@@ -453,11 +453,15 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         }
 
         // ── NORMAL CASE: Constructor resolution ───────────────────────────────
-        val constructor = context.findConstructor(className, rawArgs.size)
+        val constructor = context.resolveConstructor(className, rawArgs)
 
         if (constructor == null) {
             println("WARN: Constructor not found for $className with ${rawArgs.size} args")
             return parseConstructorWithRawArgs(kotlinClass, rawArgs)
+        }
+
+        if (constructor.usesKotlinStringBridge && rawArgs.size == 1) {
+            return CodeBlock.of("%T(%L)", kotlinClass, rawArgs.single().trim())
         }
 
         val convertedArgs = rawArgs.zip(constructor.arguments) { rawArg, expectedParam ->
