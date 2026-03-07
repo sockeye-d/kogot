@@ -6,20 +6,18 @@ import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LONG
-import com.squareup.kotlinpoet.MemberName
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.LAZY_MODE
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.PRIMITIVE_NUMERIC_TYPES
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.lazyMethod
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.impl.withExceptionContext
 import io.github.kingg22.godot.codegen.models.extensionapi.EngineClass
-
-private val lazyMethod = MemberName("kotlin", "lazy")
-private val lazyMode = ClassName("kotlin", "LazyThreadSafetyMode")
 
 class NativeEngineClassGenerator(
     private val typeResolver: TypeResolver,
@@ -334,7 +332,6 @@ class NativeEngineClassGenerator(
                     builder.addModifiers(KModifier.OPEN)
                     constructorSpec.addModifiers(KModifier.INTERNAL)
                 } else {
-                    builder.addModifiers(KModifier.FINAL)
                     constructorSpec.addModifiers(KModifier.PRIVATE)
                 }
             }
@@ -360,7 +357,7 @@ class NativeEngineClassGenerator(
                 .delegate(
                     CodeBlock
                         .builder()
-                        .beginControlFlow("%M(%T.NONE)", lazyMethod, lazyMode)
+                        .beginControlFlow("%M(%T.NONE)", lazyMethod, LAZY_MODE)
                         .addStatement("%T()", className)
                         .endControlFlow()
                         .build(),
