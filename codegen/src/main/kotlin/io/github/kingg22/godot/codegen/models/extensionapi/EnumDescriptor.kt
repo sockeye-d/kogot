@@ -4,6 +4,10 @@ interface EnumDescriptor :
     Named,
     Documentable {
     val values: List<EnumConstant>
+    val shortName: String get() = name.substringAfterLast('.')
+    val ownerName: String?
+        get() = name.substringBeforeLast('.', missingDelimiterValue = "")
+            .ifBlank { null }
 
     fun copy(name: String = this.name): EnumDescriptor = object : EnumDescriptor {
         override val name: String = name
