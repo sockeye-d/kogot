@@ -5,6 +5,9 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.stubs.StubsPackageRegis
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 import io.github.kingg22.godot.codegen.models.extensionapi.Header
 import io.github.kingg22.godot.codegen.models.extensionapi.domain.GodotVersion
+import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedApiModel
+import io.github.kingg22.godot.codegen.models.internal.BuildConfiguration
+import io.github.kingg22.godot.codegen.models.internal.CodegenOptions
 
 /** Special context for test */
 @Suppress("ktlint:standard:function-naming", "TestFunctionName")
@@ -14,15 +17,12 @@ fun EmptyContext(
     version: GodotVersion = GodotVersion(0, 0, 0, 0, "test", "test", 0, "Test version"),
 ): Context = Context(
     extensionApi = ExtensionApi(header = Header(0, 0, 0, "test", "test", "Test version", "single")),
-    builtinTypes = emptySet(),
-    singletons = emptySet(),
-    classes = emptySet(),
-    globalEnumsTypes = emptySet(),
-    nativeStructureTypes = emptySet(),
     enumConstantResolver = EnumConstantResolver.empty(),
     experimentalTypesRegistry = ExperimentalTypesRegistry.empty,
     inheritanceTree = tree,
     godotVersion = version,
     packageRegistry = packageRegistry,
-    precision = "single",
+    extensionInterface = null,
+    model = ResolvedApiModel(BuildConfiguration.defaultFor("single", 64)),
+    options = CodegenOptions(),
 )

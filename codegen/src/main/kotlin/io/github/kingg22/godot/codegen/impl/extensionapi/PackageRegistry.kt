@@ -2,8 +2,9 @@ package io.github.kingg22.godot.codegen.impl.extensionapi
 
 import com.squareup.kotlinpoet.ClassName
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
+import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedApiModel
 
-typealias PackageRegistryFactory = (rootPackage: String, context: Context.IncompleteContext) -> PackageRegistry
+typealias PackageRegistryFactory = (rootPackage: String, model: ResolvedApiModel) -> PackageRegistry
 
 interface PackageRegistry {
     val rootPackage: String

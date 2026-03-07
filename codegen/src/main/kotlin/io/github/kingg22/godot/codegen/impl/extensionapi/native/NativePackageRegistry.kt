@@ -39,8 +39,15 @@ class NativePackageRegistry internal constructor(private val typeToPackage: Map<
     override fun classNameOfExperimentalAnnotation(): ClassName = ClassName(rootPackage, "ExperimentalGodotApi")
 
     companion object {
-        val factory: PackageRegistryFactory = { rootPackage, context ->
-            fun isSingleton(name: String) = name in context.singletons
+        val factory: PackageRegistryFactory = { rootPackage, model ->
+            fun isSingleton(name: String) = name in model.singletonNames
+            val inheritanceTree = InheritanceTree().also { tree ->
+                model.engineClasses.forEach { resolved ->
+                    resolved.raw.inherits?.takeIf { it.isNotBlank() }?.let { base ->
+                        tree.insert(derived = resolved.name, base = base)
+                    }
+                }
+            }
 
             val map = mutableMapOf<String, String>()
             fun renameQualified(name: String): String {
@@ -61,7 +68,7 @@ class NativePackageRegistry internal constructor(private val typeToPackage: Map<
             // Variant is injected manually in Context but not in builtinClasses
             register("Variant", "$rootPackage.api.builtin")
 
-            context.builtinTypes.forEach { cls ->
+            model.builtinTypes.forEach { cls ->
                 if (cls in NativeBuiltinClassGenerator.SKIPPED_TYPES) {
                     val kotlinName = when (cls.lowercase()) {
                         "int" -> "kotlin.Int"
@@ -83,7 +90,7 @@ class NativePackageRegistry internal constructor(private val typeToPackage: Map<
             }
 
             // Engine classes
-            context.classesAndApiType.forEach { (name, apiType) ->
+            model.classApiTypes.forEach { (name, apiType) ->
                 val pkg = when {
                     isSingleton(name) -> "$rootPackage.api.singleton"
 
@@ -91,7 +98,7 @@ class NativePackageRegistry internal constructor(private val typeToPackage: Map<
                     apiType == "editor" -> "$rootPackage.api.editor"
 
                     else -> {
-                        val sub = resolveCoreSubpackage(name, context.inheritanceTree)
+                        val sub = resolveCoreSubpackage(name, inheritanceTree)
                         val subPack = sub?.let { ".$sub" }.orEmpty()
                         "$rootPackage.api.core$subPack"
                     }
@@ -99,19 +106,19 @@ class NativePackageRegistry internal constructor(private val typeToPackage: Map<
                 register(name, pkg)
             }
 
-            context.nestedEnumsTypes.forEach { (cls, enum) ->
+            model.nestedEnumOwners.forEach { (cls, enum) ->
                 val pkg = map[cls]
                     ?: error("Class $cls for nested enum $enum not found in PackageRegistry build: $map")
                 register("$cls.$enum", pkg)
             }
 
             // Global enums
-            context.globalEnumsTypes.forEach { enum ->
+            model.globalEnumTypes.forEach { enum ->
                 register(enum, "$rootPackage.api.global")
             }
 
             // Native structures — manual impl, but types must be resolvable
-            context.nativeStructureTypes.forEach { ns ->
+            model.nativeStructuresByName.keys.forEach { ns ->
                 register(ns, "$rootPackage.api.native")
             }
 
