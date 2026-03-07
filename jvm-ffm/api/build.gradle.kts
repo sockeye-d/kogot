@@ -1,7 +1,8 @@
+
 plugins {
     id("buildlogic.kotlin-library-conventions")
     id("buildlogic.kotlin-styles-conventions")
-    // id("buildlogic.godot-codegen")
+    id("buildlogic.godot-codegen")
 }
 
 kotlin {
@@ -10,7 +11,6 @@ kotlin {
     }
 }
 
-/*
 val generateApi = tasks.generateGodotExtensionApi
 
 generateApi.configure {
@@ -23,4 +23,3 @@ generateApi.configure {
 tasks.spotlessKotlin {
     dependsOn(generateApi)
 }
- */
