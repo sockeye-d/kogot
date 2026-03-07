@@ -15,6 +15,7 @@ val K_REPLACE_WITH = ClassName("kotlin", "ReplaceWith")
 val K_SUPPRESS = ClassName("kotlin", "Suppress")
 val K_AUTOCLOSEABLE = ClassName("kotlin", "AutoCloseable")
 val K_TODO = MemberName("kotlin", "TODO")
+val K_OPT_IN = ClassName("kotlin", "OptIn")
 
 internal inline fun <T> withExceptionContext(metadata: () -> String, block: () -> T): T = try {
     block()
@@ -69,14 +70,15 @@ fun buildKdoc(
     if (description.isNotEmpty()) {
         description.forEach {
             lines.appendLine(it)
-            lines.appendLine()
+            if (!it.endsWith('\n')) lines.appendLine()
         }
     }
     if (!since.isNullOrBlank()) {
         lines.appendLine("@since $since")
     }
+    // TODO this can be enriched with context similar to KDocFormatter do
     see.forEach { entry ->
-        lines.appendLine("@see $entry")
+        lines.appendLine("@see ${entry.replace("::", ".").removeSuffix("()")}")
     }
     return lines.toString()
 }
@@ -105,8 +107,7 @@ fun safeIdentifier(name: String): String {
     } else {
         sanitized
     }
-    val camelCase = fixed.snakeCaseToCamelCase()
-    return if (isKotlinKeyword(camelCase)) "`$camelCase`" else camelCase
+    return fixed.snakeCaseToCamelCase()
 }
 
 /**
@@ -184,6 +185,12 @@ fun String.snakeCaseToCamelCase(): String {
         }
     }
 }
+
+fun String.snakeCaseToPascalCase(): String = split('_')
+    .filter { it.isNotBlank() }
+    .joinToString("") { token ->
+        token.lowercase().replaceFirstChar(Char::uppercaseChar)
+    }
 
 private val WORDS_REGEX = "([a-z0-9])([A-Z])".toRegex()
 private val WORDS_2_REGEX = "([a-zA-Z])([0-9])".toRegex()

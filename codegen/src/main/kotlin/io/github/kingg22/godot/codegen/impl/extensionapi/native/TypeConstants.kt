@@ -5,12 +5,17 @@ import com.squareup.kotlinpoet.MemberName
 
 val COPAQUE_POINTER = ClassName("kotlinx.cinterop", "COpaquePointer")
 val C_POINTER = ClassName("kotlinx.cinterop", "CPointer")
+val C_POINTER_VAR_OF = ClassName("kotlinx.cinterop", "CPointerVarOf")
 val C_STRUCT_VAR = ClassName("kotlinx.cinterop", "CStructVar")
 val C_STRUCT_VAR_TYPE = ClassName("kotlinx.cinterop", "CStructVar", "Type")
 val C_ARRAY_POINTER = ClassName("kotlinx.cinterop", "CArrayPointer")
 val C_NATIVE_PTR = ClassName("kotlinx.cinterop", "NativePtr")
 val C_FUNCTION = ClassName("kotlinx.cinterop", "CFunction")
 val C_NAME_ANNOTATION = ClassName("kotlin.native", "CName")
+val GDEXTENSION_INTERFACE_GET_PROC_ADDRESS = ClassName(
+    "io.github.kingg22.godot.internal.ffi",
+    "GDExtensionInterfaceGetProcAddress",
+)
 
 // CVar types (used for pointer targets)
 val BYTE_VAR = ClassName("kotlinx.cinterop", "ByteVar")
@@ -24,12 +29,26 @@ val U_LONG_VAR = ClassName("kotlinx.cinterop", "ULongVar")
 val FLOAT_VAR = ClassName("kotlinx.cinterop", "FloatVar")
 val DOUBLE_VAR = ClassName("kotlinx.cinterop", "DoubleVar")
 
+val INT16_T = ClassName("platform.posix", "int16_t")
+val INT32_T = ClassName("platform.posix", "int32_t")
+val INT64_T = ClassName("platform.posix", "int64_t")
+val UINT8_T = ClassName("platform.posix", "uint8_t")
+val UINT16_T = ClassName("platform.posix", "uint16_t")
+val UINT32_T = ClassName("platform.posix", "uint32_t")
+val UINT64_T = ClassName("platform.posix", "uint64_t")
+val SIZE_T = ClassName("platform.posix", "size_t")
+val POSIX_FLOAT = ClassName("platform.posix", "float")
+val POSIX_DOUBLE = ClassName("platform.posix", "double")
+val POSIX_WCHAR_T = ClassName("platform.posix", "wchar_t")
+
 val LAZY_MODE = ClassName("kotlin", "LazyThreadSafetyMode")
 val lazyMethod = MemberName("kotlin", "lazy")
 
 val memScoped = MemberName("kotlinx.cinterop", "memScoped")
 val cstr = MemberName("kotlinx.cinterop", "cstr", true)
+val ptr = MemberName("kotlinx.cinterop", "ptr", true)
 val reinterpret = MemberName("kotlinx.cinterop", "reinterpret", true)
+val cinteropInvoke = MemberName("kotlinx.cinterop", "invoke", true)
 
 val PRIMITIVE_NUMERIC_TYPES = setOf(
     "int8_t", "int8",
