@@ -12,6 +12,8 @@ val C_ARRAY_POINTER = ClassName("kotlinx.cinterop", "CArrayPointer")
 val C_NATIVE_PTR = ClassName("kotlinx.cinterop", "NativePtr")
 val C_FUNCTION = ClassName("kotlinx.cinterop", "CFunction")
 val C_NAME_ANNOTATION = ClassName("kotlin.native", "CName")
+val INTERPRET_C_POINTER = MemberName("kotlinx.cinterop", "interpretCPointer")
+
 val GDEXTENSION_INTERFACE_GET_PROC_ADDRESS = ClassName(
     "io.github.kingg22.godot.internal.ffi",
     "GDExtensionInterfaceGetProcAddress",
