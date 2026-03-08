@@ -5,7 +5,6 @@ import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.UNIT
-import io.github.kingg22.godot.codegen.impl.addKdocForBitfield
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
@@ -114,23 +113,19 @@ class NativeMethodGenerator(
      */
     context(context: Context)
     fun buildParameter(arg: MethodArg): ParameterSpec {
-        withExceptionContext({ "Generating parameter '${arg.name}': ${arg.type} = ${arg.defaultValue ?: "--"}" }) {
+        withExceptionContext({
+            "Generating parameter '${arg.name}': ${arg.type} (${arg.meta})} = ${arg.defaultValue ?: "--"}"
+        }) {
             val isNullable = arg.type != "Variant" && arg.defaultValue?.equals("null") ?: false
             val rawType = typeResolver.resolve(arg)
             val type = if (isNullable) rawType.copy(nullable = true) else rawType
             val kotlinName = safeIdentifier(arg.name)
             val paramBuilder = ParameterSpec.builder(kotlinName, type)
-            // val isConstructor = methodName == CONSTRUCTOR_NAME
 
             // Documentación
-            if (arg.name != kotlinName) {
-                paramBuilder.addKdoc("Original name: `%S`", arg.name)
-            }
-            paramBuilder.addKdoc(
-                "\nOriginal type: `%L`, meta type: `%L`",
-                arg.type,
-                arg.meta ?: "--",
-            )
+            if (arg.name != kotlinName) paramBuilder.addKdoc("Original name: `%S`\n", arg.name)
+            paramBuilder.addKdoc("Original type: `%L`", arg.type)
+            if (arg.meta != null) paramBuilder.addKdoc(", meta type: `%L`", arg.meta)
 
             // Default value
             arg.defaultValue?.let { value ->
@@ -142,9 +137,7 @@ class NativeMethodGenerator(
                 paramBuilder.defaultValue(defaultCode)
             }
 
-            return paramBuilder
-                .addKdocForBitfield(arg.type)
-                .build()
+            return paramBuilder.build()
         }
     }
 }

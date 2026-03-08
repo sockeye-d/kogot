@@ -8,7 +8,6 @@ import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.STRING
 import com.squareup.kotlinpoet.TypeSpec
 import io.github.kingg22.godot.codegen.impl.K_AUTOCLOSEABLE
-import io.github.kingg22.godot.codegen.impl.addKdocForBitfield
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
@@ -381,7 +380,6 @@ class NativeBuiltinClassGenerator(
             }.returns(returnTypeName)
             .addCode(body.todoBody())
             .addKdocIfPresent(description)
-            .addKdocForBitfield(returnType)
 
         if (rightType != null) {
             val rightTypeName = typeResolver.resolve(rightType)

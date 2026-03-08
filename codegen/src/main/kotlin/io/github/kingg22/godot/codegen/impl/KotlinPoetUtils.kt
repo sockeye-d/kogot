@@ -2,7 +2,6 @@ package io.github.kingg22.godot.codegen.impl
 
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.Documentable
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.MemberName
 import com.squareup.kotlinpoet.TypeSpec
@@ -52,15 +51,7 @@ fun FileSpec.Builder.commonConfiguration() = apply {
     )
 }
 
-fun <T : Documentable.Builder<*>> T.addKdocForBitfield(returnType: String?, prefixKdoc: String? = null): T {
-    if (returnType == null) return this
-    if (returnType.startsWith("bitfield::")) {
-        val prefix = if (prefixKdoc != null) "$prefixKdoc " else ""
-        addKdoc("$prefix`bitfield` for [%L]", returnType.removePrefix("bitfield::"))
-    }
-    return this
-}
-
+// Consider using KDocFormatter
 fun buildKdoc(
     description: List<String> = emptyList(),
     see: List<String> = emptyList(),
