@@ -1,6 +1,8 @@
 // TODO make all internals published api when shared internals are beta/stable
 // https://github.com/Kotlin/KEEP/blob/main/proposals/KEEP-0451-shared-internals.md
 
+@file:Suppress("NOTHING_TO_INLINE")
+
 package io.github.kingg22.godot.internal.binding
 
 import io.github.kingg22.godot.internal.ffi.GDExtensionBool
@@ -31,27 +33,27 @@ data class BindingBooleanResult(val value: Boolean, val valid: Boolean? = null, 
 data class BindingCallErrorInfo(val error: GDExtensionCallErrorType, val argument: Int, val expected: Int)
 
 @ApiStatus.Internal
-fun Boolean.toGdBool(): GDExtensionBool = if (this) 1u else 0u
+inline fun Boolean.toGdBool(): GDExtensionBool = if (this) 1u else 0u
 
 @ApiStatus.Internal
-fun GDExtensionBool.toBoolean(): Boolean = this != 0u.toUByte()
+inline fun GDExtensionBool.toBoolean(): Boolean = this != 0u.toUByte()
 
 @ApiStatus.Internal
-fun MemScope.allocGdBool(initialValue: Boolean = false) = allocArray<UByteVar>(1).also {
+inline fun MemScope.allocGdBool(initialValue: Boolean = false) = allocArray<UByteVar>(1).also {
     it[0] = initialValue.toGdBool()
 }
 
 @ApiStatus.Internal
-fun CPointer<UByteVar>.readGdBool(): Boolean = this[0].toBoolean()
+inline fun CPointer<UByteVar>.readGdBool(): Boolean = this[0].toBoolean()
 
 @ApiStatus.Internal
-fun MemScope.allocCallError() = allocArray<GDExtensionCallError>(1)
+inline fun MemScope.allocCallError() = allocArray<GDExtensionCallError>(1)
 
 @ApiStatus.Internal
-fun CPointer<GDExtensionCallError>.readCallErrorInfo(): BindingCallErrorInfo = pointed.toBindingCallErrorInfo()
+inline fun CPointer<GDExtensionCallError>.readCallErrorInfo(): BindingCallErrorInfo = pointed.toBindingCallErrorInfo()
 
 @ApiStatus.Internal
-fun GDExtensionCallError.toBindingCallErrorInfo(): BindingCallErrorInfo = BindingCallErrorInfo(
+inline fun GDExtensionCallError.toBindingCallErrorInfo(): BindingCallErrorInfo = BindingCallErrorInfo(
     error = error,
     argument = argument,
     expected = expected,
