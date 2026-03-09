@@ -67,6 +67,17 @@ class Context(
     fun resolveEnumConstant(parentClass: String?, enumName: String, value: Long): String? =
         enumConstantResolver.resolveConstant(parentClass, enumName, value)
 
+    /**
+     * Like [resolveEnumConstant] but logs a WARN when multiple aliases share the same value.
+     * Use this in call-sites where the choice of alias is surprising (e.g., indexed property indices).
+     */
+    fun resolveEnumConstantUnambiguous(
+        parentClass: String?,
+        enumName: String,
+        value: Long,
+        context: String = "",
+    ): String? = enumConstantResolver.resolveConstantUnambiguous(parentClass, enumName, value, context)
+
     fun getConstantEnumNamesFor(parentClass: String?, enumName: String) =
         enumConstantResolver.getAllConstantsNames(parentClass, enumName)
 

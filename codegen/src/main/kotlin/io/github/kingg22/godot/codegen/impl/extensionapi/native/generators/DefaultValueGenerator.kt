@@ -244,26 +244,26 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     private fun parseEnumFromValue(value: Long, godotType: String): CodeBlock {
         // godotType = "enum::Key" o "enum::BaseMaterial3D.Flags"
         val enumTypeStr = godotType.removePrefix("enum::")
-
         val (className, enumName) = if (enumTypeStr.contains(".")) {
             enumTypeStr.substringBeforeLast(".") to enumTypeStr.substringAfterLast(".")
         } else {
             null to enumTypeStr
         }
 
-        // Buscar el constant name desde el valor
+        // resolveConstant returns the first-declared alias when multiple constants share this value.
+        // For default values this is always correct: all aliases collapse to the same Long at runtime,
+        // so emitting any of them produces identical behavior.  The first-declared alias is used
+        // because it matches Godot's canonical documentation ordering.
         val constantName = context.resolveEnumConstant(
             parentClass = className,
             enumName = enumName,
             value = value,
         ) ?: run {
             println("WARN: Enum constant not found: $enumTypeStr = $value, using raw value")
-            return CodeBlock.of("%LL", value) // Fallback: valor raw como Long
+            return CodeBlock.of("%LL", value)
         }
 
-        // Resolver TypeName del enum
         val enumTypeName = typeResolver.resolve(godotType)
-
         return CodeBlock.of("%T.%L", enumTypeName, constantName)
     }
 

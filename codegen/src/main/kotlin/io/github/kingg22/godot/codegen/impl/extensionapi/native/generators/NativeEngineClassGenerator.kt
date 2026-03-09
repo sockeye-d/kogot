@@ -220,7 +220,6 @@ class NativeEngineClassGenerator(
      */
     context(context: Context)
     private fun resolveIndexedPropertyConstant(method: EngineClass.ClassMethod, indexValue: Int): CodeBlock {
-        // El primer argumento del método es el enum
         check(method.arguments.isNotEmpty()) {
             "Indexed property getter/setter must have at least one argument, got ${method.arguments.size}"
         }
@@ -232,9 +231,7 @@ class NativeEngineClassGenerator(
         }
 
         val enumTypeStr = firstArg.type.removePrefix("enum::")
-
         var className: String? = null
-        // Intentar resolver el constant
         val enumName = if (enumTypeStr.contains(".")) {
             className = enumTypeStr.substringBeforeLast(".")
             enumTypeStr.substringAfterLast(".")
@@ -242,14 +239,18 @@ class NativeEngineClassGenerator(
             enumTypeStr
         }
 
-        val constantName = context.resolveEnumConstant(
+        // Use resolveConstantUnambiguous here: the index of an indexed property is a raw integer
+        // passed verbatim to the getter/setter, so an alias collision is worth logging — it doesn't
+        // affect runtime correctness (all aliases have the same Long value) but it makes the choice
+        // of emitted name explicit and reviewable during generation.
+        val constantName = context.resolveEnumConstantUnambiguous(
             parentClass = className,
             enumName = enumName,
             value = indexValue.toLong(),
+            context = "indexed property, method '${method.name}', index $indexValue",
         ) ?: error("Enum constant not found: $enumTypeStr.$indexValue, resolved from $className.$enumName")
 
         val enumTypeName = typeResolver.resolve(firstArg.type)
-
         return CodeBlock.of("%T.%L", enumTypeName, constantName)
     }
 
