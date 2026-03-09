@@ -1,6 +1,8 @@
-package io.github.kingg22.godot.ffi
+package io.github.kingg22.godot.sample
 
+import io.github.kingg22.godot.api.utils.GD
 import io.github.kingg22.godot.internal.binding.BindingProcAddressHolder
+import io.github.kingg22.godot.internal.binding.PrintBinding
 import io.github.kingg22.godot.internal.ffi.GDExtensionBool
 import io.github.kingg22.godot.internal.ffi.GDExtensionClassLibraryPtr
 import io.github.kingg22.godot.internal.ffi.GDExtensionInitialization
@@ -13,13 +15,11 @@ import kotlinx.cinterop.pointed
 import kotlinx.cinterop.staticCFunction
 
 @CName("godot_kotlin_init")
-fun main(
+fun godotKotlinInit(
     pGetProcAddress: GDExtensionInterfaceGetProcAddress,
     pLibrary: GDExtensionClassLibraryPtr,
     initialization: CPointer<GDExtensionInitialization>,
 ): GDExtensionBool {
-    println("=== Godot Kotlin Native Initialization ===")
-
     BindingProcAddressHolder.initialize(pGetProcAddress, pLibrary)
 
     val initialization = initialization.pointed
@@ -32,9 +32,41 @@ fun main(
 }
 
 fun initialize(userdata: COpaquePointer?, level: GDExtensionInitializationLevel) {
-    println("INITIALIZE LEVEL = $level 😈")
+    when (level) {
+        GDEXTENSION_INITIALIZATION_CORE -> {
+            println("✓ CORE initialized")
+        }
+
+        GDEXTENSION_INITIALIZATION_SERVERS -> {
+            println("✓ SERVERS initialized")
+        }
+
+        GDEXTENSION_INITIALIZATION_SCENE -> {
+            println("✓ SCENE initialized")
+        }
+
+        GDEXTENSION_INITIALIZATION_EDITOR -> {
+            println("✓ EDITOR initialized - printing to Godot now")
+            testGodotPrinting()
+        }
+
+        GDExtensionInitializationLevel.GDEXTENSION_MAX_INITIALIZATION_LEVEL -> {}
+    }
 }
 
 fun deinitialize(userdata: COpaquePointer?, level: GDExtensionInitializationLevel) {
-    println("DEINITIALIZE LEVEL = $level 💀")
+    println("✗ DEINITIALIZE LEVEL = $level")
+}
+
+private fun testGodotPrinting() {
+    // Load print function
+    PrintBinding.instance.error(
+        description = "This is a warning message",
+        function = "testGodotPrinting",
+        file = "MainKt",
+        pLine = 42,
+        editorNotify = true,
+    )
+    val result = GD.pingpong(-3.0f, 3.0f)
+    println("Result of ping pong utility: $result")
 }
