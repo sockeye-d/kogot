@@ -11,7 +11,6 @@ import com.squareup.kotlinpoet.TypeSpec
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.LAZY_MODE
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.PRIMITIVE_NUMERIC_TYPES
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.lazyMethod
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
@@ -359,7 +358,7 @@ class NativeEngineClassGenerator(
                 .delegate(
                     CodeBlock
                         .builder()
-                        .beginControlFlow("%M(%T.NONE)", lazyMethod, LAZY_MODE)
+                        .beginControlFlow("%M(PUBLICATION)", lazyMethod)
                         .addStatement("%T()", className)
                         .endControlFlow()
                         .build(),

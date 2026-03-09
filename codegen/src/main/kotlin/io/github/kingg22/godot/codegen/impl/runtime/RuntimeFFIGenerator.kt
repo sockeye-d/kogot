@@ -1,27 +1,18 @@
 package io.github.kingg22.godot.codegen.impl.runtime
 
 import com.squareup.kotlinpoet.*
-import io.github.kingg22.godot.codegen.impl.K_DEPRECATED
 import io.github.kingg22.godot.codegen.impl.K_OPT_IN
-import io.github.kingg22.godot.codegen.impl.K_REPLACE_WITH
 import io.github.kingg22.godot.codegen.impl.K_SUPPRESS
 import io.github.kingg22.godot.codegen.impl.buildKdoc
 import io.github.kingg22.godot.codegen.impl.createFile
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.GDEXTENSION_INTERFACE_GET_PROC_ADDRESS
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.LAZY_MODE
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropInvoke
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.cstr
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.lazyMethod
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.memScoped
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.ptr
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.reinterpret
-import io.github.kingg22.godot.codegen.impl.safeIdentifier
-import io.github.kingg22.godot.codegen.impl.snakeCaseToCamelCase
-import io.github.kingg22.godot.codegen.models.extensioninterface.Arguments
-import io.github.kingg22.godot.codegen.models.extensioninterface.Deprecated
 import io.github.kingg22.godot.codegen.models.extensioninterface.GDExtensionInterface
 import io.github.kingg22.godot.codegen.models.extensioninterface.Interface
-import kotlin.collections.find
 import kotlin.collections.map
 
 class RuntimeFFIGenerator(private val packageName: String) {
@@ -46,7 +37,10 @@ class RuntimeFFIGenerator(private val packageName: String) {
     private fun generateGroupFile(prefix: String, interfaces: List<Interface>): FileSpec {
         val className = packageRegistry.bindingClassName(prefix)
         val constructorParam = ParameterSpec
-            .builder("getProcAddress", GDEXTENSION_INTERFACE_GET_PROC_ADDRESS)
+            .builder(
+                "getProcAddress",
+                resolver.resolveType("GDExtensionInterfaceGetProcAddress").copy(nullable = false),
+            )
             .build()
 
         val typeSpec = TypeSpec
@@ -62,6 +56,20 @@ class RuntimeFFIGenerator(private val packageName: String) {
                 "Runtime bindings for `%L_*` symbols loaded through `getProcAddress`.\n\nGenerated from Godot 4.6.1 `gdextension_interface.json`.",
                 prefix,
             )
+            .addAnnotation(
+                AnnotationSpec
+                    .builder(K_SUPPRESS)
+                    .addMember("%S", "DEPRECATION")
+                    .addMember("%S", "DEPRECATION_ERROR")
+                    .addMember("%S", "NOTHING_TO_INLINE")
+                    .build(),
+            )
+            .addAnnotation(
+                AnnotationSpec
+                    .builder(K_OPT_IN)
+                    .addMember("%T::class", packageRegistry.classNameForOrDefault("InternalBinding"))
+                    .build(),
+            )
             .addType(buildCompanionObject(className))
             .apply {
                 interfaces.forEach { iface ->
@@ -72,26 +80,7 @@ class RuntimeFFIGenerator(private val packageName: String) {
             }
             .build()
 
-        // FIXME don't do this, prefers add the member of suppress before add it
-        return createFile(className.simpleName, packageRegistry.rootPackage) {
-            addType(typeSpec)
-            val suppressAnnotation = annotations.first { it.typeName == K_SUPPRESS }
-            annotations.remove(suppressAnnotation)
-            addAnnotation(
-                suppressAnnotation
-                    .toBuilder()
-                    .addMember("%S", "DEPRECATION")
-                    .addMember("%S", "DEPRECATION_ERROR")
-                    .addMember("%S", "NOTHING_TO_INLINE")
-                    .build(),
-            )
-            addAnnotation(
-                AnnotationSpec
-                    .builder(K_OPT_IN)
-                    .addMember("%T::class", packageRegistry.classNameForOrDefault("InternalBinding"))
-                    .build(),
-            )
-        }
+        return createFile(typeSpec, className.simpleName, packageRegistry.rootPackage)
     }
 
     context(packageRegistry: RuntimePackageRegistry)
@@ -103,7 +92,7 @@ class RuntimeFFIGenerator(private val packageName: String) {
                 .delegate(
                     CodeBlock
                         .builder()
-                        .beginControlFlow("%M(%T.PUBLICATION)", lazyMethod, LAZY_MODE)
+                        .beginControlFlow("%M(PUBLICATION)", lazyMethod)
                         .addStatement(
                             "%T(%M.getProcAddress)",
                             className,
