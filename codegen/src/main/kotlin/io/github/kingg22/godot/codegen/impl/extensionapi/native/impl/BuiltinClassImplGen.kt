@@ -30,10 +30,10 @@ private val STORAGE_BACKED_BUILTINS = setOf(
     "Vector2", "Vector2i", "Rect2", "Rect2i",
     "Vector3", "Vector3i", "Transform2D",
     "Vector4", "Vector4i", "Plane", "Quaternion",
-    "Aabb", "Basis", "Transform3D", "Projection",
+    "Aabb", "AABB", "Basis", "Transform3D", "Projection",
     "Color",
     // Misc — have destructors
-    "Rid", "Callable", "Signal", "Dictionary", "Array",
+    "Rid", "RID", "Callable", "Signal", "Dictionary", "Array",
     // Packed arrays — all have destructors
     "PackedByteArray", "PackedInt32Array", "PackedInt64Array",
     "PackedFloat32Array", "PackedFloat64Array", "PackedStringArray",
@@ -57,12 +57,12 @@ private fun variantTypeConst(godotName: String): String = when (godotName) {
     "Vector4i" -> "GDEXTENSION_VARIANT_TYPE_VECTOR4I"
     "Plane" -> "GDEXTENSION_VARIANT_TYPE_PLANE"
     "Quaternion" -> "GDEXTENSION_VARIANT_TYPE_QUATERNION"
-    "Aabb" -> "GDEXTENSION_VARIANT_TYPE_AABB"
+    "Aabb", "AABB" -> "GDEXTENSION_VARIANT_TYPE_AABB"
     "Basis" -> "GDEXTENSION_VARIANT_TYPE_BASIS"
     "Transform3D" -> "GDEXTENSION_VARIANT_TYPE_TRANSFORM3D"
     "Projection" -> "GDEXTENSION_VARIANT_TYPE_PROJECTION"
     "Color" -> "GDEXTENSION_VARIANT_TYPE_COLOR"
-    "Rid" -> "GDEXTENSION_VARIANT_TYPE_RID"
+    "Rid", "RID" -> "GDEXTENSION_VARIANT_TYPE_RID"
     "Callable" -> "GDEXTENSION_VARIANT_TYPE_CALLABLE"
     "Signal" -> "GDEXTENSION_VARIANT_TYPE_SIGNAL"
     "Dictionary" -> "GDEXTENSION_VARIANT_TYPE_DICTIONARY"
