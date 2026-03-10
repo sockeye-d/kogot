@@ -107,7 +107,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         // nil → Variant.NIL (object singleton)
         godotType == "Variant" && (value == "nil" || value == "null") -> {
             val variantClass = context.classNameForOrDefault("Variant")
-            CodeBlock.of("%T.NIL", variantClass)
+            CodeBlock.of("%T.NIL()", variantClass)
         }
 
         // Boolean

@@ -8,13 +8,14 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.*
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.impl.BuiltinClassImplGen
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.impl.ImplementationPackageRegistry
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.impl.UtilityFunctionImplGen
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.impl.VariantImplGen
 import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 
 /** Generates Kotlin Native implementation bodies (cinterop / GDExtension bindings). */
 class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeImplGenerator.ImplGenerator {
     private lateinit var implPackageRegistry: ImplementationPackageRegistry
     private val bodyGenerator = BodyGenerator()
-    private val builtinClassImplGen = BuiltinClassImplGen(bodyGenerator)
+    private val builtinClassImplGen = BuiltinClassImplGen(bodyGenerator, typeResolver)
     private val defaultValue = DefaultValueGenerator(typeResolver)
     private val methodGenerator = NativeMethodGenerator(typeResolver, bodyGenerator, defaultValue)
     private val genericInterceptor = GenericBuiltinInterceptor(typeResolver)
@@ -30,25 +31,24 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
         typeAliasGen,
     )
     private val engineClass = NativeEngineClassGenerator(typeResolver, bodyGenerator, methodGenerator, enumGen)
-    private val variant = NativeVariantGenerator(typeResolver, enumGen)
+    private val variantImplGen = VariantImplGen()
+    private val variant = NativeVariantGenerator(typeResolver, enumGen, variantImplGen)
     private val nativeStructure = KNativeStructureGenerator(typeResolver, bodyGenerator)
     private val utilFuncImplGen = UtilityFunctionImplGen(bodyGenerator)
     private val utils = NativeUtilityFunctionGenerator(methodGenerator, utilFuncImplGen)
 
     context(context: Context)
-    private fun initializeImplPackageRegistry() {
+    override fun generate(api: ExtensionApi): Sequence<FileSpec> = sequence {
+        // Initialise impl generators with the resolved package registry.
+        // This must happen inside generate() where Context is available.
         implPackageRegistry = ImplementationPackageRegistry(
             context.rootPackage,
-            checkNotNull(context.extensionInterface),
+            checkNotNull(context.extensionInterface) { "extensionInterface required for impl generation" },
         )
         builtinClassImplGen.initialize(implPackageRegistry)
-        nativeStructure.initialize(implPackageRegistry)
         utilFuncImplGen.initialize(implPackageRegistry)
-    }
-
-    context(context: Context)
-    override fun generate(api: ExtensionApi): Sequence<FileSpec> = sequence {
-        initializeImplPackageRegistry()
+        variantImplGen.initialize(implPackageRegistry)
+        nativeStructure.initialize(implPackageRegistry)
 
         val builtinClassesPaths = context.model.builtins.asSequence().mapNotNull {
             builtinClass.generateFile(it)
