@@ -153,7 +153,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
 
         // Unknown → null fallback
         else -> {
-            println("WARN: Unknown default value pattern: '$value' for type $godotType")
+            println("WARNING: Unknown default value pattern: '$value' for type $godotType")
             null
         }
     }
@@ -259,7 +259,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
             enumName = enumName,
             value = value,
         ) ?: run {
-            println("WARN: Enum constant not found: $enumTypeStr = $value, using raw value")
+            println("WARNING: Enum constant not found: $enumTypeStr = $value, using raw value")
             return CodeBlock.of("%LL", value)
         }
 
@@ -321,7 +321,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
 
         // Fallback
         else -> {
-            println("WARN: Unknown numeric type $kotlinType for value '$value', assuming Int")
+            println("WARNING: Unknown numeric type $kotlinType for value '$value', assuming Int")
             CodeBlock.of(value)
         }
     }
@@ -456,7 +456,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         val constructor = context.resolveConstructor(className, rawArgs)
 
         if (constructor == null) {
-            println("WARN: Constructor not found for $className with ${rawArgs.size} args")
+            println("WARNING: Constructor not found for $className with ${rawArgs.size} args")
             return parseConstructorWithRawArgs(kotlinClass, rawArgs)
         }
 
@@ -508,7 +508,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
             ?: run {
                 // Fallback al valor crudo si parseDefaultValue devuelve null
                 println(
-                    "WARN: Unable to parse default value '$value' for ${expectedParam.name}: ${expectedParam.type} on constructor args, using raw value",
+                    "WARNING: Unable to parse default value '$value' for ${expectedParam.name}: ${expectedParam.type} on constructor args, using raw value",
                 )
                 CodeBlock.of(value)
             }
@@ -602,7 +602,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         // Buscar el constant por nombre original
         val constantName = allConstants.find { it == value }
             ?: run {
-                println("WARN: Enum constant '$value' not found in $className.$enumName")
+                println("WARNING: Enum constant '$value' not found in $className.$enumName")
                 return CodeBlock.of(value) // Fallback: usar valor raw
             }
 

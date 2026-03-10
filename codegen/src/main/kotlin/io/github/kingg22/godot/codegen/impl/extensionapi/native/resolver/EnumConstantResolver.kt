@@ -99,7 +99,7 @@ class EnumConstantResolver(
             val qualified = "${parentClass?.let { "$it." } ?: ""}$enumName"
             val aliases = matches.joinToString { it.second }
             println(
-                "WARN: Enum '$qualified' has ${matches.size} aliases for value $value: [$aliases]. " +
+                "INFO: Enum '$qualified' has ${matches.size} aliases for value $value: [$aliases]. " +
                     "Emitting first-declared '${matches.first().second}'." +
                     if (context.isNotBlank()) " Context: $context" else "",
             )
