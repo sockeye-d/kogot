@@ -41,12 +41,12 @@ val POSIX_WCHAR_T = ClassName("platform.posix", "wchar_t")
 val lazyMethod = MemberName("kotlin", "lazy")
 
 val memScoped = MemberName("kotlinx.cinterop", "memScoped")
-val cstr = MemberName("kotlinx.cinterop", "cstr", true)
-val ptr = MemberName("kotlinx.cinterop", "ptr", true)
-val alloc = MemberName("kotlinx.cinterop", "alloc", true)
-val reinterpret = MemberName("kotlinx.cinterop", "reinterpret", true)
+val cinteropCstr = MemberName("kotlinx.cinterop", "cstr", true)
+val cinteropPtr = MemberName("kotlinx.cinterop", "ptr", true)
+val cinteropAlloc = MemberName("kotlinx.cinterop", "alloc", true)
+val cinteropReinterpret = MemberName("kotlinx.cinterop", "reinterpret", true)
 val cinteropInvoke = MemberName("kotlinx.cinterop", "invoke", true)
-val cpointerValue = MemberName("kotlinx.cinterop", "value", true)
+val cinteropValue = MemberName("kotlinx.cinterop", "value", true)
 
 val PRIMITIVE_NUMERIC_TYPES = setOf(
     "int8_t", "int8",

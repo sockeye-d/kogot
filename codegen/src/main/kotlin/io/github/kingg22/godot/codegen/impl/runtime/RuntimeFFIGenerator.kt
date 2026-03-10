@@ -5,12 +5,12 @@ import io.github.kingg22.godot.codegen.impl.K_OPT_IN
 import io.github.kingg22.godot.codegen.impl.K_SUPPRESS
 import io.github.kingg22.godot.codegen.impl.buildKdoc
 import io.github.kingg22.godot.codegen.impl.createFile
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropCstr
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropInvoke
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.cstr
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropPtr
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropReinterpret
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.lazyMethod
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.memScoped
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.ptr
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.reinterpret
 import io.github.kingg22.godot.codegen.models.extensioninterface.GDExtensionInterface
 import io.github.kingg22.godot.codegen.models.extensioninterface.Interface
 import kotlin.collections.map
@@ -125,9 +125,9 @@ class RuntimeFFIGenerator(private val packageName: String) {
                         CodeBlock
                             .builder()
                             .beginControlFlow("%M", memScoped)
-                            .addStatement("getProcAddress(%S.%M.%M)", iface.name, cstr, ptr)
+                            .addStatement("getProcAddress(%S.%M.%M)", iface.name, cinteropCstr, cinteropPtr)
                             .indent()
-                            .addStatement("?.%M()", reinterpret)
+                            .addStatement("?.%M()", cinteropReinterpret)
                             .addStatement("?: error(%S)", "Failed to load Godot symbol '${iface.name}'")
                             .unindent()
                             .endControlFlow()

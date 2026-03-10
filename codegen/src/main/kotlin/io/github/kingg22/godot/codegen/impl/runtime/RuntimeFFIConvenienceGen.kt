@@ -10,9 +10,9 @@ import com.squareup.kotlinpoet.STRING
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.joinToCode
 import io.github.kingg22.godot.codegen.impl.buildKdoc
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.cstr
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropCstr
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropPtr
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.memScoped
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.ptr
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.models.extensioninterface.Arguments
 import io.github.kingg22.godot.codegen.models.extensioninterface.Interface
@@ -324,7 +324,7 @@ class RuntimeFFIConvenienceGen {
                         }
                     }
                     .build(),
-                argumentExpression = CodeBlock.of("%N.%M.%M", name, cstr, ptr),
+                argumentExpression = CodeBlock.of("%N.%M.%M", name, cinteropCstr, cinteropPtr),
                 requiresMemScoped = true,
             )
 

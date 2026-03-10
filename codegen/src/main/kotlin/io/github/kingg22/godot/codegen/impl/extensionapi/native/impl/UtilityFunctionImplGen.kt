@@ -9,14 +9,14 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.DOUBLE_VAR
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.FLOAT_VAR
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.INT_VAR
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.alloc
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropAlloc
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropInvoke
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.cpointerValue
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropPtr
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropReinterpret
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropValue
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.generators.BodyGenerator
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.lazyMethod
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.memScoped
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.ptr
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.reinterpret
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
 import io.github.kingg22.godot.codegen.models.extensionapi.UtilityFunction
@@ -239,7 +239,7 @@ class UtilityFunctionImplGen(private val delegate: BodyGenerator) {
                 }
                 val retExpression = if (returnType != null) {
                     if (returnType != "bool") {
-                        CodeBlock.of("retPtr.%M.%M()", ptr, reinterpret)
+                        CodeBlock.of("retPtr.%M.%M()", cinteropPtr, cinteropReinterpret)
                     } else {
                         CodeBlock.of("retPtr")
                     }
@@ -308,27 +308,27 @@ class UtilityFunctionImplGen(private val delegate: BodyGenerator) {
             "float" -> CodeBlock.ofStatement(
                 "val %LVar = %M<%T>().also { it.%M = %N }",
                 name,
-                alloc,
+                cinteropAlloc,
                 FLOAT_VAR,
-                cpointerValue,
+                cinteropValue,
                 name,
             )
 
             "double" -> CodeBlock.ofStatement(
                 "val %LVar = %M<%T>().also { it.%M = %N }",
                 name,
-                alloc,
+                cinteropAlloc,
                 DOUBLE_VAR,
-                cpointerValue,
+                cinteropValue,
                 name,
             )
 
             "int" -> CodeBlock.ofStatement(
                 "val %LVar = %M<%T>().also { it.%M = %N }",
                 name,
-                alloc,
+                cinteropAlloc,
                 INT_VAR,
-                cpointerValue,
+                cinteropValue,
                 name,
             )
 
@@ -356,11 +356,11 @@ class UtilityFunctionImplGen(private val delegate: BodyGenerator) {
 
     // ── Return buffer allocation ──────────────────────────────────────────────
     private fun buildReturnAlloc(returnType: String): CodeBlock = when (returnType) {
-        "float" -> CodeBlock.ofStatement("val retPtr = %M<%T>()", alloc, FLOAT_VAR)
+        "float" -> CodeBlock.ofStatement("val retPtr = %M<%T>()", cinteropAlloc, FLOAT_VAR)
 
-        "double" -> CodeBlock.ofStatement("val retPtr = %M<%T>()", alloc, DOUBLE_VAR)
+        "double" -> CodeBlock.ofStatement("val retPtr = %M<%T>()", cinteropAlloc, DOUBLE_VAR)
 
-        "int" -> CodeBlock.ofStatement("val retPtr = %M<%T>()", alloc, INT_VAR)
+        "int" -> CodeBlock.ofStatement("val retPtr = %M<%T>()", cinteropAlloc, INT_VAR)
 
         "bool" -> CodeBlock.ofStatement(
             "val retPtr = %M()",
@@ -372,7 +372,7 @@ class UtilityFunctionImplGen(private val delegate: BodyGenerator) {
 
     // ── Return value read ─────────────────────────────────────────────────────
     private fun buildReturnRead(returnType: String): CodeBlock = when (returnType) {
-        "float", "double", "int" -> CodeBlock.ofStatement("retPtr.%M", cpointerValue)
+        "float", "double", "int" -> CodeBlock.ofStatement("retPtr.%M", cinteropValue)
         "bool" -> CodeBlock.ofStatement("retPtr.%M()", implPackageRegistry.memberNameForOrDefault("readGdBool"))
         else -> CodeBlock.ofStatement("")
     }
