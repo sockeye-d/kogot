@@ -14,6 +14,11 @@ class ImplementationPackageRegistry(packageStr: String, interfaceModel: GDExtens
     } else {
         "$packageStr.api.builtin.internal"
     }
+    private val ffiPackage = if (packageStr.endsWith(".api")) {
+        "${packageStr.removeSuffix(".api")}.internal.ffi"
+    } else {
+        "$packageStr.internal.ffi"
+    }
 
     private val typeToPackage: Map<String, String> = buildMap {
         put("allocConstTypePtrArray", bindingPackage)
@@ -23,6 +28,7 @@ class ImplementationPackageRegistry(packageStr: String, interfaceModel: GDExtens
         put("checkCallError", bindingPackage)
         put("allocateBuiltinStorage", builtinInternalBind)
         put("freeBuiltinStorage", builtinInternalBind)
+        put("GDExtensionPtrUtilityFunction", ffiPackage)
     }
 
     override fun packageFor(godotName: String): String? = typeToPackage[godotName]
