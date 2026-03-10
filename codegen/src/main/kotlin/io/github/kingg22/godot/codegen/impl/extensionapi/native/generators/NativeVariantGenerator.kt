@@ -1,13 +1,11 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi.native.generators
 
 import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
-import io.github.kingg22.godot.codegen.impl.K_TODO
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
@@ -35,34 +33,38 @@ class NativeVariantGenerator(
     private val enumGenerator: NativeEnumGenerator,
     private val implGen: VariantImplGen,
 ) {
-
     context(context: Context)
-    fun generateSpec(variantEnums: List<ResolvedEnum>): TypeSpec {
-        val spec = generateSpec(variantEnums.first { it.name == "Variant.Type" }).toBuilder()
-        val enumsSpec = variantEnums.map { enum -> enumGenerator.generateSpec(enum) }
-        spec.addTypes(enumsSpec)
-        return spec.build()
+    fun generateFile(variantEnums: List<ResolvedEnum>): FileSpec {
+        val variantTypes = requireNotNull(variantEnums.firstOrNull { it.name == "Variant.Type" }) {
+            "Variant.Type enum not found this is required, nested enums: [$variantEnums]"
+        }
+        val variantClassName = ClassName(context.packageForOrDefault("Variant"), "Variant")
+        val spec = generateSpec(variantTypes)
+        val enums = variantEnums.map { enumGenerator.generateSpec(it) }
+        spec.addTypes(enums)
+        val utilitiesFunctions = implGen.buildUtilities(spec, variantClassName, variantTypes)
+        return createFile("Variant", context.packageForOrDefault("Variant")) {
+            addType(spec.build())
+            addFunctions(utilitiesFunctions)
+        }
     }
 
     context(context: Context)
-    fun generateFile(variantEnums: List<ResolvedEnum>): FileSpec = createFile(
-        type = generateSpec(variantEnums = variantEnums),
-        fileName = "Variant",
-        packageName = context.packageForOrDefault("Variant"),
-    )
-
-    context(context: Context)
-    fun generateSpec(variantTypes: ResolvedEnum): TypeSpec = withExceptionContext({
+    fun generateSpec(variantTypes: ResolvedEnum): TypeSpec.Builder = withExceptionContext({
         "Generating Variant class, nested enums count: ${variantTypes.raw.values.size}"
     }) {
         val variantClassName = ClassName(context.packageForOrDefault("Variant"), "Variant")
 
         val typeBuilder = TypeSpec
             .classBuilder(variantClassName)
-            .addModifiers(KModifier.SEALED)
+            .addModifiers(KModifier.OPEN)
+            .addAnnotation(API_STATUS_NON_EXTENSIBLE)
+
+        // empty constructor
+        typeBuilder.primaryConstructor(FunSpec.constructorBuilder().build())
 
         // ── Native storage augmentation ───────────────────────────────────────
-        // When implGen is present, the sealed class gets storage + rawPtr + close().
+        // When implGen is present, the sealed class gets storage  rawPtr  close().
         // This MUST run before subclass generation so _cachedVariantSize is populated.
         implGen.configureVariantClass(typeBuilder)
 
@@ -109,13 +111,6 @@ class NativeVariantGenerator(
             }
         }
 
-        typeBuilder.build()
+        typeBuilder
     }
-
-    context(context: Context)
-    fun generateFile(variantTypes: ResolvedEnum): FileSpec = createFile(
-        type = generateSpec(variantTypes = variantTypes),
-        fileName = "Variant",
-        packageName = context.packageForOrDefault("Variant"),
-    )
 }

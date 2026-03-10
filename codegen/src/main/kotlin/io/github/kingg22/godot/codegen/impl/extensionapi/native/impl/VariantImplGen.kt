@@ -5,11 +5,18 @@ import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.LONG
+import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
+import io.github.kingg22.godot.codegen.impl.K_AUTOCLOSEABLE
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
+import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.*
+import io.github.kingg22.godot.codegen.impl.renameGodotClass
+import io.github.kingg22.godot.codegen.impl.screamingToPascalCase
+import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedEnum
 
 /**
  * Native implementation generator for the `Variant` sealed class.
@@ -66,7 +73,7 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.native.*
  * `context.findResolvedBuiltinClass("Variant")` returns `null`.
  * The size is read directly from `context.extensionApi.builtinClassSizes`.
  */
-class VariantImplGen {
+class VariantImplGen(private val typeResolver: TypeResolver) {
     private lateinit var implPackageRegistry: ImplementationPackageRegistry
 
     /** Must be called before any generate* method. */
@@ -114,13 +121,14 @@ class VariantImplGen {
                 .build(),
         )
 
-        classBuilder.addSuperinterface(ClassName("kotlin", "AutoCloseable"))
+        classBuilder.addSuperinterface(K_AUTOCLOSEABLE)
 
         val variantBinding = implPackageRegistry.classNameForOrDefault("VariantBinding")
         val freeBuiltinStorage = implPackageRegistry.memberNameForOrDefault("freeBuiltinStorage")
 
         classBuilder.addFunction(
-            FunSpec.builder("close")
+            FunSpec
+                .builder("close")
                 .addModifiers(KModifier.OVERRIDE)
                 .addCode(
                     CodeBlock.builder()
@@ -131,6 +139,20 @@ class VariantImplGen {
                         .endControlFlow()
                         .build(),
                 )
+                .build(),
+        )
+
+        classBuilder.addFunction(
+            FunSpec
+                .constructorBuilder()
+                .addParameter(
+                    ParameterSpec
+                        .builder("from", COPAQUE_POINTER)
+                        .addKdoc("Godot-owned variant pointer to copy from.")
+                        .build(),
+                )
+                .addStatement("%T.instance.newCopyRaw(rawPtr, from)", variantBinding)
+                .callThisConstructor()
                 .build(),
         )
     }
@@ -237,6 +259,236 @@ class VariantImplGen {
             }
         }.build()
     }
+
+    // ── Utility members ───────────────────────────────────────────────────────
+
+    /**
+     * Augments [classBuilder] with all Variant utility member functions.
+     *
+     * Also returns the `asVariant()` extension functions (one per non-NIL typed subclass)
+     * so the caller can emit them as top-level functions in the same file.
+     */
+    context(context: Context)
+    fun buildUtilities(
+        classBuilder: TypeSpec.Builder,
+        variantClassName: ClassName,
+        variantTypes: ResolvedEnum,
+    ): List<FunSpec> {
+        val variantBinding = implPackageRegistry.classNameForOrDefault("VariantBinding")
+        val checkCallError = implPackageRegistry.memberNameForOrDefault("checkCallError")
+        val stringNameClass = context.classNameForOrDefault("StringName")
+        val godotStringClass = context.classNameForOrDefault("String", "GodotString")
+        val variantTypeClass = variantClassName.nestedClass("Type")
+        val variantOperatorClass = variantClassName.nestedClass("Operator")
+
+        // ── getType() ─────────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("getType")
+                .returns(variantTypeClass)
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val raw = %T.instance.getTypeRaw(rawPtr)", variantBinding)
+                        .addStatement(
+                            "return %T.entries.firstOrNull { it.value.toUInt() == raw.value } ?: %T.NIL",
+                            variantTypeClass,
+                            variantTypeClass,
+                        )
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── isNil() ───────────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("isNil")
+                .returns(BOOLEAN)
+                .addStatement(
+                    "return %T.instance.getTypeRaw(rawPtr).value == %T.NIL.value.toUInt()",
+                    variantBinding,
+                    variantTypeClass,
+                )
+                .build(),
+        )
+
+        // ── evaluate() ────────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("evaluate")
+                .returns(variantClassName.copy(nullable = true))
+                .addParameter("rhs", variantClassName)
+                .addParameter("op", variantOperatorClass)
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val result = %T()", variantClassName)
+                        .addStatement(
+                            "val status = %T.instance",
+                            variantBinding,
+                        )
+                        .indent()
+                        .addStatement(
+                            ".evaluate(op.%M(), rawPtr, rhs.rawPtr, result.rawPtr)",
+                            implPackageRegistry.memberNameForOrDefault("toGDExtensionVariantOperator"),
+                        )
+                        .unindent()
+                        .beginControlFlow("return if (status.valid == true)")
+                        .addStatement("result")
+                        .nextControlFlow("else")
+                        .addStatement("result.close()")
+                        .addStatement("null")
+                        .endControlFlow()
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── booleanize() ──────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("booleanize")
+                .returns(BOOLEAN)
+                .addStatement("return %T.instance.booleanize(rawPtr)", variantBinding)
+                .build(),
+        )
+
+        // ── stringify() ───────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("stringify")
+                .returns(godotStringClass)
+                .addCode(
+                    CodeBlock.builder()
+                        .addStatement("val result = %T()", godotStringClass)
+                        .addStatement("%T.instance.stringifyRaw(rawPtr, result.rawPtr)", variantBinding)
+                        .addStatement("return result")
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── hashVariant() ─────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("hashVariant")
+                .returns(LONG)
+                .addKdoc("Named `hashVariant` to avoid collision with [Any.hashCode].")
+                .addStatement("return %T.instance.hashRaw(rawPtr)", variantBinding)
+                .build(),
+        )
+
+        // ── duplicate() ───────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("duplicate")
+                .returns(variantClassName)
+                .addParameter(
+                    ParameterSpec
+                        .builder("deep", BOOLEAN)
+                        .defaultValue("false")
+                        .addKdoc("If `true`, nested containers are also duplicated.")
+                        .build(),
+                )
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val result = %T()", variantClassName)
+                        .addStatement("%T.instance.duplicate(rawPtr, result.rawPtr, deep)", variantBinding)
+                        .addStatement("return result")
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── call() ────────────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("call")
+                .returns(variantClassName)
+                .addParameter("method", stringNameClass)
+                .addParameter("args", variantClassName, KModifier.VARARG)
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val result = %T()", variantClassName)
+                        .addStatement("val errorInfo = %T.instance.call(", variantBinding)
+                        .indent()
+                        .addStatement("rawPtr,")
+                        .addStatement("method.rawPtr,")
+                        .addStatement("*args.map { it.rawPtr }.toTypedArray(),")
+                        .addStatement("rReturn = result.rawPtr,")
+                        .unindent()
+                        .addStatement(")")
+                        .addStatement($$"""%M("Variant.call: $method", errorInfo)""", checkCallError)
+                        .addStatement("return result")
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── callStatic() ──────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("callStatic")
+                .returns(variantClassName)
+                .addParameter("type", variantTypeClass)
+                .addParameter("method", stringNameClass)
+                .addParameter("args", variantClassName, KModifier.VARARG)
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val result = %T()", variantClassName)
+                        .addStatement("val errorInfo = %T.instance.callStatic(", variantBinding)
+                        .indent()
+                        .addStatement(
+                            "type.%M(),",
+                            implPackageRegistry.memberNameForOrDefault("toGDExtensionVariantType"),
+                        )
+                        .addStatement("method.rawPtr,")
+                        .addStatement("*args.map { it.rawPtr }.toTypedArray(),")
+                        .addStatement("rReturn = result.rawPtr,")
+                        .unindent()
+                        .addStatement(")")
+                        .addStatement($$"""%M("Variant.callStatic: $type.$method", errorInfo)""", checkCallError)
+                        .addStatement("return result")
+                        .build(),
+                )
+                .build(),
+        )
+
+        return buildAsVariantFunctions(variantClassName, variantTypes)
+    }
+
+    // ── asVariant() top-level functions ───────────────────────────────────────
+
+    context(_: Context)
+    private fun buildAsVariantFunctions(variantClassName: ClassName, variantTypes: ResolvedEnum): List<FunSpec> =
+        variantTypes.raw.values.mapNotNull { enumValue ->
+            val subclassName = enumValue.name.removePrefix("TYPE_")
+                .takeUnless { it == "MAX" || it == "NIL" } ?: return@mapNotNull null
+
+            // ── Typed subclasses ──────────────────────────────────────────
+            val godotTypeName = subclassName.screamingToPascalCase().renameGodotClass()
+            val receiverType = typeResolver.resolve(godotTypeName)
+
+            FunSpec
+                .builder("asVariant")
+                .receiver(receiverType.copy(nullable = true))
+                .returns(variantClassName)
+                .addCode("return ")
+                .beginControlFlow("if (this == null)")
+                .addStatement("%T.NIL()", variantClassName)
+                .nextControlFlow("else")
+                .addStatement(
+                    "%T.%L(this)",
+                    variantClassName,
+                    subclassName,
+                )
+                .endControlFlow()
+                .build()
+        }
 
     // ── Variant size ──────────────────────────────────────────────────────────
 
