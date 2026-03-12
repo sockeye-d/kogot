@@ -12,6 +12,7 @@ import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.extensionapi.native.impl.BuiltinClassImplGen
+import io.github.kingg22.godot.codegen.impl.extensionapi.native.impl.buildLayoutConstants
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.models.extensionapi.BuiltinClass
@@ -136,8 +137,8 @@ class NativeBuiltinClassGenerator(
         // ── GENERIC INTERCEPTION ──────────────────────────────────────────────
         val genericConfig = if (requiresGenerics) {
             val config = genericInterceptor.getGenericConfig(raw)
-            config?.typeVariables?.forEach { typeVar ->
-                classBuilder.addTypeVariable(typeVar)
+            config?.typeVariables?.let {
+                classBuilder.addTypeVariables(it)
             }
             config
         } else {
@@ -177,7 +178,7 @@ class NativeBuiltinClassGenerator(
         // Godot constructors become secondary constructors (or companion factory funs if static-style).
         // No primary constructor is ever generated for builtins.
         // Index 0 is always the no-arg constructor.
-        builtinClass.constructors.filter { it.raw != null }.forEach { ctor ->
+        val constructorsSpecs = builtinClass.constructors.filter { it.raw != null }.map { ctor ->
             val ctorBuilder = FunSpec
                 .constructorBuilder()
                 .addKdocIfPresent(ctor.raw!!)
@@ -189,8 +190,9 @@ class NativeBuiltinClassGenerator(
             ctorBuilder.addParameters(argumentSpecs)
             ctorBuilder.addCode(body.constructorBodyFor(builtinClass, ctor))
 
-            classBuilder.addFunction(ctorBuilder.build())
+            ctorBuilder.build()
         }
+        classBuilder.addFunctions(constructorsSpecs)
 
         // ── Special constructors for String types ─────────────────────────────
         when (builtinClass.name) {
@@ -212,7 +214,7 @@ class NativeBuiltinClassGenerator(
         // ── Instance methods ──────────────────────────────────────────────────
         val (staticMethods, instanceMethods) = raw.methods.partition { it.isStatic }
 
-        instanceMethods.forEach { method ->
+        val methodSpecs = instanceMethods.mapNotNull { method ->
             var methodSpec = buildMethodWithGenericTransform(method, builtinClass.name, genericConfig)
 
             if ((method.name == "get" && method.arguments.size == 1) ||
@@ -227,40 +229,53 @@ class NativeBuiltinClassGenerator(
                 println(
                     "INFO: Skipping operator overload for ${builtinClass.name}.${method.name}(${existingOperator.rightType}): ${existingOperator.returnType} because it's already defined as operator",
                 )
-                return@forEach
+                return@mapNotNull null
             }
 
-            classBuilder.addFunction(methodSpec)
+            methodSpec
+        }
+        classBuilder.addFunctions(methodSpecs)
+
+        // ── Companion object (constants + static methods + layout offsets) ─────
+        val companionBuilder = TypeSpec.companionObjectBuilder()
+
+        // Layout offset constants (OFFSET_X, OFFSET_Y, …)
+        builtinClass.layout?.takeIf { it.memberOffsets.isNotEmpty() }?.let { layout ->
+            buildLayoutConstants(layout).forEach { companionBuilder.addProperty(it) }
         }
 
-        // ── Companion object (constants + static methods) ─────────────────────
-        val companionBuilder = TypeSpec.companionObjectBuilder()
-        val companionHasContent = staticMethods.isNotEmpty() || raw.constants.isNotEmpty()
-
-        // Constants
+        // Constants from JSON
         raw.constants.forEach { constant ->
             val constType = typeResolver.resolve(constant.type)
-
-            val propBuilder = PropertySpec.builder(constant.name, constType)
-                .experimentalApiAnnotation(builtinClass.name, constant.name)
-                .addKdocIfPresent(constant)
-                .initializer("%L", defaultValueGenerator.generate(constant.value, constant.type, constType))
-            companionBuilder.addProperty(propBuilder.build())
+            companionBuilder.addProperty(
+                PropertySpec
+                    .builder(constant.name, constType)
+                    .experimentalApiAnnotation(builtinClass.name, constant.name)
+                    .addKdocIfPresent(constant)
+                    .initializer("%L", defaultValueGenerator.generate(constant.value, constant.type, constType))
+                    .build(),
+            )
         }
 
         // Static methods
-        staticMethods.forEach { method ->
-            companionBuilder.addFunction(methodGen.buildMethod(method, builtinClass.name))
+        val staticMethodSpecs = staticMethods.map { method ->
+            methodGen.buildMethod(method, builtinClass.name)
         }
+        companionBuilder.addFunctions(staticMethodSpecs)
+
+        val companionHasContent = builtinClass.layout?.memberOffsets?.isNotEmpty() == true ||
+            raw.constants.isNotEmpty() ||
+            staticMethods.isNotEmpty()
 
         if (companionHasContent) {
             classBuilder.addType(companionBuilder.build())
         }
 
-        builtinClass.enums.forEach { enum ->
-            if (context.isSpecializedClass(enum.shortName)) return@forEach
-            classBuilder.addType(enumGenerator.generateSpec(enum))
+        val enumSpecs = builtinClass.enums.mapNotNull { enum ->
+            if (context.isSpecializedClass(enum.shortName)) return@mapNotNull null
+            enumGenerator.generateSpec(enum)
         }
+        classBuilder.addTypes(enumSpecs)
 
         return classBuilder.build()
     }
