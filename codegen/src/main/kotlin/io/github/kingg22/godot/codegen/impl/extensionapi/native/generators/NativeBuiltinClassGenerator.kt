@@ -187,7 +187,7 @@ class NativeBuiltinClassGenerator(
             }
 
             ctorBuilder.addParameters(argumentSpecs)
-            ctorBuilder.addCode(body.constructorBodyFor(builtinClass, ctor, ctorBuilder))
+            ctorBuilder.addCode(body.constructorBodyFor(builtinClass, ctor))
 
             classBuilder.addFunction(ctorBuilder.build())
         }
@@ -200,7 +200,7 @@ class NativeBuiltinClassGenerator(
                         .constructorBuilder()
                         .addParameter("value", STRING) // kotlin.String
                         .addKdoc("Creates a %L from a Kotlin String.", kotlinName)
-                        .apply { addCode(body.stringConstructorBodyFor(builtinClass, this)) }
+                        .addCode(body.stringConstructorBodyFor(builtinClass))
                         .build(),
                 )
             }
@@ -336,7 +336,6 @@ class NativeBuiltinClassGenerator(
                         name = kotlinOpName,
                         rightType = op.rightType,
                         returnType = op.returnType,
-                        description = op.description,
                         genericConfig = genericConfig,
                         operator = op,
                     )
@@ -361,7 +360,6 @@ class NativeBuiltinClassGenerator(
         name: String,
         rightType: String?,
         returnType: String,
-        description: String?,
         genericConfig: GenericBuiltinInterceptor.GenericConfig?,
         operator: BuiltinClass.Operator,
     ): FunSpec {

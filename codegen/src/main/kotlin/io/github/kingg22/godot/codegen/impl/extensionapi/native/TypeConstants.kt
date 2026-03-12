@@ -48,6 +48,7 @@ val cinteropAlloc = MemberName("kotlinx.cinterop", "alloc", true)
 val cinteropReinterpret = MemberName("kotlinx.cinterop", "reinterpret", true)
 val cinteropInvoke = MemberName("kotlinx.cinterop", "invoke", true)
 val cinteropValue = MemberName("kotlinx.cinterop", "value", true)
+val cinteropNativeHeap = ClassName("kotlinx.cinterop", "nativeHeap")
 
 val PRIMITIVE_NUMERIC_TYPES = setOf(
     "int8_t", "int8",

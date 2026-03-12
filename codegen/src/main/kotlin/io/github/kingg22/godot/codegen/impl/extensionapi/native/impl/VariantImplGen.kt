@@ -29,18 +29,19 @@ import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedEnum
  * ## What gets added to the sealed class
  *
  * ```kotlin
- * sealed class Variant private constructor(
- *     private val storage: CPointer<ByteVar>,
- * ) : AutoCloseable {
+ * public open class Variant() : AutoCloseable {
+ *     private val storage: CPointer<ByteVar> = nativeHeap.alloc(size = <size>, align = <align>)
+ *         .reinterpret<ByteVar>().ptr
+ *
  *     private var closed: Boolean = false
  *
- *     internal val rawPtr: COpaquePointer
+ *     val rawPtr: COpaquePointer
  *         get() = storage
  *
  *     override fun close() {
  *         if (!closed) {
  *             VariantBinding.instance.destroyRaw(rawPtr)
- *             freeBuiltinStorage(storage)
+ *             nativeHeap.free(storage.rawValue)
  *             closed = true
  *         }
  *     }
@@ -61,11 +62,10 @@ import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedEnum
  * | Subclass  | GDExtension path                                                        |
  * |-----------|-------------------------------------------------------------------------|
  * | `NIL`     | `variant_new_nil`                                                       |
- * | `BOOL`    | `variant_construct(BOOL, rawPtr, [allocGdBool(value)], 1, null)`        |
- * | `INT`     | `variant_construct(INT, rawPtr, [LongVar(value).ptr], 1, null)`         |
- * | `FLOAT`   | `variant_construct(FLOAT, rawPtr, [DoubleVar(value).ptr], 1, null)`     |
- * | STRING … PACKED_VECTOR4_ARRAY | `variant_construct(TYPE, rawPtr, `value.rawPtr`, 1, null)` |
- * | `OBJECT`  | deferred — `TODO()`                                                     |
+ * | `BOOL`    | `variant_from_type_constructor(BOOL, rawPtr, [allocGdBool(value)], 1, null)`        |
+ * | `INT`     | `variant_from_type_constructor(INT, rawPtr, [LongVar(value).ptr], 1, null)`         |
+ * | `FLOAT`   | `variant_from_type_constructor(FLOAT, rawPtr, [DoubleVar(value).ptr], 1, null)`     |
+ * | STRING … PACKED_VECTOR4_ARRAY | `variant_from_type_constructor(TYPE, rawPtr, `value.rawPtr`, 1, null)` |
  *
  * ## Variant size
  *
@@ -94,29 +94,43 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
      *
      * Also caches the Variant size for use in [buildNilSubclass] and [buildSubclassConstructorBody].
      */
-    context(context: Context)
+    context(_: Context)
     fun configureVariantClass(classBuilder: TypeSpec.Builder) {
-        cachedVariantSize = resolveVariantSize(context)
-        val variantSize = requireCachedSize()
-        val allocStorage = implPackageRegistry.memberNameForOrDefault("allocateBuiltinStorage")
-
-        val storageType = C_POINTER.parameterizedBy(BYTE_VAR)
         val storageProp = PropertySpec
-            .builder("storage", storageType, KModifier.PRIVATE)
-            .initializer("%M(%L)", allocStorage, variantSize)
+            .builder("storage", C_POINTER.parameterizedBy(BYTE_VAR), KModifier.PRIVATE)
+            .initializer(
+                CodeBlock
+                    .builder()
+                    .addStatement(
+                        "%T.alloc(size = %L, align = %L)",
+                        cinteropNativeHeap,
+                        resolveVariantSize(),
+                        resolveVariantAlign(),
+                    )
+                    .indent()
+                    .addStatement(
+                        ".%M<%T>().%M",
+                        cinteropReinterpret,
+                        BYTE_VAR,
+                        cinteropPtr,
+                    )
+                    .unindent()
+                    .build(),
+            )
             .build()
 
         classBuilder.addProperty(storageProp)
+
+        val closedProp = PropertySpec
+            .builder("closed", BOOLEAN, KModifier.PRIVATE)
+            .mutable(true)
+            .initializer("false")
+            .build()
+
+        classBuilder.addProperty(closedProp)
         classBuilder.addProperty(
             PropertySpec
-                .builder("closed", BOOLEAN, KModifier.PRIVATE)
-                .mutable(true)
-                .initializer("false")
-                .build(),
-        )
-        classBuilder.addProperty(
-            PropertySpec
-                .builder("rawPtr", COPAQUE_POINTER, KModifier.INTERNAL)
+                .builder("rawPtr", COPAQUE_POINTER)
                 .getter(FunSpec.getterBuilder().addStatement("return %N", storageProp).build())
                 .build(),
         )
@@ -124,7 +138,6 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
         classBuilder.addSuperinterface(K_AUTOCLOSEABLE)
 
         val variantBinding = implPackageRegistry.classNameForOrDefault("VariantBinding")
-        val freeBuiltinStorage = implPackageRegistry.memberNameForOrDefault("freeBuiltinStorage")
 
         classBuilder.addFunction(
             FunSpec
@@ -132,10 +145,10 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
                 .addModifiers(KModifier.OVERRIDE)
                 .addCode(
                     CodeBlock.builder()
-                        .beginControlFlow("if (!closed)")
+                        .beginControlFlow("if (!%N)", closedProp)
                         .addStatement("%T.instance.destroyRaw(rawPtr)", variantBinding)
-                        .addStatement("%M(%N)", freeBuiltinStorage, "storage")
-                        .addStatement("closed = true")
+                        .addStatement("%T.free(%N.rawValue)", cinteropNativeHeap, "storage")
+                        .addStatement("%N = true", closedProp)
                         .endControlFlow()
                         .build(),
                 )
@@ -493,9 +506,10 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
      * `Variant` is present in `builtin_class_sizes` but NOT in `builtin_classes`,
      * so `context.findResolvedBuiltinClass("Variant")` always returns null.
      */
-    private fun resolveVariantSize(context: Context): Int {
-        val buildConfigName = context.model.buildConfiguration.jsonName
-        return context.extensionApi.builtinClassSizes
+    context(ctx: Context)
+    private fun resolveVariantSize(): Int {
+        val buildConfigName = ctx.model.buildConfiguration.jsonName
+        return ctx.extensionApi.builtinClassSizes
             .firstOrNull { it.buildConfiguration == buildConfigName }
             ?.sizes
             ?.firstOrNull { it.name == "Variant" }
@@ -503,13 +517,7 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
             ?: error("Cannot find Variant size for build config '$buildConfigName'")
     }
 
-    private fun requireCachedSize(): Int {
-        check(cachedVariantSize > 0) {
-            "VariantImplGen: configureVariantClass() must be called before building subclasses"
-        }
-        return cachedVariantSize
-    }
-
-    // State set by configureVariantClass so subclass helpers don't need to re-resolve it
-    private var cachedVariantSize: Int = -1
+    // Variant is opaque (no memberOffsets in the JSON) → pointerAlign
+    context(ctx: Context)
+    private fun resolveVariantAlign(): Int = ctx.model.buildConfiguration.pointerAlign
 }
