@@ -164,6 +164,14 @@ class Context(
                 ?.sizes
                 ?.associate { it.name to it.size }
                 .orEmpty()
+
+            // Build a name -> members map upfront so resolveBuiltinAlign can recurse into it
+            val membersMap = api.builtinClassMemberOffsets
+                .firstOrNull { it.buildConfiguration == buildConfiguration.jsonName }
+                ?.classes
+                ?.associate { it.name to it.members }
+                .orEmpty()
+
             val offsetsMap = api.builtinClassMemberOffsets
                 .firstOrNull { it.buildConfiguration == buildConfiguration.jsonName }
                 ?.classes
@@ -171,9 +179,9 @@ class Context(
                     cls.name to ResolvedBuiltinLayout(
                         className = cls.name,
                         buildConfiguration = buildConfiguration,
-                        size =
-                        sizeMap[cls.name]
+                        size = sizeMap[cls.name]
                             ?: error("Missing size for builtin ${cls.name} in ${buildConfiguration.jsonName}"),
+                        align = resolveBuiltinAlign(cls.name, membersMap, buildConfiguration),
                         memberOffsets = cls.members.associate { it.member to it.offset },
                         memberMeta = cls.members.associate { it.member to it.meta },
                     )
@@ -188,6 +196,7 @@ class Context(
                             className = builtin.name,
                             buildConfiguration = buildConfiguration,
                             size = size,
+                            align = resolveBuiltinAlignOpaque(builtin.name, size, buildConfiguration),
                             memberOffsets = emptyMap(),
                             memberMeta = emptyMap(),
                         )
@@ -347,6 +356,73 @@ class Context(
 
                 else -> 0
             }
+        }
+
+        /**
+         * Derives the alignment for a builtin class that HAS member offsets in the JSON.
+         *
+         * The alignment of a struct equals the maximum alignment of its leaf primitive members.
+         * Recursion terminates at meta types that map directly to a primitive size:
+         *   - "float"  -> buildConfiguration.realAlign  (4 for single, 8 for double)
+         *   - "double" -> 8 always
+         *   - "int32"  -> 4 always
+         *   - "int64"  -> 8 always
+         *
+         * For members whose meta is another builtin (e.g. Rect2's members have meta "Vector2"),
+         * we recurse into that builtin's members.
+         *
+         * Guarded against cycles with a visited set (Godot builtins have no cycles, but defensive).
+         */
+        private fun resolveBuiltinAlign(
+            className: String,
+            membersMap: Map<String, List<BuiltinClassMemberOffsets.Members>>,
+            buildConfiguration: BuildConfiguration,
+            visited: Set<String> = emptySet(),
+        ): Int {
+            if (className in visited) error("Cycle detected resolving align for '$className'")
+            val members = membersMap[className]
+                ?: return resolveBuiltinAlignOpaque(className, -1, buildConfiguration)
+
+            return members.maxOf { member ->
+                resolveMetaAlign(member.meta, membersMap, buildConfiguration, visited + className)
+            }
+        }
+
+        /**
+         * Resolves the alignment contributed by a single member meta type.
+         */
+        private fun resolveMetaAlign(
+            meta: String,
+            membersMap: Map<String, List<BuiltinClassMemberOffsets.Members>>,
+            buildConfiguration: BuildConfiguration,
+            visited: Set<String>,
+        ): Int = when (meta) {
+            "float" -> buildConfiguration.realAlign
+            "double" -> 8
+            "int32" -> 4
+            "int64" -> 8
+            else -> resolveBuiltinAlign(meta, membersMap, buildConfiguration, visited)
+        }
+
+        /**
+         * Alignment for builtins that have NO member offsets in the JSON (opaque types).
+         *
+         * These are types whose internals are hidden (String, StringName, NodePath, Array,
+         * PackedXxxArray, Dictionary, Callable, Signal, Object, RID...).
+         *
+         * Rules:
+         * - RID: always 8 (it's a uint64 internally regardless of build config)
+         * - size <= 4: pointer_align capped to 4 (float_32/double_32 have 4-byte pointers)
+         * - everything else: pointerAlign from BuildConfiguration
+         */
+        private fun resolveBuiltinAlignOpaque(
+            className: String,
+            size: Int,
+            buildConfiguration: BuildConfiguration,
+        ): Int = when {
+            className == "RID" -> 8
+            size in 1..4 -> minOf(buildConfiguration.pointerAlign, 4)
+            else -> buildConfiguration.pointerAlign
         }
     }
 }

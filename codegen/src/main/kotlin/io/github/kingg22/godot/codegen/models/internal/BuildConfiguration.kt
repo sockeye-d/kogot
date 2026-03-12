@@ -7,6 +7,12 @@ enum class BuildConfiguration(val jsonName: String, val precision: String, val p
     DOUBLE_64("double_64", "double", 64),
     ;
 
+    /** Alignment (bytes) of the real/float type for this build. */
+    val realAlign: Int get() = if (precision == "double") 8 else 4
+
+    /** Alignment (bytes) of a pointer for this build. */
+    val pointerAlign: Int get() = pointerBits / 8
+
     companion object {
         fun fromJsonName(value: String): BuildConfiguration = entries.firstOrNull { it.jsonName == value }
             ?: error("Unknown build configuration '$value'")
