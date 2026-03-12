@@ -26,8 +26,6 @@ class ImplementationPackageRegistry(packageStr: String, interfaceModel: GDExtens
         put("allocGdBool", bindingPackage)
         put("readGdBool", bindingPackage)
         put("checkCallError", bindingPackage)
-        put("allocateBuiltinStorage", builtinInternalBind)
-        put("freeBuiltinStorage", builtinInternalBind)
         put("toGDExtensionVariantOperator", builtinInternalBind)
         put("toGDExtensionVariantType", builtinInternalBind)
         put("GDExtensionPtrUtilityFunction", ffiPackage)

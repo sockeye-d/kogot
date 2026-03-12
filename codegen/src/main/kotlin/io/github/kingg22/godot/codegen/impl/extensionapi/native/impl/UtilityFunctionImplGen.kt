@@ -154,7 +154,7 @@ class UtilityFunctionImplGen {
             addStatement("%L,", retExpression)
             addStatement("%M(", implPackageRegistry.memberNameForOrDefault("allocConstTypePtrArray"))
             indent()
-            add("%L", argExpressions)
+            add(argExpressions)
             unindent()
             addStatement("),")
             addStatement("%L,", fn.arguments.size)

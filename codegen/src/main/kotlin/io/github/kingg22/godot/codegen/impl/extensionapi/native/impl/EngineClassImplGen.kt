@@ -252,7 +252,7 @@ class EngineClassImplGen {
      * Only emitted on the root class (no `inherits`).
      */
     private fun nativePtrProp(): PropertySpec = PropertySpec
-        .builder("rawPtr", COPAQUE_POINTER, KModifier.INTERNAL)
+        .builder("rawPtr", COPAQUE_POINTER)
         .initializer("rawPtr")
         .build()
 }
