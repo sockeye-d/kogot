@@ -5,7 +5,6 @@ import io.github.kingg22.godot.api.builtin.Vector2i
 import io.github.kingg22.godot.api.builtin.Vector3
 import io.github.kingg22.godot.api.builtin.asVariantString
 import io.github.kingg22.godot.api.utils.GD
-import io.github.kingg22.godot.internal.binding.getDouble
 import io.github.kingg22.godot.internal.binding.getFloat
 import io.github.kingg22.godot.internal.binding.getInt
 import kotlinx.cinterop.ByteVar
@@ -31,10 +30,10 @@ fun testBuiltinLayouts(): Boolean {
         val base = v.rawPtr.reinterpret<ByteVar>()
         // Member offsets from JSON: x=0, y=4, z=8 (float_32) or x=0, y=8, z=16 (double_64)
         // The codegen embeds the correct offsets per build config
-        val x = getDouble(base, Vector3.OFFSET_X)
-        val y = getDouble(base, Vector3.OFFSET_Y)
-        val z = getDouble(base, Vector3.OFFSET_Z)
-        val ok = x == 1.0 && y == 2.0 && z == 3.0
+        val x = getFloat(base, Vector3.OFFSET_X)
+        val y = getFloat(base, Vector3.OFFSET_Y)
+        val z = getFloat(base, Vector3.OFFSET_Z)
+        val ok = x == 1.0f && y == 2.0f && z == 3.0f
         if (!ok) GD.print("FAIL testVector3: expected (1,2,3) got ($x,$y,$z)".asVariantString())
         return ok
     }
@@ -54,11 +53,11 @@ fun testBuiltinLayouts(): Boolean {
     fun testColor(): Boolean {
         val c = Color(0.5, 0.25, 0.75, 1.0)
         val base = c.rawPtr.reinterpret<ByteVar>()
-        val r = getDouble(base, Color.OFFSET_R)
-        val g = getDouble(base, Color.OFFSET_G)
-        val b = getDouble(base, Color.OFFSET_B)
-        val a = getDouble(base, Color.OFFSET_A)
-        val ok = r == 0.5 && g == 0.25 && b == 0.75 && a == 1.0
+        val r = getFloat(base, Color.OFFSET_R)
+        val g = getFloat(base, Color.OFFSET_G)
+        val b = getFloat(base, Color.OFFSET_B)
+        val a = getFloat(base, Color.OFFSET_A)
+        val ok = r == 0.5f && g == 0.25f && b == 0.75f && a == 1.0f
         if (!ok) GD.print("FAIL testColor: expected (0.5,0.25,0.75,1.0) got ($r,$g,$b,$a)".asVariantString())
         return ok
     }
