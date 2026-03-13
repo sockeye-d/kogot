@@ -14,15 +14,17 @@ import io.github.kingg22.godot.codegen.models.internal.CodegenOptions
 fun EmptyContext(
     packageRegistry: PackageRegistry = StubsPackageRegistry(""),
     tree: InheritanceTree = InheritanceTree(),
-    version: GodotVersion = GodotVersion(0, 0, 0, 0, "test", "test", 0, "Test version"),
-): Context = Context(
-    extensionApi = ExtensionApi(header = Header(0, 0, 0, "test", "test", "Test version", "single")),
-    enumConstantResolver = EnumConstantResolver.empty(),
-    experimentalTypesRegistry = ExperimentalTypesRegistry.empty,
-    inheritanceTree = tree,
-    godotVersion = version,
-    packageRegistry = packageRegistry,
-    extensionInterface = null,
-    model = ResolvedApiModel(BuildConfiguration.defaultFor("single", 64)),
-    options = CodegenOptions(),
-)
+): Context {
+    val header = Header(0, 0, 0, "test", "test", "Test version", "single")
+    return Context(
+        extensionApi = ExtensionApi(header = header),
+        enumConstantResolver = EnumConstantResolver.empty(),
+        experimentalTypesRegistry = ExperimentalTypesRegistry.empty,
+        inheritanceTree = tree,
+        godotVersion = GodotVersion(header),
+        packageRegistry = packageRegistry,
+        extensionInterface = null,
+        model = ResolvedApiModel(BuildConfiguration.defaultFor("single", 64)),
+        options = CodegenOptions(),
+    )
+}
