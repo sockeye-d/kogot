@@ -1,6 +1,6 @@
 package io.github.kingg22.godot.codegen.models.extensionapi.domain
 
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.resolver.NativeStructureParser
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.resolver.NativeStructureParser
 import io.github.kingg22.godot.codegen.models.extensionapi.NativeStructure
 
 data class ResolvedNativeStructure(val raw: NativeStructure) {

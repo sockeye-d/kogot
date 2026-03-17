@@ -6,7 +6,7 @@ import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.UNIT
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.*
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.*
 import io.github.kingg22.godot.codegen.impl.snakeCaseToPascalCase
 import io.github.kingg22.godot.codegen.models.extensioninterface.GDExtensionInterface
 import io.github.kingg22.godot.codegen.models.extensioninterface.Interface

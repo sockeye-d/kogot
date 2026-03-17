@@ -1,6 +1,6 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi
 
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.resolver.EnumConstantResolver
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.resolver.EnumConstantResolver
 import io.github.kingg22.godot.codegen.impl.runtime.prefixOf
 import io.github.kingg22.godot.codegen.models.extensionapi.*
 import io.github.kingg22.godot.codegen.models.extensionapi.domain.GodotVersion

@@ -10,9 +10,9 @@ import com.squareup.kotlinpoet.STRING
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.joinToCode
 import io.github.kingg22.godot.codegen.impl.buildKdoc
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropCstr
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.cinteropPtr
-import io.github.kingg22.godot.codegen.impl.extensionapi.native.memScoped
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropCstr
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropPtr
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.memScoped
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.models.extensioninterface.Arguments
 import io.github.kingg22.godot.codegen.models.extensioninterface.Interface
