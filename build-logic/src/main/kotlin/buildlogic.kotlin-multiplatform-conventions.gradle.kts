@@ -14,6 +14,8 @@ kotlin {
         languageVersion.set(KotlinVersion.fromVersion(kotlinVersion.get()))
         apiVersion.set(languageVersion)
         optIn.add("kotlin.contracts.ExperimentalContracts")
+        allWarningsAsErrors.set(true)
+        extraWarnings.set(true)
     }
 }
 

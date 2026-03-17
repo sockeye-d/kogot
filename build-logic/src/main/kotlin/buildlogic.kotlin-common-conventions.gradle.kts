@@ -18,6 +18,8 @@ kotlin {
         apiVersion.set(languageVersion)
         jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
         optIn.add("kotlin.contracts.ExperimentalContracts")
+        allWarningsAsErrors.set(true)
+        extraWarnings.set(true)
     }
 }
 
