@@ -26,7 +26,7 @@ fun testBuiltinLayouts(): Boolean {
     // Vector3: float_64 -> size=24, align=4 (float fields)
     // We write x=1.0, y=2.0, z=3.0 and read them back via member offsets
     fun testVector3(): Boolean {
-        val v = Vector3(1.0, 2.0, 3.0)
+        val v = Vector3(1.0f, 2.0f, 3.0f)
         val base = v.rawPtr.reinterpret<ByteVar>()
         // Member offsets from JSON: x=0, y=4, z=8 (float_32) or x=0, y=8, z=16 (double_64)
         // The codegen embeds the correct offsets per build config
@@ -51,7 +51,7 @@ fun testBuiltinLayouts(): Boolean {
 
     // Color: always float, align=4
     fun testColor(): Boolean {
-        val c = Color(0.5, 0.25, 0.75, 1.0)
+        val c = Color(0.5f, 0.25f, 0.75f, 1.0f)
         val base = c.rawPtr.reinterpret<ByteVar>()
         val r = getFloat(base, Color.OFFSET_R)
         val g = getFloat(base, Color.OFFSET_G)
