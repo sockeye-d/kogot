@@ -66,6 +66,15 @@ class KotlinNativeTypeResolverTest {
         }
         assertEquals(ClassName("", "GodotString"), resolved)
     }
+
+    // meta "float" → FLOAT (C float in member_offsets = 32-bit)
+    @Test
+    fun `resolveWithMeta float`() {
+        val holder = MethodReturn("float", meta = "float")
+        context(testContext) {
+            assertEquals(FLOAT, resolver.resolve(holder))
+        }
+    }
 }
 
 private val TYPES_EXPECTED = mapOf(
@@ -156,7 +165,7 @@ private val TYPES_EXPECTED = mapOf(
     "const void*" to COPAQUE_POINTER,
     "const Glyph*" to COPAQUE_POINTER,
     "AudioFrame*" to COPAQUE_POINTER,
-    "float*" to C_POINTER.parameterizedBy(DOUBLE_VAR),
+    "float*" to C_POINTER.parameterizedBy(FLOAT_VAR),
     "int32_t*" to C_POINTER.parameterizedBy(INT_VAR),
     "uint8_t*" to C_POINTER.parameterizedBy(U_BYTE_VAR),
     "const uint8_t*" to C_POINTER.parameterizedBy(U_BYTE_VAR),

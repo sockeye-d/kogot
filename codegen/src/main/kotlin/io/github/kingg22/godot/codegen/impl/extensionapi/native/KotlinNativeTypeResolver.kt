@@ -56,23 +56,17 @@ private val PRIMITIVE_TYPES = PRIMITIVE_NUMERIC_TYPES + setOf(
 class KotlinNativeTypeResolver : TypeResolver {
 
     context(_: Context)
-    override fun resolve(holder: TypeMetaHolder): TypeName {
-        // meta hint: use it to pick a more precise primitive
-        // e.g. meta = "int32" on a Variant int → Int instead of Long
-        if (holder.meta != null && !holder.isRequired()) {
-            runCatching { resolveWithMeta(holder.type, holder.meta!!) }
+    override fun resolve(godotType: String, metaType: String?): TypeName {
+        if (metaType != null && metaType != "required") {
+            runCatching { resolveWithMeta(godotType, metaType) }
                 .onFailure {
                     println(
-                        "ERROR: failed to resolve type with meta: ${holder.type} (${holder.meta}).\n${it.stackTraceToString()}",
+                        "ERROR: failed to resolve type with meta: $godotType ($metaType).\n${it.stackTraceToString()}",
                     )
                 }
                 .onSuccess { return it }
         }
-        return resolve(holder.type)
-    }
 
-    context(_: Context)
-    override fun resolve(godotType: String): TypeName {
         val stripped = godotType.trim().removePrefix("const ").trim()
 
         // Pointer type: ends with * after stripping const
@@ -274,18 +268,34 @@ class KotlinNativeTypeResolver : TypeResolver {
     context(_: Context)
     private fun resolveWithMeta(baseType: String, meta: String): TypeName = when (meta.lowercase()) {
         "int8" -> BYTE
+
         "int16" -> SHORT
+
         "int32" -> INT
+
         "int64" -> LONG
+
         "uint8" -> U_BYTE
+
         "uint16" -> U_SHORT
+
         "uint32" -> U_INT
+
         "uint64" -> U_LONG
-        "float" -> DOUBLE
+
+        "float" -> FLOAT
+
         "double" -> DOUBLE
+
         "char16" -> U_SHORT
+
         "char32" -> U_INT
-        else -> resolve(baseType) // unknown meta → fall back
+
+        else -> {
+            // unknown meta → fall back
+            println("WARNING: Unknown meta type: '$meta', fallback to type: '$baseType'")
+            resolve(baseType)
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -303,28 +313,23 @@ class KotlinNativeTypeResolver : TypeResolver {
 
             "short", "int16_t", "int16" -> SHORT_VAR
 
-            "int32_t", "int32" -> INT_VAR
+            "int", "int32_t", "int32" -> INT_VAR
 
-            "int", "long long", "int64_t", "int64", "long",
-            "intptr_t",
-            -> LONG_VAR
+            "long long", "int64_t", "int64", "long", "intptr_t" -> LONG_VAR
 
-            "uchar", "unsigned char", "uint8_t", "uint8",
-            -> U_BYTE_VAR
+            "uchar", "unsigned char", "uint8_t", "uint8" -> U_BYTE_VAR
 
-            "unsigned short", "ushort", "uint16_t", "uint16",
-            "char16_t",
-            -> U_SHORT_VAR
+            "unsigned short", "ushort", "uint16_t", "uint16", "char16_t" -> U_SHORT_VAR
 
-            "unsigned int", "uint", "uint32_t", "uint32",
-            "char32_t",
-            -> U_INT_VAR
+            "unsigned int", "uint", "uint32_t", "uint32", "char32_t" -> U_INT_VAR
 
-            "unsigned long long", "ulong", "uint64_t", "uint64",
-            "uintptr_t", "size_t",
-            -> U_LONG_VAR
+            "unsigned long long", "ulong", "uint64_t", "uint64", "uintptr_t", "size_t" -> U_LONG_VAR
 
-            "float", "double" -> DOUBLE_VAR
+            // "float" in builtin_class_member_offsets always means C float (32-bit) = kotlin.Float.
+            "float" -> FLOAT_VAR
+
+            // "double" (and the plain-type path for GDScript float) maps to kotlin.Double.
+            "double" -> DOUBLE_VAR
 
             // fallback
             else -> error("Unknown primitive: $type")
