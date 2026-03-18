@@ -134,9 +134,6 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         // Constructor calls: Vector2(0, 0), Color(1, 1, 1)
         isConstructorCall(value) -> parseConstructorCall(value)
 
-        // Bitfield combinations: FLAG_A | FLAG_B
-        value.contains('|') -> parseBitfieldCombination(value, godotType)
-
         // Enum constants: SIDE_LEFT, HORIZONTAL
         isEnumConstant(value) -> parseEnumConstant(value, godotType)
 
@@ -435,12 +432,11 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
             convertConstructorArgument(rawArg.trim(), expectedParam)
         }
 
-        return CodeBlock
-            .builder()
-            .add("%T(", kotlinClass)
-            .add(convertedArgs.joinToCode())
-            .add(")")
-            .build()
+        check(convertedArgs.size == constructor.arguments.size) {
+            "Failed to convert arguments for $className: ${convertedArgs.size} != ${constructor.arguments.size}"
+        }
+
+        return buildFormattedConstructor(kotlinClass, convertedArgs)
     }
 
     private fun applySpecialConstructorMapping(className: String, rawArgs: List<String>): List<String>? {
@@ -470,22 +466,14 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     // Fallback cuando no encontramos el constructor
     context(context: Context)
     private fun parseConstructorWithRawArgs(kotlinClass: ClassName, rawArgs: List<String>): CodeBlock {
-        val convertedArgs: List<CodeBlock> = rawArgs.map { arg ->
+        val convertedArgs = rawArgs.map { arg ->
             when {
                 isNumericLiteral(arg) -> parseNumericValue(arg, null, "")
                 isConstructorCall(arg) -> parseConstructorCall(arg)
-                else -> CodeBlock.of(arg)
+                else -> CodeBlock.of("%L", arg)
             }
         }
-
-        return CodeBlock
-            .builder()
-            .add("%T(", kotlinClass)
-            .indent()
-            .add(convertedArgs.joinToCode())
-            .unindent()
-            .add(")")
-            .build()
+        return buildFormattedConstructor(kotlinClass, convertedArgs)
     }
 
     // Helper: split respetando paréntesis anidados
@@ -561,29 +549,20 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         return CodeBlock.of("%T.%L", enumTypeName, constantName)
     }
 
-    // Bitfield Combinations
-    // Para default values: FLAG_A | FLAG_B → EnumMask.of(Flags.A, Flags.B)
-    context(context: Context)
-    private fun parseBitfieldCombination(value: String, godotType: String): CodeBlock {
-        val parts = value.split('|').map { it.trim() }
-        val enumTypeStr = godotType.removePrefix("bitfield::")
-
-        val enumMaskClass = context.classNameForOrDefault("EnumMask")
-
-        // Parsear cada parte como enum constant
-        val resolvedParts = parts.map { part ->
-            parseEnumConstant(part, "enum::$enumTypeStr")
+    /**
+     * Esta es la clave: Usamos joinToCode con separadores que incluyen el newline
+     * pero NO usamos addStatement dentro de la recursión para evitar cerrar el scope.
+     */
+    private fun buildFormattedConstructor(kotlinClass: TypeName, args: List<CodeBlock>): CodeBlock {
+        if (args.size <= 4 && args.all { it.toString().length < 40 }) {
+            return CodeBlock.of("%T(%L)", kotlinClass, args.joinToCode(", "))
         }
-
-        // EnumMask.of(Flag.A, Flag.B, Flag.C)
-        return CodeBlock.builder()
-            .add("%T.of(", enumMaskClass)
-            .apply {
-                resolvedParts.forEachIndexed { index, part ->
-                    if (index > 0) add(", ")
-                    add(part)
-                }
-            }
+        return CodeBlock
+            .builder()
+            .add("%T(\n", kotlinClass)
+            .indent()
+            .add(args.joinToCode(separator = ",\n", suffix = ",\n"))
+            .unindent()
             .add(")")
             .build()
     }
