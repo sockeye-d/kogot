@@ -10,7 +10,6 @@ private val TYPED_ARRAY_REGEX = Regex("""Array\[[\w:]+]\(.*\)""")
 private val NUMERIC_LITERAL_REGEX = Regex("""-?\d+(\.\d+)?([eE][+-]?\d+)?""", RegexOption.IGNORE_CASE)
 private val EMPTY_ARRAY_REGEX = Regex("""Packed\w+Array\(\)""")
 private val CLASS_CONSTRUCTOR_REGEX = Regex("""[A-Z][a-zA-Z0-9]*\(.*\)""")
-private val NUMERIC_RAW_REGEX = Regex("""-?\d+(\.\d+)?([eE][+-]?\d+)?""")
 private val ENUM_CONSTANT_REGEX = Regex("""[A-Z_][A-Z0-9_]*""")
 
 /**
@@ -21,7 +20,6 @@ private val SPECIAL_CONSTRUCTOR_MAPPINGS = mapOf(
     // Transform3D: 12 floats → 4 Vector3
     "Transform3D" to ConstructorMapper(
         rawArgCount = 12,
-        targetArgCount = 4,
         groupingSize = 3,
         groupType = "Vector3",
     ),
@@ -29,7 +27,6 @@ private val SPECIAL_CONSTRUCTOR_MAPPINGS = mapOf(
     // Transform2D: 6 floats → 3 Vector2
     "Transform2D" to ConstructorMapper(
         rawArgCount = 6,
-        targetArgCount = 3,
         groupingSize = 2,
         groupType = "Vector2",
     ),
@@ -37,7 +34,6 @@ private val SPECIAL_CONSTRUCTOR_MAPPINGS = mapOf(
     // Basis: 9 floats → 3 Vector3
     "Basis" to ConstructorMapper(
         rawArgCount = 9,
-        targetArgCount = 3,
         groupingSize = 3,
         groupType = "Vector3",
     ),
@@ -45,18 +41,12 @@ private val SPECIAL_CONSTRUCTOR_MAPPINGS = mapOf(
     // Projection: 16 floats → 4 Vector4
     "Projection" to ConstructorMapper(
         rawArgCount = 16,
-        targetArgCount = 4,
         groupingSize = 4,
         groupType = "Vector4",
     ),
 )
 
-private data class ConstructorMapper(
-    val rawArgCount: Int,
-    val targetArgCount: Int,
-    val groupingSize: Int,
-    val groupType: String,
-)
+private data class ConstructorMapper(val rawArgCount: Int, val groupingSize: Int, val groupType: String)
 
 /**
  * Generates default value expressions for function parameters.
@@ -98,10 +88,10 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     context(context: Context)
     private fun parseDefaultValue(value: String, kotlinType: TypeName?, godotType: String): CodeBlock? = when {
         // Infinity
-        value.equals("inf", ignoreCase = true) -> parseInfinityConstant(value, godotType)
+        value.equals("inf", ignoreCase = true) -> parseInfinityConstant(value, godotType, kotlinType)
 
         // NaN
-        value.equals("nan", ignoreCase = true) -> parseNaNConstant(value, godotType)
+        value.equals("nan", ignoreCase = true) -> parseNaNConstant(godotType, kotlinType)
 
         // nil → Variant.NIL (object singleton)
         godotType == "Variant" && (value == "nil" || value == "null") -> {
@@ -196,9 +186,9 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         }
     }
 
-    private fun parseInfinityConstant(value: String, type: String): CodeBlock {
+    private fun parseInfinityConstant(value: String, type: String, kotlinType: TypeName?): CodeBlock {
         // Determinar si es float o double
-        val isDouble = type == "double"
+        val isDouble = kotlinType == DOUBLE || type == "double"
 
         return when {
             // Negativo: -inf, -INF, -1.#INF
@@ -220,9 +210,9 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         }
     }
 
-    private fun parseNaNConstant(value: String, type: String): CodeBlock = CodeBlock.of(
+    private fun parseNaNConstant(type: String, kotlinType: TypeName?): CodeBlock = CodeBlock.of(
         "%T.NaN",
-        if (type == "double") DOUBLE else FLOAT,
+        kotlinType ?: if (type == "double") DOUBLE else FLOAT,
     )
 
     // Enum from numeric value
@@ -338,6 +328,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         return value.matches(TYPED_ARRAY_REGEX)
     }
 
+    @Suppress("UNUSED_PARAMETER")
     context(context: Context)
     private fun parseTypedArrayLiteral(value: String): CodeBlock {
         // Array[RID]([]) → Array()
@@ -421,26 +412,27 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
 
         val rawArgs = splitConstructorArguments(argsString)
 
-        // ── SPECIAL CASE: Constructor mappings ────────────────────────────────
-        val specialMapping = SPECIAL_CONSTRUCTOR_MAPPINGS[className]
-        if (specialMapping != null && rawArgs.size == specialMapping.rawArgCount) {
-            return parseSpecialConstructor(kotlinClass, rawArgs, specialMapping)
-        }
+        // ── SPECIAL MAPPING ───────────────────────────────
+        val mappedArgs = applySpecialConstructorMapping(className, rawArgs) ?: rawArgs
 
-        // ── NORMAL CASE: Constructor resolution ───────────────────────────────
-        val constructor = context.resolveConstructor(className, rawArgs)
+        // ── CONSTRUCTOR RESOLUTION ───────────────────────
+        val constructor = context.resolveConstructor(className, mappedArgs)
 
         if (constructor == null) {
-            println("WARNING: Constructor not found for $className with ${rawArgs.size} args")
-            return parseConstructorWithRawArgs(kotlinClass, rawArgs)
+            println("WARNING: Constructor not found for $className with ${mappedArgs.size} args")
+            return parseConstructorWithRawArgs(kotlinClass, mappedArgs)
         }
 
-        if (constructor.usesKotlinStringBridge && rawArgs.size == 1) {
-            return CodeBlock.of("%T(%L)", kotlinClass, rawArgs.single().trim())
+        if (constructor.usesKotlinStringBridge && mappedArgs.size == 1) {
+            return CodeBlock.of("%T(%L)", kotlinClass, mappedArgs.single())
         }
 
-        val convertedArgs = rawArgs.zip(constructor.arguments) { rawArg, expectedParam ->
-            convertConstructorArgument(rawArg.trim(), expectedParam, className)
+        check(mappedArgs.size == constructor.arguments.size) {
+            "Invalid number of arguments for $className: ${mappedArgs.size} != ${constructor.arguments.size}"
+        }
+
+        val convertedArgs = mappedArgs.zip(constructor.arguments) { rawArg, expectedParam ->
+            convertConstructorArgument(rawArg.trim(), expectedParam)
         }
 
         return CodeBlock
@@ -451,51 +443,20 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
             .build()
     }
 
-    context(context: Context)
-    private fun parseSpecialConstructor(
-        kotlinClass: ClassName,
-        rawArgs: List<String>,
-        mapping: ConstructorMapper,
-    ): CodeBlock {
-        // Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
-        // → Transform3D(Vector3(1f, 0f, 0f), Vector3(0f, 1f, 0f), ...)
+    private fun applySpecialConstructorMapping(className: String, rawArgs: List<String>): List<String>? {
+        val mapping = SPECIAL_CONSTRUCTOR_MAPPINGS[className] ?: return null
+        if (rawArgs.size != mapping.rawArgCount) return null
 
-        val groupType = context.classNameForOrDefault(mapping.groupType)
-
-        val groupedArgs = rawArgs.chunked(mapping.groupingSize).map { group ->
-            // FIXME move joinToString to joinToCode
-            val groupArgsStr = group.joinToCode { arg ->
-                // Convertir cada valor a Float
-                CodeBlock.of("%Lf", arg.toFloat())
+        return rawArgs
+            .chunked(mapping.groupingSize)
+            .map { group ->
+                "${mapping.groupType}(${group.joinToString(", ")})"
             }
-            CodeBlock
-                .builder()
-                .add("%T(", groupType)
-                .indent()
-                .add(groupArgsStr)
-                .unindent()
-                .add(")")
-                .build()
-        }
-
-        return CodeBlock
-            .builder()
-            .add("%T(", kotlinClass)
-            .indent()
-            .add(groupedArgs.joinToCode())
-            .unindent()
-            .add(")")
-            .build()
     }
 
     context(ctx: Context)
-    private fun convertConstructorArgument(value: String, expectedParam: MethodArg, className: String): CodeBlock {
-        val expectedType = if (ctx.isBuiltin(className)) {
-            typeResolver.resolveBuiltin(expectedParam.type, expectedParam.meta)
-        } else {
-            typeResolver.resolve(expectedParam)
-        }
-
+    private fun convertConstructorArgument(value: String, expectedParam: MethodArg): CodeBlock {
+        val expectedType = typeResolver.resolve(expectedParam)
         return parseDefaultValue(value, expectedType, expectedParam.meta ?: expectedParam.type)
             ?: run {
                 // Fallback al valor crudo si parseDefaultValue devuelve null
@@ -511,16 +472,8 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
     private fun parseConstructorWithRawArgs(kotlinClass: ClassName, rawArgs: List<String>): CodeBlock {
         val convertedArgs: List<CodeBlock> = rawArgs.map { arg ->
             when {
-                arg.matches(NUMERIC_RAW_REGEX) -> {
-                    if (arg.contains('.') || arg.contains('e', ignoreCase = true)) {
-                        CodeBlock.of("%Lf", arg.toFloat())
-                    } else {
-                        CodeBlock.of("%L", arg.toDouble())
-                    }
-                }
-
+                isNumericLiteral(arg) -> parseNumericValue(arg, null, "")
                 isConstructorCall(arg) -> parseConstructorCall(arg)
-
                 else -> CodeBlock.of(arg)
             }
         }
