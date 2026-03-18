@@ -301,7 +301,7 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
         val ptrExprs = args.map { arg ->
             val kotlinName = safeIdentifier(arg.name)
             val varName = "${kotlinName}Var"
-            when (val kotlinType = typeResolver.resolveBuiltin(arg.type, arg.meta)) {
+            when (val kotlinType = typeResolver.resolve(arg.type, arg.meta)) {
                 BOOLEAN -> {
                     addStatement(
                         "val $varName = %M($kotlinName)",
@@ -401,4 +401,50 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
         .unindent()
         .addStatement("destructor.%M(rawPtr)", cinteropInvoke)
         .build()
+
+    // ── Member getters / setters ──────────────────────────────────────────────
+
+    /**
+     * Generates a getter for a builtin member if the [meta] resolves to a primitive
+     * that `StructMemory.kt` can handle. Returns null for compound members (e.g., meta="Vector2"),
+     * which callers should fall back to [todoGetter].
+     *
+     * @param memberName the Godot member name (e.g., "x", "r", "position")
+     * @param meta the meta type from [io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedBuiltinLayout.memberMeta]
+     * (e.g., "float", "int32")
+     */
+    fun buildMemberGetter(memberName: String, meta: String, memberType: TypeName): FunSpec? {
+        val (funName, storageType) = metaToStorageInfo(meta, "get") ?: return null
+        val offsetConst = "OFFSET_${memberName.uppercase()}"
+        val memFun = MemberName(implPackageRegistry.rootPackage, funName)
+        return FunSpec
+            .getterBuilder().apply {
+                if (storageType == memberType) {
+                    addStatement("return %M(storage, %L)", memFun, offsetConst)
+                } else {
+                    val conv = storageToPropertyConv(storageType, memberType) ?: return null
+                    addStatement("return %M(storage, %L)%L", memFun, offsetConst, conv)
+                }
+            }.build()
+    }
+
+    /**
+     * Generates a setter for a builtin member if the [meta] resolves to a primitive.
+     * Returns null for compound members.
+     */
+    fun buildMemberSetter(memberName: String, meta: String, memberType: TypeName): FunSpec? {
+        val (funName, storageType) = metaToStorageInfo(meta, "set") ?: return null
+        val offsetConst = "OFFSET_${memberName.uppercase()}"
+        val memFun = MemberName(implPackageRegistry.rootPackage, funName)
+        return FunSpec
+            .setterBuilder()
+            .addParameter("value", memberType).apply {
+                if (storageType == memberType) {
+                    addStatement("%M(storage, %L, value)", memFun, offsetConst)
+                } else {
+                    val conv = propertyToStorageConv(memberType, storageType) ?: return null
+                    addStatement("%M(storage, %L, value%L)", memFun, offsetConst, conv)
+                }
+            }.build()
+    }
 }

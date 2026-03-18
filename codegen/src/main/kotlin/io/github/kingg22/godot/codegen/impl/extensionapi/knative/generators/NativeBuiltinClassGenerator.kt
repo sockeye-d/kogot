@@ -154,7 +154,7 @@ class NativeBuiltinClassGenerator(
         // ── Members (fields like x, y, z) ────────────────────────────────────
         raw.members.forEach { member ->
             val memberMeta = context.resolveBuiltinMemberMeta(builtinClass.name, member.name)
-            val memberType = typeResolver.resolveBuiltin(member.type, memberMeta)
+            val memberType = typeResolver.resolve(member.type, memberMeta)
 
             val propBuilder = PropertySpec
                 .builder(safeIdentifier(member.name), memberType)
@@ -162,16 +162,19 @@ class NativeBuiltinClassGenerator(
                 .experimentalApiAnnotation(builtinClass.name, member.name)
                 .addKdocIfPresent(member)
 
-            propBuilder.getter(body.todoGetter())
+            val getter = memberMeta?.let { body.buildMemberGetter(member.name, memberMeta, memberType) }
+                ?: body.todoGetter()
 
-            propBuilder.setter(
-                FunSpec
+            propBuilder.getter(getter)
+
+            val setter = memberMeta?.let { body.buildMemberSetter(member.name, memberMeta, memberType) }
+                ?: FunSpec
                     .setterBuilder()
                     .addParameter("value", memberType)
                     .addCode(body.todoBody())
-                    .build(),
-            )
+                    .build()
 
+            propBuilder.setter(setter)
             classBuilder.addProperty(propBuilder.build())
         }
 
@@ -184,9 +187,7 @@ class NativeBuiltinClassGenerator(
                 .constructorBuilder()
                 .addKdocIfPresent(ctor.raw!!)
 
-            val argumentSpecs = ctor.arguments.map { arg ->
-                methodGen.buildParameter(arg, useBuiltinResolver = true)
-            }
+            val argumentSpecs = ctor.arguments.map { arg -> methodGen.buildParameter(arg) }
 
             ctorBuilder.addParameters(argumentSpecs)
             ctorBuilder.addCode(body.constructorBodyFor(builtinClass, ctor))
@@ -247,7 +248,7 @@ class NativeBuiltinClassGenerator(
 
         // Constants from JSON
         raw.constants.forEach { constant ->
-            val constType = typeResolver.resolveBuiltin(constant.type)
+            val constType = typeResolver.resolve(constant.type)
 
             companionBuilder.addProperty(
                 PropertySpec
@@ -261,7 +262,7 @@ class NativeBuiltinClassGenerator(
 
         // Static methods
         val staticMethodSpecs = staticMethods.map { method ->
-            methodGen.buildMethod(method, builtinClass.name, useBuiltinResolver = true)
+            methodGen.buildMethod(method, builtinClass.name)
         }
         companionBuilder.addFunctions(staticMethodSpecs)
 
@@ -291,7 +292,7 @@ class NativeBuiltinClassGenerator(
     ): FunSpec {
         // Si no hay config genérica, usar generador normal
         if (genericConfig == null) {
-            return methodGen.buildMethod(method, className, useBuiltinResolver = true)
+            return methodGen.buildMethod(method, className)
         }
 
         // Resolver tipo de retorno original
@@ -301,7 +302,7 @@ class NativeBuiltinClassGenerator(
         val transformedReturnType = genericConfig.transformReturnType(method, originalReturnType)
 
         // Construir método con tipo transformado
-        return methodGen.buildMethod(method, className, useBuiltinResolver = true) {
+        return methodGen.buildMethod(method, className) {
             if (transformedReturnType != null && transformedReturnType != originalReturnType) {
                 returns(transformedReturnType)
             }
@@ -313,7 +314,7 @@ class NativeBuiltinClassGenerator(
                 val transformedType = genericConfig.transformParameterType(method, index, originalType)
                 addParameter(
                     methodGen
-                        .buildParameter(arg, useBuiltinResolver = true)
+                        .buildParameter(arg)
                         .toBuilder(type = transformedType)
                         .build(),
                 )
