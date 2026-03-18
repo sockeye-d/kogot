@@ -76,15 +76,6 @@ class KotlinNativeTypeResolver : TypeResolver {
         return resolvePlain(stripped)
     }
 
-    context(ctx: Context)
-    override fun resolveBuiltin(godotType: String, metaType: String?): TypeName = when {
-        metaType?.removePrefix("const ")?.trim()?.equals("float", ignoreCase = true) == true ||
-            godotType.removePrefix("const ").trim().equals("float", ignoreCase = true) ->
-            if (ctx.isDoublePrecision) DOUBLE else FLOAT
-
-        else -> resolve(godotType, metaType)
-    }
-
     // ── Pointer resolution ────────────────────────────────────────────────────
 
     context(context: Context)

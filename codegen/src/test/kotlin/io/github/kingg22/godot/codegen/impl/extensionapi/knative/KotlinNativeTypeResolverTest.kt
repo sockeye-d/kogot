@@ -67,11 +67,14 @@ class KotlinNativeTypeResolverTest {
         assertEquals(ClassName("", "GodotString"), resolved)
     }
 
-    // meta "float" → FLOAT (C float in member_offsets = 32-bit)
     @Test
-    fun `resolveWithMeta float`() {
+    fun `resolveBuiltin float delegates to resolve, returns DOUBLE`() {
         context(testContext) {
-            assertEquals(FLOAT, resolver.resolveBuiltin("float", "float"))
+            assertEquals(
+                if (testContext.isDoublePrecision) DOUBLE else FLOAT,
+                resolver.resolve("float", "float"),
+            )
+            assertEquals(DOUBLE, resolver.resolve("float", null))
         }
     }
 }

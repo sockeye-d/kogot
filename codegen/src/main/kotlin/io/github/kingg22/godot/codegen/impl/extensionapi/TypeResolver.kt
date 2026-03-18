@@ -41,13 +41,4 @@ interface TypeResolver {
             }
             .getOrDefault(resolve(holder.type))
     }
-
-    /**
-     * Resolves a type string in the context of a builtin class member/constructor/method.
-     *
-     * "float" in builtin context = real_t (build-config-dependent), not GDScript float (always double).
-     * Default implementation delegates to [resolve] — backends override when needed.
-     */
-    context(ctx: Context)
-    fun resolveBuiltin(godotType: String, metaType: String? = null): TypeName = resolve(godotType, metaType)
 }

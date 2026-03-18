@@ -1,6 +1,7 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi.knative.generators
 
 import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.Dynamic.isNullable
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
@@ -49,20 +50,13 @@ class NativeMethodGenerator(
         method: MethodDescriptor,
         className: String,
         vararg modifiers: KModifier,
-        useBuiltinResolver: Boolean = false,
         codeBody: CodeBlock? = null,
         block: FunSpec.Builder.() -> Unit = {},
     ): FunSpec {
         withExceptionContext({ "Generating method $className.'${method.name}'" }) {
             val (returnTypeSpec, originalType, originalMeta) = when (method) {
                 is BuiltinClass.BuiltinMethod -> Triple(
-                    method.returnType?.let { godotType ->
-                        if (useBuiltinResolver) {
-                            typeResolver.resolveBuiltin(godotType)
-                        } else {
-                            typeResolver.resolve(godotType)
-                        }
-                    } ?: UNIT,
+                    method.returnType?.let { typeResolver.resolve(it) } ?: UNIT,
                     method.returnType,
                     null,
                 )
@@ -144,16 +138,12 @@ class NativeMethodGenerator(
      * the impl layer replaces them with actual expressions.
      */
     context(context: Context)
-    fun buildParameter(arg: MethodArg, useBuiltinResolver: Boolean = false): ParameterSpec {
+    fun buildParameter(arg: MethodArg): ParameterSpec {
         withExceptionContext({
             "Generating parameter '${arg.name}': ${arg.type} (${arg.meta})} = ${arg.defaultValue ?: "--"}"
         }) {
             val isNullable = arg.type != "Variant" && arg.defaultValue?.equals("null") ?: false
-            val rawType = if (useBuiltinResolver) {
-                typeResolver.resolveBuiltin(arg.type, arg.meta)
-            } else {
-                typeResolver.resolve(arg)
-            }
+            val rawType = typeResolver.resolve(arg)
             val type = if (isNullable) rawType.copy(nullable = true) else rawType
             val kotlinName = safeIdentifier(arg.name)
             val paramBuilder = ParameterSpec.builder(kotlinName, type)

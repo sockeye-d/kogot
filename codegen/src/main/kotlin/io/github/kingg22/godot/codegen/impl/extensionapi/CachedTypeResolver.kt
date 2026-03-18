@@ -12,8 +12,8 @@ class CachedTypeResolver(private val delegate: TypeResolver) : TypeResolver {
 
     // La clave aquí es crear una clave única compuesta si es necesario.
     // Si hay meta, incluimos la meta en la clave.
-    private fun computeKey(godotType: String, metaType: String?, builtinClass: Boolean = false): String =
-        (if (metaType != null) "$godotType:$metaType" else godotType) + (if (builtinClass) "Builtin" else "")
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun computeKey(godotType: String, metaType: String?): String = "$godotType:$metaType"
 
     // computeIfAbsent realiza la lógica: si existe devuelve el valor,
     // si no, ejecuta el bloque, guarda el resultado y lo devuelve.
@@ -24,8 +24,4 @@ class CachedTypeResolver(private val delegate: TypeResolver) : TypeResolver {
     context(ctx: Context)
     override fun resolve(holder: TypeMetaHolder): TypeName =
         cache.getOrPut(computeKey(holder.type, holder.meta)) { delegate.resolve(holder) }
-
-    context(ctx: Context)
-    override fun resolveBuiltin(godotType: String, metaType: String?): TypeName =
-        cache.getOrPut(computeKey(godotType, metaType, true)) { delegate.resolveBuiltin(godotType, metaType) }
 }
