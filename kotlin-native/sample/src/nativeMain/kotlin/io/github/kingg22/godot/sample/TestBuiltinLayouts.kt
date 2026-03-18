@@ -73,6 +73,10 @@ fun testBuiltinLayouts(): Boolean {
         val ok = r == expectedR && g == expectedG && b == expectedB && a == expectedA && c.r == expectedR &&
             c.g == expectedG && c.b == expectedB && c.a == expectedA
         if (!ok) GD.print("FAIL testColor: expected (0.5f, 0.25f, 0.75f, 1.0f) got ($r,$g,$b,$a)".asVariantString())
+        GD.print(
+            "Color r8 = ${c.r8}, g8 = ${c.g8}, b8 = ${c.b8}, a8 = ${c.a8}, h = ${c.h}, s = ${c.s}, v = ${c.v}, okHslH = ${c.okHslH}, okHslL = ${c.okHslL}, okHslS = ${c.okHslS}"
+                .asVariantString(),
+        )
         return ok
     }
 
