@@ -11,6 +11,7 @@ package io.github.kingg22.godot.internal.binding
 
 import kotlinx.cinterop.*
 import org.jetbrains.annotations.ApiStatus
+import platform.posix.memcpy
 
 @ApiStatus.Internal
 public inline fun CPointer<ByteVar>.at(offsetBytes: Int): CPointer<ByteVar> = requireNotNull(this + offsetBytes)
@@ -120,4 +121,14 @@ public inline fun getPointer(base: CPointer<ByteVar>, offsetBytes: Int): COpaque
 @ApiStatus.Internal
 public inline fun setPointer(base: CPointer<ByteVar>, offsetBytes: Int, value: COpaquePointer) {
     base.at(offsetBytes).reinterpret<COpaquePointerVar>()[0] = value
+}
+
+@ApiStatus.Internal
+public inline fun getBuiltin(base: CPointer<ByteVar>, offsetBytes: Int, dest: COpaquePointer, sizeBytes: Int) {
+    memcpy(dest, base.at(offsetBytes), sizeBytes.toULong())
+}
+
+@ApiStatus.Internal
+public inline fun setBuiltin(base: CPointer<ByteVar>, offsetBytes: Int, src: COpaquePointer, sizeBytes: Int) {
+    memcpy(base.at(offsetBytes), src, sizeBytes.toULong())
 }

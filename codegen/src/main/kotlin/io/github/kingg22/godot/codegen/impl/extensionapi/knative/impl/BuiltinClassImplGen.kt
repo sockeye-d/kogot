@@ -576,10 +576,12 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
      * @param meta the meta type from [io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedBuiltinLayout.memberMeta]
      * (e.g., "float", "int32")
      */
+    context(_: Context)
     fun buildMemberGetter(memberName: String, meta: String, memberType: TypeName): FunSpec? {
-        val (funName, storageType) = metaToStorageInfo(meta, "get") ?: return null
+        val (funName, storageType) = metaToStorageInfo(meta, "get")
+            ?: return buildMemberGetterViaOffset(memberName, meta, memberType)
         val offsetConst = "OFFSET_${memberName.uppercase()}"
-        val memFun = MemberName(implPackageRegistry.rootPackage, funName)
+        val memFun = implPackageRegistry.memberNameForOrDefault(funName)
         return FunSpec
             .getterBuilder().apply {
                 if (storageType == memberType) {
@@ -595,10 +597,12 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
      * Generates a setter for a builtin member if the [meta] resolves to a primitive.
      * Returns null for compound members.
      */
+    context(_: Context)
     fun buildMemberSetter(memberName: String, meta: String, memberType: TypeName): FunSpec? {
-        val (funName, storageType) = metaToStorageInfo(meta, "set") ?: return null
+        val (funName, storageType) = metaToStorageInfo(meta, "set")
+            ?: return buildMemberSetterViaOffset(memberName, meta, memberType)
         val offsetConst = "OFFSET_${memberName.uppercase()}"
-        val memFun = MemberName(implPackageRegistry.rootPackage, funName)
+        val memFun = implPackageRegistry.memberNameForOrDefault(funName)
         return FunSpec
             .setterBuilder()
             .addParameter("value", memberType).apply {
@@ -609,5 +613,55 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
                     addStatement("%M(storage, %L, value%L)", memFun, offsetConst, conv)
                 }
             }.build()
+    }
+
+    /**
+     * Getter for a compound builtin member (meta = "Vector3", "Vector2", etc.) that has
+     * a known byte offset in the layout. Copies `sizeBytes` bytes from storage+offset into
+     * a freshly constructed instance via `getBuiltin`.
+     */
+    context(_: Context)
+    private fun buildMemberGetterViaOffset(memberName: String, godotType: String, memberType: TypeName): FunSpec {
+        val offsetConst = "OFFSET_${memberName.uppercase()}"
+        val subSize = resolveSubtypeSize(godotType)
+        return FunSpec
+            .getterBuilder()
+            .addStatement("val result = %T()", memberType)
+            .addStatement(
+                "%M(storage, %L, result.rawPtr, %L)",
+                implPackageRegistry.memberNameForOrDefault("getBuiltin"),
+                offsetConst,
+                subSize,
+            )
+            .addStatement("return result")
+            .build()
+    }
+
+    context(_: Context)
+    private fun buildMemberSetterViaOffset(memberName: String, godotType: String, memberType: TypeName): FunSpec {
+        val offsetConst = "OFFSET_${memberName.uppercase()}"
+        val subSize = resolveSubtypeSize(godotType)
+        return FunSpec
+            .setterBuilder()
+            .addParameter("value", memberType)
+            .addStatement(
+                "%M(storage, %L, value.rawPtr, %L)",
+                implPackageRegistry.memberNameForOrDefault("setBuiltin"),
+                offsetConst,
+                subSize,
+            )
+            .build()
+    }
+
+    /**
+     * Resolves the byte size of a compound member type from the builtin layout.
+     */
+    context(ctx: Context)
+    private fun resolveSubtypeSize(godotType: String): Int {
+        val layout = ctx.model.builtins
+            .firstOrNull { it.name == godotType }
+            ?.layout
+            ?: error("Cannot resolve size for compound member type '$godotType'")
+        return layout.size
     }
 }

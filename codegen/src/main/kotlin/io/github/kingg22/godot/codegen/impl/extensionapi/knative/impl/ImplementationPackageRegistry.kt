@@ -28,6 +28,8 @@ class ImplementationPackageRegistry(packageStr: String, interfaceModel: GDExtens
         put("checkCallError", bindingPackage)
         put("toGdBool", bindingPackage)
         put("toBoolean", bindingPackage)
+        put("getBuiltin", bindingPackage)
+        put("setBuiltin", bindingPackage)
         put("toGDExtensionVariantOperator", builtinInternalBind)
         put("toGDExtensionVariantType", builtinInternalBind)
         put("GDExtensionPtrUtilityFunction", ffiPackage)
