@@ -1,5 +1,6 @@
 package io.github.kingg22.godot.sample
 
+import io.github.kingg22.godot.api.builtin.Aabb
 import io.github.kingg22.godot.api.builtin.Color
 import io.github.kingg22.godot.api.builtin.Vector2i
 import io.github.kingg22.godot.api.builtin.Vector3
@@ -80,9 +81,59 @@ fun testBuiltinLayouts(): Boolean {
         return ok
     }
 
+    fun testAabb(): Boolean {
+        // position = (1.0, 2.0, 3.0), size = (4.0, 5.0, 6.0)
+        val pos = Vector3(1.0, 2.0, 3.0)
+        val size = Vector3(4.0, 5.0, 6.0)
+        val aabb = Aabb(pos, size)
+        val base = aabb.rawPtr.reinterpret<ByteVar>()
+
+        // ── position members via raw storage ──────────────────────────────────────
+        // float_64: Vector3 members are C floats (meta="float"), offset 0/4/8
+        val rawPx = getFloat(base, Aabb.OFFSET_POSITION) // reads float at byte 0
+        val rawPy = getFloat(base, Aabb.OFFSET_POSITION + 4) // reads float at byte 4
+        val rawPz = getFloat(base, Aabb.OFFSET_POSITION + 8) // reads float at byte 8
+
+        // ── size members via raw storage ──────────────────────────────────────────
+        val rawSx = getFloat(base, Aabb.OFFSET_SIZE) // byte 12
+        val rawSy = getFloat(base, Aabb.OFFSET_SIZE + 4) // byte 16
+        val rawSz = getFloat(base, Aabb.OFFSET_SIZE + 8) // byte 20
+
+        // ── compound members via accessor (memcpy path) ───────────────────────────
+        val positionRead = aabb.position
+        val sizeRead = aabb.size
+
+        // ── utility member via fptr ────────────────────────────────────────────────
+        // end = position + size = (5.0, 7.0, 9.0)
+        val endRead = aabb.end
+
+        val rawOk = rawPx == 1.0f && rawPy == 2.0f && rawPz == 3.0f &&
+            rawSx == 4.0f && rawSy == 5.0f && rawSz == 6.0f
+
+        val accessorOk = positionRead.x == 1.0f && positionRead.y == 2.0f && positionRead.z == 3.0f &&
+            sizeRead.x == 4.0f && sizeRead.y == 5.0f && sizeRead.z == 6.0f
+
+        val endOk = endRead.x == 5.0f && endRead.y == 7.0f && endRead.z == 9.0f
+
+        val ok = rawOk && accessorOk && endOk
+
+        if (!ok) {
+            GD.print(
+                (
+                    "FAIL testAabb: raw=($rawPx,$rawPy,$rawPz | $rawSx,$rawSy,$rawSz) " +
+                        "pos=(${positionRead.x},${positionRead.y},${positionRead.z}) " +
+                        "size=(${sizeRead.x},${sizeRead.y},${sizeRead.z}) " +
+                        "end=(${endRead.x},${endRead.y},${endRead.z})"
+                    ).asVariantString(),
+            )
+        }
+        return ok
+    }
+
     passed = passed and testVector3()
     passed = passed and testVector2i()
     passed = passed and testColor()
+    passed = passed and testAabb()
 
     GD.print(
         if (passed) {
