@@ -38,7 +38,10 @@ fun testBuiltinLayouts(): Boolean {
         val z = getFloat(base, Vector3.OFFSET_Z)
         val ok = x == expectedX && v.x == expectedX && y == expectedY && v.y == expectedY && z == expectedZ &&
             v.z == expectedZ
+        val expectedNewX = 5.0f
+        v.x = expectedNewX
         if (!ok) GD.print("FAIL testVector3: expected (1f,2f,3f) got ($x,$y,$z)".asVariantString())
+        if (v.x != expectedNewX) GD.print("FAIL testVector3: expected (5f) got ${v.x}".asVariantString())
         return ok
     }
 
