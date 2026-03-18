@@ -26,39 +26,50 @@ fun testBuiltinLayouts(): Boolean {
     // Vector3: float_64 -> size=24, align=4 (float fields)
     // We write x=1.0, y=2.0, z=3.0 and read them back via member offsets
     fun testVector3(): Boolean {
-        val v = Vector3(1.0f, 2.0f, 3.0f)
+        val expectedX = 1.0f
+        val expectedY = 2.0f
+        val expectedZ = 3.0f
+        val v = Vector3(expectedX.toDouble(), expectedY.toDouble(), expectedZ.toDouble())
         val base = v.rawPtr.reinterpret<ByteVar>()
         // Member offsets from JSON: x=0, y=4, z=8 (float_32) or x=0, y=8, z=16 (double_64)
         // The codegen embeds the correct offsets per build config
         val x = getFloat(base, Vector3.OFFSET_X)
         val y = getFloat(base, Vector3.OFFSET_Y)
         val z = getFloat(base, Vector3.OFFSET_Z)
-        val ok = x == 1.0f && y == 2.0f && z == 3.0f
-        if (!ok) GD.print("FAIL testVector3: expected (1,2,3) got ($x,$y,$z)".asVariantString())
+        val ok = x == expectedX && v.x == expectedX && y == expectedY && v.y == expectedY && z == expectedZ &&
+            v.z == expectedZ
+        if (!ok) GD.print("FAIL testVector3: expected (1f,2f,3f) got ($x,$y,$z)".asVariantString())
         return ok
     }
 
     // Vector2i: int32 fields, align=4 always
     fun testVector2i(): Boolean {
-        val v = Vector2i(10, 20)
+        val expectedX = 10
+        val expectedY = 20
+        val v = Vector2i(expectedX.toLong(), expectedY.toLong())
         val base = v.rawPtr.reinterpret<ByteVar>()
         val x = getInt(base, Vector2i.OFFSET_X)
         val y = getInt(base, Vector2i.OFFSET_Y)
-        val ok = x == 10 && y == 20
+        val ok = x == expectedX && y == expectedY && v.x == expectedX && v.y == expectedY
         if (!ok) GD.print("FAIL testVector2i: expected (10,20) got ($x,$y)".asVariantString())
         return ok
     }
 
     // Color: always float, align=4
     fun testColor(): Boolean {
-        val c = Color(0.5f, 0.25f, 0.75f, 1.0f)
+        val expectedR = 0.5f
+        val expectedG = 0.25f
+        val expectedB = 0.75f
+        val expectedA = 1.0f
+        val c = Color(expectedR.toDouble(), expectedG.toDouble(), expectedB.toDouble(), expectedA.toDouble())
         val base = c.rawPtr.reinterpret<ByteVar>()
         val r = getFloat(base, Color.OFFSET_R)
         val g = getFloat(base, Color.OFFSET_G)
         val b = getFloat(base, Color.OFFSET_B)
         val a = getFloat(base, Color.OFFSET_A)
-        val ok = r == 0.5f && g == 0.25f && b == 0.75f && a == 1.0f
-        if (!ok) GD.print("FAIL testColor: expected (0.5,0.25,0.75,1.0) got ($r,$g,$b,$a)".asVariantString())
+        val ok = r == expectedR && g == expectedG && b == expectedB && a == expectedA && c.r == expectedR &&
+            c.g == expectedG && c.b == expectedB && c.a == expectedA
+        if (!ok) GD.print("FAIL testColor: expected (0.5f, 0.25f, 0.75f, 1.0f) got ($r,$g,$b,$a)".asVariantString())
         return ok
     }
 
