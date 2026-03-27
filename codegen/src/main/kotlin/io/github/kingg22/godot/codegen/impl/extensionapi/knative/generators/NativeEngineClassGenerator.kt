@@ -7,6 +7,7 @@ import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LONG
 import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.TypeAliasSpec
 import com.squareup.kotlinpoet.TypeSpec
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
@@ -83,7 +84,15 @@ class NativeEngineClassGenerator(
 
             cls.enums.forEach { enum ->
                 if (context.isSpecializedClass(enum.shortName)) return@forEach
-                classBuilder.addType(enumGenerator.generateSpec(enum))
+                val enumSpec = enumGenerator.generateSpec(enum)
+                classBuilder.addType(enumSpec)
+                if (enum.shortName != enumSpec.name && enum.shortName.all { it.isUpperCase() }) {
+                    classBuilder.addTypeAlias(
+                        TypeAliasSpec
+                            .builder(enum.shortName, className.nestedClass(enumSpec.name!!))
+                            .build(),
+                    )
+                }
             }
 
             return classBuilder.build()
