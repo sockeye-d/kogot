@@ -41,30 +41,40 @@ class GenericBuiltinInterceptor(private val typeResolver: TypeResolver) {
     /** Configuración de genéricos para una clase builtin. */
     interface GenericConfig {
         /** Type variables a añadir a la clase (ej: T, K, V) */
+        context(context: Context)
         val typeVariables: List<TypeVariableName>
+            get() = emptyList()
 
         /** Typealias para versión untyped (ej: VariantArray = GodotArray<Variant>) */
         context(context: Context)
         val untypedAlias: Pair<String, ParameterizedTypeName>?
+            get() = null
 
         /** Modifica el tipo de retorno de un método si usa type variables */
         context(context: Context)
-        fun transformReturnType(method: BuiltinClass.BuiltinMethod, originalType: TypeName?): TypeName?
+        fun transformReturnType(method: BuiltinClass.BuiltinMethod, originalType: TypeName?): TypeName? = originalType
 
         /** Modifica el tipo de un parámetro si usa type variables */
         context(context: Context)
-        fun transformParameterType(method: BuiltinClass.BuiltinMethod, argIndex: Int, originalType: TypeName): TypeName
+        fun transformParameterType(
+            method: BuiltinClass.BuiltinMethod,
+            argIndex: Int,
+            originalType: TypeName,
+        ): TypeName = originalType
 
         /** Modifica el tipo de retorno de un operator si usa type variables */
         context(context: Context)
-        fun transformOperatorReturnType(operator: BuiltinClass.Operator, originalType: TypeName): TypeName
+        fun transformOperatorReturnType(operator: BuiltinClass.Operator, originalType: TypeName): TypeName =
+            originalType
     }
 
     private class ArrayGenericConfig(private val builtinClass: BuiltinClass, private val typeResolver: TypeResolver) :
         GenericConfig {
-        private val typeT = TypeVariableName("T")
+        context(_: Context)
+        private val typeT get() = TypeVariableName.invoke("T")
 
-        override val typeVariables: List<TypeVariableName> = listOf(typeT)
+        context(context: Context)
+        override val typeVariables: List<TypeVariableName> get() = listOf(typeT)
 
         context(context: Context)
         override val untypedAlias: Pair<String, ParameterizedTypeName>
@@ -74,28 +84,6 @@ class GenericBuiltinInterceptor(private val typeResolver: TypeResolver) {
                 val untypedArray = godotArrayClass.parameterizedBy(variantClass)
                 return "VariantArray" to untypedArray
             }
-
-        context(context: Context)
-        override fun transformReturnType(method: BuiltinClass.BuiltinMethod, originalType: TypeName?): TypeName? {
-            // Si el método retorna el indexing_return_type, usar T
-            if (originalType == null) return null
-
-            val indexingType = builtinClass.indexingReturnType
-            if (indexingType != null && method.name == "get") {
-                val indexingTypeName = typeResolver.resolve(indexingType)
-                if (originalType == indexingTypeName) {
-                    return typeT
-                }
-            }
-
-            // Métodos que retornan Array self-type → Array<T>
-            if (method.returnType == "Array") {
-                val godotArrayClass = context.classNameForOrDefault("Array", "GodotArray", typedClass = true)
-                return godotArrayClass.parameterizedBy(typeT)
-            }
-
-            return originalType
-        }
 
         context(context: Context)
         override fun transformParameterType(
@@ -121,27 +109,19 @@ class GenericBuiltinInterceptor(private val typeResolver: TypeResolver) {
 
             return originalType
         }
-
-        context(context: Context)
-        override fun transformOperatorReturnType(operator: BuiltinClass.Operator, originalType: TypeName): TypeName {
-            // Operators que retornan Array self-type → Array<T>
-            if (operator.returnType == "Array") {
-                val godotArrayClass = context.classNameForOrDefault("Array", "GodotArray", typedClass = true)
-                return godotArrayClass.parameterizedBy(typeT)
-            }
-
-            return originalType
-        }
     }
 
     private class DictionaryGenericConfig(
         private val builtinClass: BuiltinClass,
         private val typeResolver: TypeResolver,
     ) : GenericConfig {
-        private val typeKeys = TypeVariableName("K")
-        private val typeValues = TypeVariableName("V")
+        context(_: Context)
+        private val typeKeys get() = TypeVariableName.invoke("K")
+        context(_: Context)
+        private val typeValues get() = TypeVariableName.invoke("V")
 
-        override val typeVariables: List<TypeVariableName> = listOf(typeKeys, typeValues)
+        context(context: Context)
+        override val typeVariables: List<TypeVariableName> get() = listOf(typeKeys, typeValues)
 
         context(context: Context)
         override val untypedAlias: Pair<String, ParameterizedTypeName>
@@ -151,29 +131,6 @@ class GenericBuiltinInterceptor(private val typeResolver: TypeResolver) {
                 val untypedDict = godotDictClass.parameterizedBy(variantClass, variantClass)
                 return "VariantDictionary" to untypedDict
             }
-
-        context(context: Context)
-        override fun transformReturnType(method: BuiltinClass.BuiltinMethod, originalType: TypeName?): TypeName? {
-            if (originalType == null) return null
-
-            // Dictionary.get(key) → V (indexing_return_type)
-            // Dictionary usa is_keyed = true, entonces get() retorna el value type
-            val indexingType = builtinClass.indexingReturnType
-            if (indexingType != null && method.name == "get") {
-                val indexingTypeName = typeResolver.resolve(indexingType)
-                if (originalType == indexingTypeName) {
-                    return typeValues
-                }
-            }
-
-            // Métodos que retornan Dictionary self-type → Dictionary<K, V>
-            if (method.returnType == "Dictionary") {
-                val godotDictClass = context.classNameForOrDefault("Dictionary", typedClass = true)
-                return godotDictClass.parameterizedBy(typeKeys, typeValues)
-            }
-
-            return originalType
-        }
 
         context(context: Context)
         override fun transformParameterType(
@@ -201,17 +158,6 @@ class GenericBuiltinInterceptor(private val typeResolver: TypeResolver) {
 
             // Parámetros que aceptan Dictionary → Dictionary<K, V>
             if (arg.type == "Dictionary") {
-                val godotDictClass = context.classNameForOrDefault("Dictionary", typedClass = true)
-                return godotDictClass.parameterizedBy(typeKeys, typeValues)
-            }
-
-            return originalType
-        }
-
-        context(context: Context)
-        override fun transformOperatorReturnType(operator: BuiltinClass.Operator, originalType: TypeName): TypeName {
-            // Operators que retornan Dictionary self-type → Dictionary<K, V>
-            if (operator.returnType == "Dictionary") {
                 val godotDictClass = context.classNameForOrDefault("Dictionary", typedClass = true)
                 return godotDictClass.parameterizedBy(typeKeys, typeValues)
             }

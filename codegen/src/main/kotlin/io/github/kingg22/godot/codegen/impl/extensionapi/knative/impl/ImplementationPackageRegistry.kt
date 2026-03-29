@@ -38,6 +38,7 @@ class ImplementationPackageRegistry(packageStr: String, interfaceModel: GDExtens
         put("GDExtensionPtrConstructor", ffiPackage)
         put("GDExtensionPtrDestructor", ffiPackage)
         put("GDExtensionVariantFromTypeConstructorFunc", ffiPackage)
+        put("GDExtensionPtrBuiltInMethod", ffiPackage)
     }
 
     override fun packageFor(godotName: String): String? = typeToPackage[godotName]

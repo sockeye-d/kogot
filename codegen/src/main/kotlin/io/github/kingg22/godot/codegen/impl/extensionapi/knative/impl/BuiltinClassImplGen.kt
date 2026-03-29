@@ -86,7 +86,11 @@ private fun variantTypeConst(godotName: String): String = when (godotName) {
  * their `meta` hint (e.g. `meta:"int32"` → `Int`, `meta:"float"` → `Float`) before deciding
  * which `*Var` stack allocation to emit inside a `memScoped` block.
  */
-class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeResolver: TypeResolver) {
+class BuiltinClassImplGen(
+    private val delegate: BodyGenerator,
+    private val typeResolver: TypeResolver,
+    private val methodImplGen: BuiltinMethodImplGen,
+) {
     private lateinit var implPackageRegistry: ImplementationPackageRegistry
 
     fun todoBody() = delegate.todoBody()
@@ -94,6 +98,7 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
 
     fun initialize(implementationPackageRegistry: ImplementationPackageRegistry) {
         implPackageRegistry = implementationPackageRegistry
+        methodImplGen.initialize(implementationPackageRegistry)
     }
 
     // ── Storage infrastructure ────────────────────────────────────────────────
@@ -344,6 +349,11 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
                         .build(),
                 )
             }
+
+            // ── Method fptrs ──────────────────────────────────────────────────
+            builtinClass.raw.methods.forEach { method ->
+                add(methodImplGen.buildMethodFptrProperty(method, variantType, builtinClass.name))
+            }
         }
     }
 
@@ -422,6 +432,10 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
 
         return setter.build()
     }
+
+    context(context: Context)
+    fun buildMethodBody(method: BuiltinClass.BuiltinMethod, className: String): CodeBlock =
+        methodImplGen.buildMethodBody(method, className)
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
@@ -577,7 +591,7 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
      * (e.g., "float", "int32")
      */
     context(_: Context)
-    fun buildMemberGetter(memberName: String, meta: String, memberType: TypeName): FunSpec? {
+    fun buildMemberGetter(memberName: String, meta: String, memberType: TypeName): FunSpec {
         val (funName, storageType) = metaToStorageInfo(meta, "get")
             ?: return buildMemberGetterViaOffset(memberName, meta, memberType)
         val offsetConst = "OFFSET_${memberName.uppercase()}"
@@ -587,7 +601,8 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
                 if (storageType == memberType) {
                     addStatement("return %M(storage, %L)", memFun, offsetConst)
                 } else {
-                    val conv = storageToPropertyConv(storageType, memberType) ?: return null
+                    val conv = storageToPropertyConv(storageType, memberType)
+                        ?: error("Unsupported type to convert in getter: $storageType")
                     addStatement("return %M(storage, %L)%L", memFun, offsetConst, conv)
                 }
             }.build()
@@ -598,7 +613,7 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
      * Returns null for compound members.
      */
     context(_: Context)
-    fun buildMemberSetter(memberName: String, meta: String, memberType: TypeName): FunSpec? {
+    fun buildMemberSetter(memberName: String, meta: String, memberType: TypeName): FunSpec {
         val (funName, storageType) = metaToStorageInfo(meta, "set")
             ?: return buildMemberSetterViaOffset(memberName, meta, memberType)
         val offsetConst = "OFFSET_${memberName.uppercase()}"
@@ -609,7 +624,8 @@ class BuiltinClassImplGen(private val delegate: BodyGenerator, private val typeR
                 if (storageType == memberType) {
                     addStatement("%M(storage, %L, value)", memFun, offsetConst)
                 } else {
-                    val conv = propertyToStorageConv(memberType, storageType) ?: return null
+                    val conv = propertyToStorageConv(memberType, storageType)
+                        ?: error("Unsupported type to convert in setter: $memberType")
                     addStatement("%M(storage, %L, value%L)", memFun, offsetConst, conv)
                 }
             }.build()

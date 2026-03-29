@@ -85,7 +85,7 @@ fun storageToPropertyConv(storage: TypeName, property: TypeName): String? = when
 }
 
 /** Narrowing conversion from API property type to physical storage type (setter path). */
-fun propertyToStorageConv(property: TypeName, storage: TypeName): String? = storageToPropertyConv(property, storage)
+fun propertyToStorageConv(property: TypeName, storage: TypeName) = storageToPropertyConv(property, storage)
 
 /** Maps a Kotlin primitive TypeName to its CVar equivalent for stack allocation, or null for builtin classes. */
 fun primitiveKotlinToCVar(type: TypeName): TypeName? = when (type) {
@@ -112,3 +112,5 @@ inline fun buildLazyBlock(body: CodeBlock.Builder.() -> Unit): CodeBlock {
         .endControlFlow()
         .build()
 }
+
+fun CodeBlock.Companion.ofStatement(format: String, vararg args: Any?) = builder().addStatement(format, *args).build()

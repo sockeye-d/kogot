@@ -169,16 +169,10 @@ class NativeBuiltinClassGenerator(
             if (memberMeta != null) {
                 // Has direct storage offset → fast path
                 val getter = body.buildMemberGetter(member.name, memberMeta, memberType)
-                propBuilder.getter(getter ?: body.todoGetter())
+                propBuilder.getter(getter)
 
                 val setter = body.buildMemberSetter(member.name, memberMeta, memberType)
-                propBuilder.setter(
-                    setter ?: FunSpec
-                        .setterBuilder()
-                        .addParameter("value", memberType)
-                        .addCode(body.todoBody())
-                        .build(),
-                )
+                propBuilder.setter(setter)
             } else {
                 // No storage offset → fptr path (utility/computed member)
                 propBuilder.getter(body.buildMemberGetterViaFptr(member.name, memberType))
@@ -272,7 +266,7 @@ class NativeBuiltinClassGenerator(
 
         // Static methods
         val staticMethodSpecs = staticMethods.map { method ->
-            methodGen.buildMethod(method, builtinClass.name)
+            methodGen.buildMethod(method, builtinClass.name, codeBody = body.buildMethodBody(method, builtinClass.name))
         }
         companionBuilder.addFunctions(staticMethodSpecs)
 
@@ -302,7 +296,7 @@ class NativeBuiltinClassGenerator(
     ): FunSpec {
         // Si no hay config genérica, usar generador normal
         if (genericConfig == null) {
-            return methodGen.buildMethod(method, className)
+            return methodGen.buildMethod(method, className, codeBody = body.buildMethodBody(method, className))
         }
 
         // Resolver tipo de retorno original
@@ -312,7 +306,7 @@ class NativeBuiltinClassGenerator(
         val transformedReturnType = genericConfig.transformReturnType(method, originalReturnType)
 
         // Construir método con tipo transformado
-        return methodGen.buildMethod(method, className) {
+        return methodGen.buildMethod(method, className, codeBody = body.buildMethodBody(method, className)) {
             if (transformedReturnType != null && transformedReturnType != originalReturnType) {
                 returns(transformedReturnType)
             }
