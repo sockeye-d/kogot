@@ -1,7 +1,6 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl
 
 import com.squareup.kotlinpoet.*
-import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
@@ -94,7 +93,6 @@ class BuiltinClassImplGen(
     private lateinit var implPackageRegistry: ImplementationPackageRegistry
 
     fun todoBody() = delegate.todoBody()
-    fun todoGetter() = delegate.todoGetter()
 
     fun initialize(implementationPackageRegistry: ImplementationPackageRegistry) {
         implPackageRegistry = implementationPackageRegistry
@@ -583,8 +581,7 @@ class BuiltinClassImplGen(
 
     /**
      * Generates a getter for a builtin member if the [meta] resolves to a primitive
-     * that `StructMemory.kt` can handle. Returns null for compound members (e.g., meta="Vector2"),
-     * which callers should fall back to [todoGetter].
+     * that `StructMemory.kt` can handle.
      *
      * @param memberName the Godot member name (e.g., "x", "r", "position")
      * @param meta the meta type from [io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedBuiltinLayout.memberMeta]

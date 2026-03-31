@@ -93,7 +93,7 @@ class EngineClassImplGen {
         when {
             cls.isSingleton -> configureSingleton(cls, classBuilder, className, companionBuilder)
             isRoot -> configureRoot(classBuilder)
-            else -> configureDerived(classBuilder)
+            else -> configureDerived(classBuilder, cls)
         }
     }
 
@@ -223,21 +223,19 @@ class EngineClassImplGen {
      * protected constructor(nativePtr: COpaquePointer) : super(nativePtr)
      * ```
      */
-    private fun configureDerived(classBuilder: TypeSpec.Builder) {
+    private fun configureDerived(classBuilder: TypeSpec.Builder, cls: ResolvedEngineClass) {
         // Visibility is already on classBuilder via addModifiers in buildBaseClass;
         // mirror it on the constructor: abstract → protected, open → internal.
         // We inspect the already-added modifiers to stay consistent.
-        val isAbstract = classBuilder.modifiers.contains(KModifier.ABSTRACT)
         val nativePtrParam = nativePtrParam()
 
         classBuilder.primaryConstructor(
             FunSpec
                 .constructorBuilder()
-                .apply { if (isAbstract) addModifiers(KModifier.PROTECTED) }
+                .apply { if (!cls.isInstantiable) addModifiers(KModifier.INTERNAL) }
                 .addParameter(nativePtrParam)
                 .build(),
-        )
-        classBuilder.addSuperclassConstructorParameter("%N", nativePtrParam)
+        ).addSuperclassConstructorParameter("%N", nativePtrParam)
         // KotlinPoet will emit `: super(nativePtr)` because buildBaseClass calls
         // builder.superclass(...) and addSuperclassConstructorParameter("nativePtr").
     }
