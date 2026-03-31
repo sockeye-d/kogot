@@ -1,16 +1,7 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl
 
-import com.squareup.kotlinpoet.BOOLEAN
-import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.CodeBlock
-import com.squareup.kotlinpoet.FunSpec
-import com.squareup.kotlinpoet.KModifier
-import com.squareup.kotlinpoet.LONG
-import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import com.squareup.kotlinpoet.PropertySpec
-import com.squareup.kotlinpoet.TypeSpec
-import com.squareup.kotlinpoet.withIndent
 import io.github.kingg22.godot.codegen.impl.K_AUTOCLOSEABLE
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
@@ -95,7 +86,7 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
      *
      * Also caches the Variant size for use in [buildNilSubclass] and [buildSubclassConstructorBody].
      */
-    context(_: Context)
+    context(ctx: Context)
     fun configureVariantClass(classBuilder: TypeSpec.Builder) {
         val storageProp = PropertySpec
             .builder("storage", C_POINTER.parameterizedBy(BYTE_VAR), KModifier.PRIVATE)
@@ -128,13 +119,15 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
             .initializer("false")
             .build()
 
-        classBuilder.addProperty(closedProp)
-        classBuilder.addProperty(
-            PropertySpec
-                .builder("rawPtr", COPAQUE_POINTER)
-                .getter(FunSpec.getterBuilder().addStatement("return %N", storageProp).build())
-                .build(),
-        )
+        classBuilder
+            .addProperty(closedProp)
+            .addSuperinterface(ctx.classNameForOrDefault("GodotNative"))
+            .addProperty(
+                PropertySpec
+                    .builder("rawPtr", COPAQUE_POINTER, KModifier.OVERRIDE)
+                    .getter(FunSpec.getterBuilder().addStatement("return %N", storageProp).build())
+                    .build(),
+            )
 
         classBuilder.addSuperinterface(K_AUTOCLOSEABLE)
 

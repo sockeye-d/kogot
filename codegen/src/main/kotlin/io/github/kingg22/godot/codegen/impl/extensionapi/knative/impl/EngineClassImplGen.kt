@@ -187,6 +187,7 @@ class EngineClassImplGen {
      * internal val nativePtr: COpaquePointer
      * ```
      */
+    context(ctx: Context)
     private fun configureRoot(classBuilder: TypeSpec.Builder) {
         classBuilder.primaryConstructor(
             FunSpec
@@ -194,7 +195,8 @@ class EngineClassImplGen {
                 .addParameter(nativePtrParam("rawPtr"))
                 .build(),
         )
-        classBuilder.addProperty(nativePtrProp())
+            .addSuperinterface(ctx.classNameForOrDefault("GodotNative"))
+            .addProperty(nativePtrProp())
     }
 
     // ── Derived (has inherits) ────────────────────────────────────────────────
@@ -250,7 +252,7 @@ class EngineClassImplGen {
      * Only emitted on the root class (no `inherits`).
      */
     private fun nativePtrProp(): PropertySpec = PropertySpec
-        .builder("rawPtr", COPAQUE_POINTER)
+        .builder("rawPtr", COPAQUE_POINTER, KModifier.OVERRIDE)
         .initializer("rawPtr")
         .build()
 }
