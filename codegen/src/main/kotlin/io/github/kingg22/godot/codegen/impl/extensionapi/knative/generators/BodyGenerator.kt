@@ -5,11 +5,15 @@ import com.squareup.kotlinpoet.FunSpec
 import io.github.kingg22.godot.codegen.impl.K_TODO
 
 /** Responsible solely for generating function/property bodies. */
-class BodyGenerator {
-    fun todoBody(): CodeBlock = CodeBlock.of("%M()", K_TODO)
+object BodyGenerator {
+    fun todoBody(message: String? = null): CodeBlock = if (message != null) {
+        CodeBlock.of("%M(%S)", K_TODO, message)
+    } else {
+        CodeBlock.of("%M()", K_TODO)
+    }
 
-    fun todoGetter(): FunSpec = FunSpec
+    fun todoGetter(message: String? = null): FunSpec = FunSpec
         .getterBuilder()
-        .addCode(todoBody())
+        .addCode(todoBody(message))
         .build()
 }
