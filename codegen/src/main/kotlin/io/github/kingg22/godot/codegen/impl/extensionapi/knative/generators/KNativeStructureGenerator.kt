@@ -6,23 +6,25 @@ import io.github.kingg22.godot.codegen.impl.K_SUPPRESS
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
-import io.github.kingg22.godot.codegen.impl.extensionapi.knative.*
-import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.ImplementationPackageRegistry
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.BYTE_VAR
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.COPAQUE_POINTER
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.C_POINTER
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.C_STRUCT_VAR
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.C_STRUCT_VAR_TYPE
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.INTERPRET_C_POINTER
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.KNativeImplGen
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.KNativeImplGen.FieldKind
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.resolver.NativeStructureParser.NativeStructureField
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.impl.sanitizeTypeName
 import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedNativeStructure
 
-class KNativeStructureGenerator(private val typeResolver: TypeResolver, private val body: BodyGenerator) {
-    private lateinit var implPackageRegistry: ImplementationPackageRegistry
+private val primitiveKotlinTypes = setOf(BOOLEAN, BYTE, U_BYTE, SHORT, U_SHORT, INT, U_INT, LONG, U_LONG, FLOAT, DOUBLE)
 
+class KNativeStructureGenerator(private val typeResolver: TypeResolver, private val bodyImpl: KNativeImplGen) {
     private data class FieldLayout(val name: String, val offset: Int, val size: Int, val align: Int)
     private data class StructLayout(val size: Int, val align: Int, val fields: List<FieldLayout>)
-
-    fun initialize(implementationPackageRegistry: ImplementationPackageRegistry) {
-        this.implPackageRegistry = implementationPackageRegistry
-    }
 
     context(context: Context)
     fun generateFile(ns: ResolvedNativeStructure): FileSpec? {
@@ -59,7 +61,7 @@ class KNativeStructureGenerator(private val typeResolver: TypeResolver, private 
             .classBuilder(className)
             .experimentalApiAnnotation(ns.name)
             .addKdoc(
-                "Native structure wrapper\n\n⚠️ This structure contains references to generated API types.",
+                "Native structure wrapper\n\nThis structure contains references to generated API types.",
             )
             .primaryConstructor(
                 FunSpec
@@ -74,7 +76,8 @@ class KNativeStructureGenerator(private val typeResolver: TypeResolver, private 
                 PropertySpec
                     .builder("storage", C_POINTER.parameterizedBy(BYTE_VAR), KModifier.PRIVATE)
                     .getter(
-                        FunSpec.getterBuilder()
+                        FunSpec
+                            .getterBuilder()
                             .addStatement(
                                 "return %M(rawPtr) ?: error(%S)",
                                 INTERPRET_C_POINTER,
@@ -85,55 +88,50 @@ class KNativeStructureGenerator(private val typeResolver: TypeResolver, private 
                     .build(),
             )
             .addProperties(
-                // Generar properties con TODO() como antes
                 fields.map { field ->
                     val type = typeResolver.resolve(field.type)
                     val resolvedType = if (field.arraySize != null) {
-                        context
-                            .classNameForOrDefault("Array", "GodotArray", typedClass = true)
-                            .parameterizedBy(type)
+                        context.classNameForOrDefault("Array", typedClass = true).parameterizedBy(type)
                     } else {
                         type
                     }
                     val fieldLayout = layout.fields.first { it.name == field.name }
+
+                    val kind = classifyField(field, resolvedType, fieldLayout.size)
+
+                    // ── signatures (property type visible to users) ───────────
+                    val publicType = fieldPublicType(kind, resolvedType)
+
+                    // ── bodies ────────────────────────────────────────────────
+                    val getter = bodyImpl.generateOffsetGetter(kind, publicType, fieldLayout.offset)
+                    val setter = bodyImpl.generateOffsetSetter(kind, publicType, fieldLayout.offset)
+
                     val kotlinName = safeIdentifier(field.name)
-                    val isImplemented =
-                        field.arraySize == null && isLayoutImplementablePrimitiveOrPointer(field.type, resolvedType)
-
-                    val getter = if (isImplemented) {
-                        generateOffsetGetter(field, resolvedType, fieldLayout.offset)
-                    } else {
-                        body.todoGetter()
-                    }
-
-                    val setter = if (isImplemented) {
-                        generateOffsetSetter(field, resolvedType, fieldLayout.offset)
-                    } else {
-                        FunSpec
-                            .setterBuilder()
-                            .addParameter("value", resolvedType)
-                            .addCode(body.todoBody())
-                            .build()
-                    }
 
                     PropertySpec
-                        .builder(kotlinName, resolvedType)
+                        .builder(kotlinName, publicType)
                         .mutable(true)
                         .getter(getter)
                         .setter(setter)
                         .apply {
-                            addKdoc("Original name: `%S`", field.name)
+                            if (kotlinName != field.name) addKdoc("Original name: `%S`", field.name)
+
                             if (field.arraySize != null) {
                                 addKdoc("\n\nArray size: %L, type: `%T`", field.arraySize, type)
                             } else {
                                 addKdoc("\n\nOriginal type: `%S`", field.type)
                             }
+
                             addKdoc(
                                 "\n\nLayout: offset=%L, size=%L, align=%L",
                                 fieldLayout.offset,
                                 fieldLayout.size,
                                 fieldLayout.align,
                             )
+
+                            if (field.defaultValue != null) {
+                                addKdoc("\n\nDefault value: `%L`", field.defaultValue)
+                            }
                         }
                         .build()
                 },
@@ -159,23 +157,23 @@ class KNativeStructureGenerator(private val typeResolver: TypeResolver, private 
     private fun canGenerateAsCStructVar(fields: List<NativeStructureField>): Boolean = fields.all { field ->
         val type = field.type.removePrefix("const ").trim().removeSuffix("*").trim()
 
+        fun isPrimitiveCType(type: String): Boolean = type.lowercase() in setOf(
+            "int8_t", "uint8_t", "int16_t", "uint16_t",
+            "int32_t", "uint32_t", "int64_t", "uint64_t",
+            "float", "double", "bool",
+            "char", "short", "int", "long",
+            "size_t", "intptr_t", "uintptr_t",
+        )
+
+        fun isOpaquePointer(type: String): Boolean = type == "void" ||
+            (type.startsWith("GDExtension") && type.endsWith("Ptr")) ||
+            type.endsWith("*")
+
         // Solo permitir primitivos, punteros opacos y tipos nativos conocidos
         isPrimitiveCType(type) ||
             isOpaquePointer(type) ||
             isKnownNativeType(type)
     }
-
-    private fun isPrimitiveCType(type: String): Boolean = type.lowercase() in setOf(
-        "int8_t", "uint8_t", "int16_t", "uint16_t",
-        "int32_t", "uint32_t", "int64_t", "uint64_t",
-        "float", "double", "bool",
-        "char", "short", "int", "long",
-        "size_t", "intptr_t", "uintptr_t",
-    )
-
-    private fun isOpaquePointer(type: String): Boolean = type == "void" ||
-        (type.startsWith("GDExtension") && type.endsWith("Ptr")) ||
-        type.endsWith("*")
 
     context(context: Context)
     private fun isKnownNativeType(type: String): Boolean {
@@ -184,6 +182,39 @@ class KNativeStructureGenerator(private val typeResolver: TypeResolver, private 
         return context.nativeStructureTypes.contains(type) ||
             context.extensionInterface?.types?.any { it.name == type } == true ||
             context.extensionInterface?.interfaces?.any { it.name == type || it.legacyTypeName == type } == true
+    }
+
+    context(context: Context)
+    private fun classifyField(field: NativeStructureField, resolvedType: TypeName, fieldSizeBytes: Int): FieldKind {
+        val clean = field.type.removePrefix("const ").trim()
+
+        // Raw pointer
+        if (clean.endsWith("*")) return FieldKind.OpaquePointer
+
+        // Enum / bitfield — check prefix on the raw type string
+        if (clean.startsWith("enum::")) {
+            return FieldKind.GodotEnumKind(resolvedType)
+        }
+
+        if (clean.startsWith("bitfield::")) {
+            check(resolvedType is ParameterizedTypeName) {
+                "Bitfield type must be parameterized of EnumMask: $resolvedType"
+            }
+            return FieldKind.BitfieldKind(innerType = resolvedType.rawType, maskType = resolvedType)
+        }
+
+        // Scalar C primitives
+        if (resolvedType in primitiveKotlinTypes) return FieldKind.Primitive(resolvedType)
+
+        // Godot builtin class — has a known layout size in extension_api.json
+        if (context.isBuiltin(clean) || field.arraySize != null) {
+            return FieldKind.Builtin(kotlinType = resolvedType, sizeBytes = fieldSizeBytes)
+        }
+
+        if (isKnownNativeType(clean)) return FieldKind.NativeStruct(resolvedType, fieldSizeBytes)
+
+        println("WARNING: Unknown native struct field type '$clean' in ${field.name}")
+        return FieldKind.Unimplemented
     }
 
     private fun calculateStructLayout(
@@ -273,75 +304,18 @@ class KNativeStructureGenerator(private val typeResolver: TypeResolver, private 
         return StructLayout(size = size, align = structAlign, fields = out)
     }
 
-    private fun isLayoutImplementablePrimitiveOrPointer(rawType: String, kotlinType: TypeName): Boolean {
-        val clean = rawType.removePrefix("const ").trim()
-        if (clean.endsWith("*")) return kotlinType == COPAQUE_POINTER
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Signatures — public property type visible to callers
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-        return when (clean) {
-            "bool", "char",
-            "int8_t", "uint8_t",
-            "int16_t", "uint16_t",
-            "int32_t", "uint32_t",
-            "int", "float",
-            "int64_t", "uint64_t",
-            "double", "real_t",
-            "ObjectID",
-            -> kotlinType in setOf(BOOLEAN, BYTE, U_BYTE, SHORT, U_SHORT, INT, U_INT, LONG, U_LONG, FLOAT, DOUBLE)
-
-            else -> kotlinType in setOf(BOOLEAN, BYTE, U_BYTE, SHORT, U_SHORT, INT, U_INT, LONG, U_LONG, FLOAT, DOUBLE)
-        }
-    }
-
-    private fun generateOffsetGetter(field: NativeStructureField, resolvedType: TypeName, offsetBytes: Int): FunSpec {
-        val clean = field.type.removePrefix("const ").trim()
-        val funName = when {
-            clean.endsWith("*") || resolvedType == COPAQUE_POINTER -> "getPointer"
-            resolvedType == BOOLEAN -> "getBoolean"
-            resolvedType == BYTE -> "getByte"
-            resolvedType == U_BYTE -> "getUByte"
-            resolvedType == SHORT -> "getShort"
-            resolvedType == U_SHORT -> "getUShort"
-            resolvedType == INT -> "getInt"
-            resolvedType == U_INT -> "getUInt"
-            resolvedType == LONG -> "getLong"
-            resolvedType == U_LONG -> "getULong"
-            resolvedType == FLOAT -> "getFloat"
-            resolvedType == DOUBLE -> "getDouble"
-            else -> null
-        } ?: return body.todoGetter()
-
-        return FunSpec
-            .getterBuilder()
-            .addStatement("return %M(storage, %L)", MemberName(implPackageRegistry.rootPackage, funName), offsetBytes)
-            .build()
-    }
-
-    private fun generateOffsetSetter(field: NativeStructureField, resolvedType: TypeName, offsetBytes: Int): FunSpec {
-        val clean = field.type.removePrefix("const ").trim()
-        val funName = when {
-            clean.endsWith("*") || resolvedType == COPAQUE_POINTER -> "setPointer"
-            resolvedType == BOOLEAN -> "setBoolean"
-            resolvedType == BYTE -> "setByte"
-            resolvedType == U_BYTE -> "setUByte"
-            resolvedType == SHORT -> "setShort"
-            resolvedType == U_SHORT -> "setUShort"
-            resolvedType == INT -> "setInt"
-            resolvedType == U_INT -> "setUInt"
-            resolvedType == LONG -> "setLong"
-            resolvedType == U_LONG -> "setULong"
-            resolvedType == FLOAT -> "setFloat"
-            resolvedType == DOUBLE -> "setDouble"
-            else -> null
-        } ?: return FunSpec
-            .setterBuilder()
-            .addParameter("value", resolvedType)
-            .addCode(body.todoBody())
-            .build()
-
-        return FunSpec
-            .setterBuilder()
-            .addParameter("value", resolvedType)
-            .addStatement("%M(storage, %L, value)", MemberName(implPackageRegistry.rootPackage, funName), offsetBytes)
-            .build()
+    /** Returns the Kotlin [TypeName] that should appear in the property declaration. */
+    private fun fieldPublicType(kind: FieldKind, fallback: TypeName): TypeName = when (kind) {
+        is FieldKind.Primitive -> kind.kotlinType
+        is FieldKind.OpaquePointer -> COPAQUE_POINTER
+        is FieldKind.Builtin -> kind.kotlinType
+        is FieldKind.NativeStruct -> kind.kotlinType
+        is FieldKind.GodotEnumKind -> kind.kotlinType
+        is FieldKind.BitfieldKind -> kind.maskType
+        FieldKind.Unimplemented -> fallback
     }
 }
