@@ -9,6 +9,7 @@ import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.buildCodeBlock
 import com.squareup.kotlinpoet.joinToCode
 import com.squareup.kotlinpoet.withIndent
+import io.github.kingg22.godot.codegen.impl.K_REQUIRE_NOT_NULL
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.COPAQUE_POINTER
@@ -374,8 +375,9 @@ class EngineMethodImplGen(private val typeResolver: TypeResolver) {
                 } else {
                     val retClass = ctx.classNameForOrDefault(returnType.renameGodotClass())
                     addStatement(
-                        "%T(requireNotNull(retPtr.%M) { %S })",
+                        "%T(%M(retPtr.%M)·{·%S·})",
                         retClass,
+                        K_REQUIRE_NOT_NULL,
                         cinteropValue,
                         "$returnType pointer value was null",
                     )

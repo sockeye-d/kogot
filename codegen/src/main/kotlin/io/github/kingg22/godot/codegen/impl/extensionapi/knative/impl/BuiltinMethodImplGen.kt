@@ -1,9 +1,21 @@
 package io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl
 
-import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.buildCodeBlock
 import com.squareup.kotlinpoet.joinToCode
+import com.squareup.kotlinpoet.withIndent
+import io.github.kingg22.godot.codegen.impl.K_REQUIRE_NOT_NULL
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
-import io.github.kingg22.godot.codegen.impl.extensionapi.knative.*
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.C_OPAQUE_POINTER_VAR
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.DOUBLE_VAR
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.LONG_VAR
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropAlloc
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropInvoke
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropPtr
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropValue
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.memScoped
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.models.extensionapi.BuiltinClass
@@ -68,9 +80,6 @@ class BuiltinMethodImplGen {
     context(context: Context)
     fun buildMethodBody(method: BuiltinClass.BuiltinMethod, className: String): CodeBlock {
         val propName = methodFptrName(className, method)
-        if ((className == "Callable" || className == "Signal") && (method.name == "get_object")) {
-            return CodeBlock.of("return TODO(%S)", "Object return type is not yet supported")
-        }
         if ((className == "Dictionary" && method.name == "has") || (className == "Array" && method.name == "set") || (
                 className == "Dictionary" && (
                     method.name == "erase" ||
@@ -80,7 +89,7 @@ class BuiltinMethodImplGen {
                     )
                 )
         ) {
-            return CodeBlock.of("return TODO(%S)", "Generic types are not yet supported for this method")
+            return CodeBlock.of("return TODO(%S)", "Generic types are not yet supported for $className.${method.name}")
         }
         return buildFixedArgsBody(method, propName)
     }
@@ -255,8 +264,11 @@ class BuiltinMethodImplGen {
         ctx.isBuiltin(returnType) -> CodeBlock.ofStatement("retPtr")
 
         ctx.findEngineClass(returnType) != null -> CodeBlock.ofStatement(
-            "retPtr.value?.let { %T(it) }",
+            "%T(%M(retPtr.%M)·{·%S·})",
             ctx.classNameForOrDefault(returnType.renameGodotClass()),
+            K_REQUIRE_NOT_NULL,
+            cinteropValue,
+            "Return pointer value of $returnType was null",
         )
 
         else -> CodeBlock.ofStatement("retPtr")
