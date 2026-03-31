@@ -141,9 +141,8 @@ class NativeMethodGenerator(
         withExceptionContext({
             "Generating parameter '${arg.name}': ${arg.type} (${arg.meta})} = ${arg.defaultValue ?: "--"}"
         }) {
-            val isNullable = arg.type != "Variant" && arg.defaultValue?.equals("null") ?: false
             val rawType = typeResolver.resolve(arg)
-            val type = if (isNullable) rawType.copy(nullable = true) else rawType
+            val type = if (arg.isNullable) rawType.copy(nullable = true) else rawType
             val kotlinName = safeIdentifier(arg.name)
             val paramBuilder = ParameterSpec.builder(kotlinName, type)
 

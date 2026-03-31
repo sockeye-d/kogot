@@ -10,4 +10,6 @@ data class MethodArg(
     override val meta: String? = null,
     @SerialName("default_value") val defaultValue: String? = null,
 ) : TypeMetaHolder,
-    Named
+    Named {
+    val isNullable: Boolean get() = type != "Variant" && defaultValue == "null"
+}
