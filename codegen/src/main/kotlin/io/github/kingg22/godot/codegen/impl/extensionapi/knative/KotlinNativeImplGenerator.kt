@@ -8,6 +8,7 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.knative.generators.*
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.BuiltinClassImplGen
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.BuiltinMethodImplGen
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.EngineClassImplGen
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.EngineMethodImplGen
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.ImplementationPackageRegistry
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.UtilityFunctionImplGen
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.VariantImplGen
@@ -16,7 +17,7 @@ import io.github.kingg22.godot.codegen.models.extensionapi.ExtensionApi
 /** Generates Kotlin Native implementation bodies (cinterop / GDExtension bindings). */
 class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeImplGenerator.ImplGenerator {
     private lateinit var implPackageRegistry: ImplementationPackageRegistry
-    private val bodyGenerator = BodyGenerator()
+    private val bodyGenerator = BodyGenerator
     private val builtinClassImplGen = BuiltinClassImplGen(bodyGenerator, typeResolver, BuiltinMethodImplGen())
     private val defaultValue = DefaultValueGenerator(typeResolver)
     private val methodGenerator = NativeMethodGenerator(typeResolver, bodyGenerator, defaultValue)
@@ -33,8 +34,14 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
         typeAliasGen,
     )
     private val engineClassImplGen = EngineClassImplGen()
-    private val engineClass =
-        NativeEngineClassGenerator(typeResolver, bodyGenerator, methodGenerator, enumGen, engineClassImplGen)
+    private val engineMethodImplGen = EngineMethodImplGen(typeResolver)
+    private val engineClass = NativeEngineClassGenerator(
+        typeResolver,
+        engineMethodImplGen,
+        methodGenerator,
+        enumGen,
+        engineClassImplGen,
+    )
     private val variantImplGen = VariantImplGen(typeResolver)
     private val variant = NativeVariantGenerator(typeResolver, enumGen, variantImplGen)
     private val nativeStructure = KNativeStructureGenerator(typeResolver, bodyGenerator)
@@ -54,6 +61,7 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
         variantImplGen.initialize(implPackageRegistry)
         nativeStructure.initialize(implPackageRegistry)
         engineClassImplGen.initialize(implPackageRegistry)
+        engineMethodImplGen.initialize(implPackageRegistry)
 
         val builtinClassesPaths = context.model.builtins.asSequence().mapNotNull {
             builtinClass.generateFile(it)

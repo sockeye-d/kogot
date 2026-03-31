@@ -14,6 +14,11 @@ class ImplementationPackageRegistry(packageStr: String, interfaceModel: GDExtens
     } else {
         "$packageStr.api.builtin.internal"
     }
+    private val apiInternalPackage = if (packageStr.endsWith(".api")) {
+        "$packageStr.internal"
+    } else {
+        "$packageStr.api.internal"
+    }
     private val ffiPackage = if (packageStr.endsWith(".api")) {
         "${packageStr.removeSuffix(".api")}.internal.ffi"
     } else {
@@ -39,6 +44,8 @@ class ImplementationPackageRegistry(packageStr: String, interfaceModel: GDExtens
         put("GDExtensionPtrDestructor", ffiPackage)
         put("GDExtensionVariantFromTypeConstructorFunc", ffiPackage)
         put("GDExtensionPtrBuiltInMethod", ffiPackage)
+        put("GDExtensionMethodBindPtr", ffiPackage)
+        put("checkGodotError", apiInternalPackage)
     }
 
     override fun packageFor(godotName: String): String? = typeToPackage[godotName]

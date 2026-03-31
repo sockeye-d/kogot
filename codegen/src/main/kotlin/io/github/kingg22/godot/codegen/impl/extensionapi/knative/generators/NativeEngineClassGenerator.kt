@@ -14,6 +14,7 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.PRIMITIVE_NUMERIC_TYPES
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.EngineClassImplGen
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.EngineMethodImplGen
 import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.impl.withExceptionContext
@@ -22,7 +23,7 @@ import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedEngine
 
 class NativeEngineClassGenerator(
     private val typeResolver: TypeResolver,
-    private val body: BodyGenerator,
+    private val body: EngineMethodImplGen,
     private val methodGen: NativeMethodGenerator,
     private val enumGenerator: NativeEnumGenerator,
     private val engineClassImplGen: EngineClassImplGen,
@@ -32,7 +33,9 @@ class NativeEngineClassGenerator(
     fun generateFile(cls: ResolvedEngineClass): FileSpec {
         val packageName = context.packageForOrDefault(cls.name)
         val spec = generateSpec(cls)
-        return createFile(spec, spec.name!!, packageName)
+        return createFile(spec, spec.name!!, packageName) {
+            addProperties(body.buildTopLevelFptrProperties(cls))
+        }
     }
 
     context(context: Context)
@@ -53,12 +56,25 @@ class NativeEngineClassGenerator(
             val (staticMethods, instanceMethods) = raw.methods.partition { it.isStatic }
 
             // Sintetizar properties desde métodos getter/setter
-            val standaloneMethods = generateProperties(raw, instanceMethods, classBuilder)
+            val standaloneMethods = generateProperties(cls, instanceMethods, classBuilder)
 
             // Métodos standalone (no forman parte de una property)
-            standaloneMethods.forEach {
-                val modifiers = Array(if (it.isVirtual) 1 else 0) { KModifier.OPEN }
-                classBuilder.addFunction(methodGen.buildMethod(it, cls.name, *modifiers))
+            standaloneMethods.forEach { method ->
+                val methodSpec = methodGen.buildMethod(
+                    method = method,
+                    className = cls.name,
+                    codeBody = body.buildMethodBody(method, cls.name),
+                ) {
+                    if (method.isVirtual) addModifiers(KModifier.OPEN)
+
+                    if ((method.name == "get" && method.arguments.size == 1) ||
+                        (method.name == "set" && method.arguments.size == 2)
+                    ) {
+                        addModifiers(KModifier.OPERATOR)
+                    }
+                }
+
+                classBuilder.addFunction(methodSpec)
             }
 
             raw.constants.forEach { constant ->
@@ -74,8 +90,10 @@ class NativeEngineClassGenerator(
                 }
             }
 
-            staticMethods.forEach {
-                companionBuilder.addFunction(methodGen.buildMethod(it, cls.name))
+            staticMethods.forEach { method ->
+                companionBuilder.addFunction(
+                    methodGen.buildMethod(method, cls.name, codeBody = body.buildMethodBody(method, cls.name)),
+                )
             }
 
             if (isSingleton || raw.constants.isNotEmpty() || staticMethods.isNotEmpty()) {
@@ -104,17 +122,17 @@ class NativeEngineClassGenerator(
      *
      * @return Set de nombres de métodos no usados
      */
-    context(context: Context)
+    context(_: Context)
     private fun generateProperties(
-        cls: EngineClass,
+        cls: ResolvedEngineClass,
         methods: List<EngineClass.ClassMethod>,
         classBuilder: TypeSpec.Builder,
     ): List<EngineClass.ClassMethod> {
         val usedMethodNames = mutableSetOf<String>()
 
-        cls.properties.forEach { property ->
+        cls.raw.properties.forEach { property ->
             withExceptionContext({ "Error generating property '${property.name}'" }) {
-                val propertySpec = synthesizeProperty(property, methods, cls.name)
+                val propertySpec = synthesizeProperty(property, methods, cls)
                 classBuilder.addProperty(propertySpec)
 
                 // Marcar getter/setter como usados solo si son properties standalone (sin delegación a methods)
@@ -132,28 +150,57 @@ class NativeEngineClassGenerator(
     private fun synthesizeProperty(
         property: EngineClass.ClassProperty,
         methods: List<EngineClass.ClassMethod>,
-        className: String,
+        engineClass: ResolvedEngineClass,
     ): PropertySpec {
+        val className = engineClass.name
         val safeName = safeIdentifier(property.name)
 
         // Buscar el método getter para obtener el tipo exacto
         val setterMethod = property.setter?.let { setter ->
             methods.find { it.name == setter }
+                ?: engineClass.methods.find { it.name == setter }?.takeUnless { it.isStatic }
+                    ?.let { return generateDelegatedProperty(property) }
         }
 
         val getterMethod = methods.find { it.name == property.getter }
+            ?: engineClass.methods.find { it.name == property.getter }?.takeUnless { it.isStatic }
+                ?.let { return generateDelegatedProperty(property) }
 
         // Fallback generation when missing the method
         if (getterMethod == null || (property.setter != null && setterMethod == null)) {
             // FIXME: enable with logger.debug/verbose
-            // println("INFO: Fallback generation for property $className.${property.name}")
-            return generateProperty(property, className, getterMethod, setterMethod)
+            println(
+                buildString {
+                    append("WARNING: Fallback generation for property ")
+                    append(className)
+                    append(".")
+                    append(property.name)
+                    append(", ")
+
+                    append("getter (expected: ")
+                    append(property.getter)
+                    append("): ")
+                    append(getterMethod?.name)
+
+                    if (property.setter != null) {
+                        append(", setter (expected: ")
+                        append(property.setter)
+                        append("): ")
+                        append(setterMethod?.name)
+                    }
+                },
+            )
+            return generateProperty(property, engineClass, getterMethod, setterMethod)
         }
 
-        val returnValue = getterMethod.returnValue ?: error("Getter '${property.getter}' has no return type")
-
         // TypeResolver maneja el trato especial de type + meta
-        val propertyType = typeResolver.resolve(returnValue)
+        val propertyType = if (getterMethod.returnValue != null) {
+            typeResolver.resolve(getterMethod.returnValue)
+        } else if (setterMethod != null && setterMethod.arguments.isNotEmpty()) {
+            typeResolver.resolve(setterMethod.arguments.last())
+        } else {
+            typeResolver.resolve(property.type)
+        }
 
         val propBuilder = PropertySpec
             .builder(safeName, propertyType)
@@ -166,7 +213,7 @@ class NativeEngineClassGenerator(
         }
 
         if (property.type.contains(",")) {
-            val (includedTypes, excludedTypes) = parsePropertyTypes(property.type)
+            val (includedTypes, excludedTypes) = PropertyTypes(property.type)
             propBuilder.addKdoc("\n\nAccepts: %L", includedTypes.joinToString())
             if (excludedTypes.isNotEmpty()) {
                 propBuilder.addKdoc("\n\nExcludes: %L", excludedTypes.joinToString())
@@ -188,33 +235,42 @@ class NativeEngineClassGenerator(
                     .build(),
             )
         } else {
-            propBuilder.getter(body.todoGetter())
+            propBuilder.getter(
+                FunSpec
+                    .getterBuilder()
+                    .addCode(body.buildPropertyGetterBody(getterMethod, engineClass))
+                    .build(),
+            )
         }
 
         // Setter
-        if (property.setter != null) {
-            if (property.index != null && setterMethod != null) {
-                val enumConstant = resolveIndexedPropertyConstant(
-                    method = setterMethod,
-                    indexValue = property.index,
-                )
+        if (property.setter == null || setterMethod == null) return propBuilder.build()
 
-                propBuilder.setter(
-                    FunSpec
-                        .setterBuilder()
-                        .addParameter("value", propertyType)
-                        .addStatement("%N(%L, value)", safeIdentifier(property.setter), enumConstant)
-                        .build(),
-                )
-            } else {
-                propBuilder.setter(
-                    FunSpec
-                        .setterBuilder()
-                        .addParameter("value", propertyType)
-                        .addCode(body.todoBody())
-                        .build(),
-                )
+        if (property.index != null) {
+            val enumConstant = resolveIndexedPropertyConstant(
+                method = setterMethod,
+                indexValue = property.index,
+            )
+
+            propBuilder.setter(
+                FunSpec
+                    .setterBuilder()
+                    .addParameter("value", propertyType)
+                    .addStatement("%N(%L, value)", safeIdentifier(property.setter), enumConstant)
+                    .build(),
+            )
+        } else {
+            check(setterMethod.arguments.size == 1) {
+                "Property setter must have exactly one argument, got ${setterMethod.arguments.size} on $className.${property.name}"
             }
+
+            propBuilder.setter(
+                FunSpec
+                    .setterBuilder()
+                    .addParameter(safeIdentifier(setterMethod.arguments.first().name), propertyType)
+                    .addCode(body.buildPropertySetterBody(setterMethod, engineClass))
+                    .build(),
+            )
         }
 
         return propBuilder.build()
@@ -265,14 +321,17 @@ class NativeEngineClassGenerator(
     context(_: Context)
     private fun generateProperty(
         property: EngineClass.ClassProperty,
-        className: String,
+        engineClass: ResolvedEngineClass,
         getter: EngineClass.ClassMethod?,
         setter: EngineClass.ClassMethod?,
     ): PropertySpec {
         if (property.type.contains(',')) error("Multi-type properties are not supported by generate property yet")
+        val className = engineClass.name
 
-        val memberType = if (getter != null && getter.returnValue != null) {
+        val propertyType = if (getter != null && getter.returnValue != null) {
             typeResolver.resolve(getter.returnValue)
+        } else if (setter != null && setter.arguments.isNotEmpty()) {
+            typeResolver.resolve(setter.arguments.last())
         } else {
             typeResolver.resolve(property.type)
         }
@@ -280,7 +339,7 @@ class NativeEngineClassGenerator(
         val kotlinName = safeIdentifier(property.name)
 
         val propBuilder = PropertySpec
-            .builder(kotlinName, memberType)
+            .builder(kotlinName, propertyType)
             .mutable(property.setter != null)
             .experimentalApiAnnotation(className, property.name)
             .addKdocIfPresent(property)
@@ -289,25 +348,81 @@ class NativeEngineClassGenerator(
             propBuilder.addKdoc("\n\nOriginal name: `%S`", property.name)
         }
 
-        propBuilder.getter(
-            FunSpec
-                .getterBuilder()
-                .addCode(body.todoBody())
-                .build(),
-        )
+        // Getter
+        if (property.index != null && getter != null) {
+            // Buscar el tipo del parámetro del getter para saber qué enum usar
+            val enumConstant = resolveIndexedPropertyConstant(
+                method = getter,
+                indexValue = property.index,
+            )
 
-        if (property.setter != null) {
-            val memberType = if (setter != null && setter.arguments.size == 1) {
-                typeResolver.resolve(setter.arguments.first().type)
-            } else {
-                memberType
-            }
+            propBuilder.getter(
+                FunSpec
+                    .getterBuilder()
+                    .addStatement("return %N(%L)", safeIdentifier(property.getter), enumConstant)
+                    .build(),
+            )
+        } else {
+            propBuilder.getter(
+                FunSpec
+                    .getterBuilder()
+                    .addCode(
+                        getter?.let {
+                            body.buildPropertyGetterBody(
+                                getter,
+                                engineClass,
+                            )
+                        } ?: BodyGenerator.todoBody(
+                            "Unknown getter method for property $className.${property.name}, method: ${property.getter}",
+                        ),
+                    )
+                    .build(),
+            )
+        }
+
+        if (property.setter == null) return propBuilder.build()
+
+        if (setter == null) {
+            propBuilder.setter(
+                FunSpec
+                    .setterBuilder()
+                    .addParameter("value", propertyType)
+                    .addCode(
+                        BodyGenerator.todoBody(
+                            "Unknown setter method for property $className.${property.name}, method: ${property.setter}",
+                        ),
+                    )
+                    .build(),
+            )
+            return propBuilder.build()
+        }
+
+        if (property.index != null) {
+            val enumConstant = resolveIndexedPropertyConstant(
+                method = setter,
+                indexValue = property.index,
+            )
 
             propBuilder.setter(
                 FunSpec
                     .setterBuilder()
-                    .addParameter("value", memberType)
-                    .addCode(body.todoBody())
+                    .addParameter("value", propertyType)
+                    .addStatement("%N(%L, value)", safeIdentifier(property.setter), enumConstant)
+                    .build(),
+            )
+        } else {
+            check(setter.arguments.size == 1) {
+                "Property setter must have exactly one argument, got ${setter.arguments.size} on $className.${property.name}"
+            }
+
+            val setterArg = setter.arguments.first()
+            val setterType = typeResolver.resolve(setterArg.type)
+
+            propBuilder.setter(
+                FunSpec
+                    .setterBuilder()
+                    .addParameter(safeIdentifier(setterArg.name), setterType)
+                    .addCode(body.buildPropertySetterBody(setter, engineClass))
                     .build(),
             )
         }
@@ -315,14 +430,56 @@ class NativeEngineClassGenerator(
         return propBuilder.build()
     }
 
-    private data class PropertyTypes(val includedTypes: List<String>, val excludedTypes: List<String>)
+    // Change to data class when Flexible constructor is available https://youtrack.jetbrains.com/issue/KT-81919
+    private class PropertyTypes {
+        val includedTypes: List<String>
+        val excludedTypes: List<String>
 
-    private fun parsePropertyTypes(multiType: String): PropertyTypes {
-        val parts = multiType.split(",").map { it.trim() }
-        return PropertyTypes(
-            includedTypes = parts.filter { !it.startsWith("-") },
-            excludedTypes = parts.filter { it.startsWith("-") }.map { it.removePrefix("-") },
+        constructor(multiType: String) {
+            val parts = multiType.split(",").map { it.trim() }
+
+            includedTypes = parts.filter { !it.startsWith("-") }
+            excludedTypes = parts.filter { it.startsWith("-") }.map { it.removePrefix("-") }
+        }
+
+        operator fun component1() = includedTypes
+        operator fun component2() = excludedTypes
+    }
+
+    /**
+     * Genera una propiedad que delega su implementación a la clase padre.
+     * Útil cuando la propiedad está definida en el JSON, pero los métodos getter/setter
+     * pertenecen a una clase base y no están disponibles como FPtrs locales.
+     */
+    context(_: Context)
+    private fun generateDelegatedProperty(property: EngineClass.ClassProperty): PropertySpec {
+        val safeName = safeIdentifier(property.name)
+        val propertyType = typeResolver.resolve(property.type)
+        val isMutable = property.setter != null
+
+        val propBuilder = PropertySpec
+            .builder(safeName, propertyType)
+            // .addModifiers(KModifier.OVERRIDE) // Marcamos como override ya que existe en el padre
+            .mutable(isMutable)
+
+        propBuilder.getter(
+            FunSpec
+                .getterBuilder()
+                .addStatement("return super.%N", safeName)
+                .build(),
         )
+
+        if (isMutable) {
+            propBuilder.setter(
+                FunSpec
+                    .setterBuilder()
+                    .addParameter("value", propertyType)
+                    .addStatement("super.%N = value", safeName)
+                    .build(),
+            )
+        }
+
+        return propBuilder.build()
     }
 
     context(_: Context)

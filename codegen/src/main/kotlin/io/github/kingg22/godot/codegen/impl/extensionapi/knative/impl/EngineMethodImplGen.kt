@@ -1,0 +1,393 @@
+package io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl
+
+import com.squareup.kotlinpoet.BOOLEAN
+import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.TypeName
+import com.squareup.kotlinpoet.buildCodeBlock
+import com.squareup.kotlinpoet.joinToCode
+import com.squareup.kotlinpoet.withIndent
+import io.github.kingg22.godot.codegen.impl.extensionapi.Context
+import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.COPAQUE_POINTER
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.C_OPAQUE_POINTER_VAR
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.LONG_VAR
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropAlloc
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropPtr
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropValue
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.memScoped
+import io.github.kingg22.godot.codegen.impl.renameGodotClass
+import io.github.kingg22.godot.codegen.impl.safeIdentifier
+import io.github.kingg22.godot.codegen.models.extensionapi.EngineClass
+import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
+import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedEngineClass
+
+/**
+ * Generates lazy-loaded method bind properties and ptrcall bodies for engine class methods/properties.
+ *
+ * ## Calling convention
+ *
+ * Engine methods use `GDExtensionMethodBindPtr` retrieved via
+ * `ClassDBBinding.instance.getMethodBindRaw(className, methodName, hash)`.
+ * Invocation: `ObjectBinding.instance.methodBindPtrcallRaw(bind, p_object, p_args, r_ret)`.
+ *
+ * ## Type resolution
+ *
+ * Always delegate to [typeResolver] — it carries full meta-aware logic. Never dispatch on
+ * raw type strings for CVar selection; use [primitiveKotlinToCVar] on the resolved [TypeName].
+ *
+ * Examples:
+ * - `type=int, meta=uint64` → resolver returns `ULong` → `ULongVar` (no `.toLong()`)
+ * - `type=int, meta=int32`  → resolver returns `Int`   → `IntVar`
+ * - `type=float` (no meta)  → resolver returns `Double`→ `DoubleVar`
+ * - `type=float, meta=float`→ resolver returns `Float` → `FloatVar`
+ *
+ * ## Vararg methods
+ *
+ * Fixed args are collected together with the trailing `vararg args: Variant` into a single
+ * list, mapped to `.rawPtr`, and passed via `methodBindCall` (varcall path), because
+ * ptrcall is only safe for statically-known arg counts.
+ *
+ * ## Enum return values
+ *
+ * When the resolved return type is an enum, `retPtr` is a `LongVar` and the read emits
+ * `godotEnumFrom<TheEnum>(retPtr.value)`.
+ *
+ * ## Abstract / non-instantiable return types
+ *
+ * Cannot do `AbstractClass(ptr)` — emits `TODO()`. Follow-up: Godot runtime-type cast helper.
+ *
+ * ## Nullable vs non-null engine class return
+ *
+ * `COpaquePointerVar.value` is nullable. For non-null declared returns we emit
+ * `requireNotNull(retPtr.value) { "…" }.let { T(it) }`.
+ */
+class EngineMethodImplGen(private val typeResolver: TypeResolver) {
+    private lateinit var implPackageRegistry: ImplementationPackageRegistry
+
+    fun initialize(implRegistry: ImplementationPackageRegistry) {
+        implPackageRegistry = implRegistry
+    }
+
+    // ── Top-level lazy fptr properties ────────────────────────────────────────
+
+    /**
+     * One top-level `private val` lazy property per engine method that has a method bind.
+     *
+     * Virtual methods without a hash have no bind on the Godot side and are skipped.
+     */
+    context(ctx: Context)
+    fun buildTopLevelFptrProperties(cls: ResolvedEngineClass): List<PropertySpec> {
+        val classDBBinding = implPackageRegistry.classNameForOrDefault("ClassDBBinding")
+        val stringNameClass = ctx.classNameForOrDefault("StringName")
+        return cls.raw.methods
+            .filter { !it.isVirtual }
+            .map { buildMethodBindProperty(it, cls.name, classDBBinding, stringNameClass) }
+    }
+
+    private fun buildMethodBindProperty(
+        method: EngineClass.ClassMethod,
+        className: String,
+        classDBBinding: ClassName,
+        stringNameClass: ClassName,
+    ): PropertySpec {
+        val bindType = implPackageRegistry.classNameForOrDefault("GDExtensionMethodBindPtr")
+        val body = buildLazyBlock {
+            beginControlFlow("%T(%S).use { cn ->", stringNameClass, className)
+                .beginControlFlow("%T(%S).use { mn ->", stringNameClass, method.name)
+                .addStatement(
+                    "%T.instance.getMethodBindRaw(cn.rawPtr, mn.rawPtr, %LL)",
+                    classDBBinding,
+                    method.hash,
+                )
+                .withIndent {
+                    addStatement("?: error(%S)", "Missing method bind '$className.${method.name}' hash:${method.hash}")
+                }
+                .endControlFlow()
+            endControlFlow()
+        }
+        return PropertySpec
+            .builder(methodBindName(className, method), bindType, KModifier.PRIVATE)
+            .delegate(body)
+            .build()
+    }
+
+    // ── Method bodies ─────────────────────────────────────────────────────────
+
+    context(ctx: Context)
+    fun buildMethodBody(method: EngineClass.ClassMethod, className: String): CodeBlock {
+        if (method.isVirtual) {
+            return CodeBlock.of("TODO(%S)", "Virtual method — override in your GDExtension class")
+        }
+        return buildPtrcallBody(method, className)
+    }
+
+    // ── Property bodies ───────────────────────────────────────────────────────
+
+    context(ctx: Context)
+    fun buildPropertyGetterBody(getter: EngineClass.ClassMethod, cls: ResolvedEngineClass): CodeBlock =
+        buildPtrcallBody(getter, cls.name)
+
+    context(ctx: Context)
+    fun buildPropertySetterBody(setter: EngineClass.ClassMethod, cls: ResolvedEngineClass): CodeBlock =
+        buildPtrcallBody(setter, cls.name, true)
+
+    // ── ptrcall body ───────────────────────────────────────────────
+
+    context(ctx: Context)
+    private fun buildPtrcallBody(
+        method: EngineClass.ClassMethod,
+        className: String,
+        setterMode: Boolean = false,
+    ): CodeBlock {
+        val objectBinding = implPackageRegistry.classNameForOrDefault("ObjectBinding")
+        val propName = methodBindName(className, method)
+        val allocConstTypePtrArray = implPackageRegistry.memberNameForOrDefault("allocConstTypePtrArray")
+
+        val rv = method.returnValue
+        val returnType = rv?.type
+        val hasReturn = returnType != null && returnType != "void"
+        val resolvedReturn = if (hasReturn) typeResolver.resolve(rv) else null
+
+        return buildCodeBlock {
+            if (hasReturn && !setterMode) add("return ")
+
+            beginControlFlow("%M", memScoped)
+
+            // 1. Return buffer
+            if (hasReturn && resolvedReturn != null) add(buildReturnAlloc(returnType, resolvedReturn))
+
+            // 2. Arg allocs — last arg uses name "value" in setter mode
+            method.arguments.forEach { arg ->
+                val resolved = typeResolver.resolve(arg)
+                add(buildArgAlloc(arg, resolved))
+            }
+
+            // 3. p_object
+            val pObject = if (method.isStatic) "null" else "rawPtr"
+
+            // 4. Invocation
+            val argPtrs = method.arguments.map { arg ->
+                val resolved = typeResolver.resolve(arg)
+                argPointerExpression(arg, resolved)
+            } + buildList {
+                if (method.isVararg) {
+                    this.add(CodeBlock.ofStatement("*args.map·{·it.rawPtr·}.toTypedArray(),"))
+                }
+            }
+
+            addStatement("%T.instance.methodBindPtrcallRaw(", objectBinding)
+            withIndent {
+                addStatement("%N,", propName)
+                addStatement("%L,", pObject)
+                if (argPtrs.isEmpty()) {
+                    addStatement("null,")
+                } else {
+                    addStatement("%M(", allocConstTypePtrArray)
+                    withIndent { add(argPtrs.joinToCode("")) }
+                    addStatement("),")
+                }
+                if (hasReturn && resolvedReturn != null) {
+                    val rRet = rRetLiteral(returnType, resolvedReturn)
+                    if (rRet == "retPtr.ptr") {
+                        addStatement("retPtr.%M,", cinteropPtr)
+                    } else {
+                        addStatement("%L,", rRet)
+                    }
+                } else {
+                    addStatement("null,")
+                }
+            }
+            addStatement(")")
+
+            // 5. Return read
+            if (hasReturn && resolvedReturn != null) {
+                if (setterMode) {
+                    val contextInfo = "$className.${method.name}"
+
+                    when (resolvedReturn) {
+                        // Caso especial: GodotError
+                        ctx.classNameForOrDefault("GodotError") -> {
+                            addStatement("%M(", implPackageRegistry.memberNameForOrDefault("checkGodotError"))
+                            withIndent {
+                                addStatement("%S,", contextInfo)
+                                // Aquí insertamos la lectura del retorno como segundo argumento
+                                add(buildReturnRead(returnType, resolvedReturn))
+                            }
+                            addStatement(")")
+                        }
+
+                        // Caso especial: Boolean check
+                        BOOLEAN -> {
+                            beginControlFlow("check(%L)", buildReturnRead(returnType, resolvedReturn))
+                            addStatement("%S", "$contextInfo doesn't return true")
+                            endControlFlow()
+                        }
+
+                        // Fallback para otros tipos en setterMode (si aplica)
+                        else -> {
+                            add(buildReturnRead(returnType, resolvedReturn))
+                        }
+                    }
+                } else {
+                    // No es setterMode: Solo emitimos la lectura normal del retorno
+                    add(buildReturnRead(returnType, resolvedReturn))
+                }
+            }
+
+            endControlFlow()
+        }
+    }
+
+    // ── Arg marshalling ───────────────────────────────────────────────────────
+
+    private fun buildArgAlloc(arg: MethodArg, resolvedType: TypeName): CodeBlock {
+        val name = safeIdentifier(arg.name)
+        val varName = "${name}Var"
+        val cVarType = primitiveKotlinToCVar(resolvedType)
+        return buildCodeBlock {
+            when {
+                resolvedType == BOOLEAN -> addStatement(
+                    "val %N = %M(%N)",
+                    varName,
+                    implPackageRegistry.memberNameForOrDefault("allocGdBool"),
+                    name,
+                )
+
+                cVarType != null -> {
+                    addStatement("val %N = %M<%T>()", varName, cinteropAlloc, cVarType)
+                    addStatement("%N.%M = %N", varName, cinteropValue, name)
+                }
+
+                arg.type.startsWith("enum::") || arg.type.startsWith("bitfield::") -> {
+                    addStatement("val %N = %M<%T>()", varName, cinteropAlloc, LONG_VAR)
+                    addStatement("%N.%M = %N.value", varName, cinteropValue, name)
+                }
+                // Builtin / engine class → rawPtr, no alloc
+            }
+        }
+    }
+
+    context(ctx: Context)
+    private fun argPointerExpression(arg: MethodArg, resolvedType: TypeName): CodeBlock {
+        val name = safeIdentifier(arg.name)
+        val varName = "${name}Var"
+        return when {
+            resolvedType == BOOLEAN -> CodeBlock.ofStatement("%L,", varName)
+
+            resolvedType == COPAQUE_POINTER ||
+                resolvedType == ctx.classNameForOrDefault("GDExtensionInitializationFunction")
+            -> CodeBlock.ofStatement("%N,", name)
+
+            // allocGdBool returns CArrayPointer directly
+
+            primitiveKotlinToCVar(resolvedType) != null -> CodeBlock.ofStatement("%N.%M,", varName, cinteropPtr)
+
+            arg.type.startsWith("enum::") || arg.type.startsWith("bitfield::") ->
+                CodeBlock.ofStatement("%N.%M,", varName, cinteropPtr)
+
+            else -> CodeBlock.ofStatement("%N${if (arg.isNullable) "?" else ""}.rawPtr,", name)
+        }
+    }
+
+    // ── Return marshalling ────────────────────────────────────────────────────
+
+    context(ctx: Context)
+    private fun buildReturnAlloc(returnType: String, resolvedReturn: TypeName): CodeBlock {
+        val cVarType = primitiveKotlinToCVar(resolvedReturn)
+        return when {
+            resolvedReturn == BOOLEAN -> CodeBlock.ofStatement(
+                "val retPtr = %M()",
+                implPackageRegistry.memberNameForOrDefault("allocGdBool"),
+            )
+
+            cVarType != null -> CodeBlock.ofStatement("val retPtr = %M<%T>()", cinteropAlloc, cVarType)
+
+            returnType.startsWith("enum::") || returnType.startsWith("bitfield::") ->
+                CodeBlock.ofStatement("val retPtr = %M<%T>()", cinteropAlloc, LONG_VAR)
+
+            ctx.isBuiltin(returnType) -> CodeBlock.ofStatement("val retPtr = %T()", resolvedReturn)
+
+            ctx.findEngineClass(returnType) != null -> CodeBlock.ofStatement(
+                "val retPtr = %M<%T>()",
+                cinteropAlloc,
+                C_OPAQUE_POINTER_VAR,
+            )
+
+            else -> {
+                // FIXME: enable with logger.debug/verbose
+                // println("WARNING: Unknown return type '$returnType' (resolved: $resolvedReturn)")
+                CodeBlock.ofStatement("val retPtr = %T()", resolvedReturn)
+            }
+        }
+    }
+
+    /**
+     * Returns the r_ret expression string for the inline (single-line) invocation case.
+     *
+     * Callers that need the `.ptr` suffix must emit `retPtr.%M` with [cinteropPtr] as the
+     * MemberName — so this returns the sentinel string `"retPtr.ptr"` for that case, which
+     * the caller detects and handles.
+     */
+    context(ctx: Context)
+    private fun rRetLiteral(returnType: String, resolvedReturn: TypeName): String {
+        val cVarType = primitiveKotlinToCVar(resolvedReturn)
+        return when {
+            resolvedReturn == BOOLEAN -> "retPtr"
+            cVarType != null -> "retPtr.ptr"
+            returnType.startsWith("enum::") || returnType.startsWith("bitfield::") -> "retPtr.ptr"
+            ctx.isBuiltin(returnType) -> "retPtr.rawPtr"
+            ctx.findEngineClass(returnType) != null -> "retPtr.ptr"
+            else -> "null"
+        }
+    }
+
+    context(ctx: Context)
+    private fun buildReturnRead(returnType: String, resolvedReturn: TypeName): CodeBlock = buildCodeBlock {
+        val cVarType = primitiveKotlinToCVar(resolvedReturn)
+        when {
+            resolvedReturn == BOOLEAN -> addStatement(
+                "retPtr.%M()",
+                implPackageRegistry.memberNameForOrDefault("readGdBool"),
+            )
+
+            // Primitive numeric: CVar.value already has the exact Kotlin type from the resolver
+            cVarType != null -> addStatement("retPtr.%M", cinteropValue)
+
+            returnType.startsWith("enum::") -> {
+                val godotEnum = ctx.classNameForOrDefault("GodotEnum", "GodotEnum")
+                addStatement("%T.fromValue<%T>(retPtr.%M)", godotEnum, resolvedReturn, cinteropValue)
+            }
+
+            returnType.startsWith("bitfield::") -> {
+                addStatement("%T(retPtr.%M)", resolvedReturn, cinteropValue)
+            }
+
+            ctx.isBuiltin(returnType) -> addStatement("retPtr")
+
+            ctx.findResolvedEngineClass(returnType) != null -> {
+                val engineCls = ctx.findResolvedEngineClass(returnType)!!
+                if (!engineCls.isInstantiable) {
+                    addStatement("TODO(%S)", "Return type '$returnType' is abstract — cast via Godot type system")
+                } else {
+                    val retClass = ctx.classNameForOrDefault(returnType.renameGodotClass())
+                    addStatement(
+                        "%T(requireNotNull(retPtr.%M) { %S })",
+                        retClass,
+                        cinteropValue,
+                        "$returnType pointer value was null",
+                    )
+                }
+            }
+
+            else -> addStatement("retPtr")
+        }
+    }
+
+    // ── Naming ────────────────────────────────────────────────────────────────
+
+    fun methodBindName(className: String, method: EngineClass.ClassMethod): String = "method$className" +
+        safeIdentifier(method.name).replaceFirstChar(Char::uppercase) + "_Bind"
+}
