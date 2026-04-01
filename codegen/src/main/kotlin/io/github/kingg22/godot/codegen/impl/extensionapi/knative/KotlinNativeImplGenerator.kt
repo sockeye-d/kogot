@@ -9,6 +9,7 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.BuiltinCla
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.BuiltinMethodImplGen
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.EngineClassImplGen
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.EngineMethodImplGen
+import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.EnginePropertyImplGen
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.ImplementationPackageRegistry
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.KNativeImplGen
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.UtilityFunctionImplGen
@@ -39,6 +40,7 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
     private val engineClass = NativeEngineClassGenerator(
         typeResolver,
         engineMethodImplGen,
+        EnginePropertyImplGen(typeResolver, engineMethodImplGen),
         methodGenerator,
         enumGen,
         engineClassImplGen,
