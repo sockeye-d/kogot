@@ -19,7 +19,6 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropAlloc
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropPtr
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.cinteropValue
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.memScoped
-import io.github.kingg22.godot.codegen.impl.renameGodotClass
 import io.github.kingg22.godot.codegen.impl.safeIdentifier
 import io.github.kingg22.godot.codegen.models.extensionapi.EngineClass
 import io.github.kingg22.godot.codegen.models.extensionapi.MethodArg
@@ -120,7 +119,16 @@ class EngineMethodImplGen(private val typeResolver: TypeResolver) {
     context(ctx: Context)
     fun buildMethodBody(method: EngineClass.ClassMethod, className: String): CodeBlock {
         if (method.isVirtual) {
-            return CodeBlock.of("TODO(%S)", "Virtual method — override in your GDExtension class")
+            val returnType = method.returnValue?.type
+            val hasReturn = returnType != null && returnType != "void"
+            return if (hasReturn) {
+                CodeBlock.of(
+                    "TODO(%P)",
+                    $$"Virtual method `$${method.name}` requires override in your class: ${this::class.simpleName} to works",
+                )
+            } else {
+                CodeBlock.of("")
+            }
         }
         return buildPtrcallBody(method, className)
     }
@@ -222,9 +230,9 @@ class EngineMethodImplGen(private val typeResolver: TypeResolver) {
 
                         // Caso especial: Boolean check
                         BOOLEAN -> {
-                            beginControlFlow("check(%L)", buildReturnRead(returnType, resolvedReturn))
-                            addStatement("%S", "$contextInfo doesn't return true")
-                            endControlFlow()
+                            addStatement("check(")
+                            withIndent { add(buildReturnRead(returnType, resolvedReturn)) }
+                            addStatement(")·{♢%S♢}", "$contextInfo doesn't return true")
                         }
 
                         // Fallback para otros tipos en setterMode (si aplica)
@@ -234,6 +242,7 @@ class EngineMethodImplGen(private val typeResolver: TypeResolver) {
                     }
                 } else {
                     // No es setterMode: Solo emitimos la lectura normal del retorno
+                    add("return ")
                     add(buildReturnRead(returnType, resolvedReturn))
                 }
             }
@@ -369,19 +378,17 @@ class EngineMethodImplGen(private val typeResolver: TypeResolver) {
             ctx.isBuiltin(returnType) -> addStatement("retPtr")
 
             ctx.findResolvedEngineClass(returnType) != null -> {
-                val engineCls = ctx.findResolvedEngineClass(returnType)!!
-                if (!engineCls.isInstantiable) {
-                    addStatement("TODO(%S)", "Return type '$returnType' is abstract — cast via Godot type system")
-                } else {
-                    val retClass = ctx.classNameForOrDefault(returnType.renameGodotClass())
+                addStatement("%T(", resolvedReturn)
+                withIndent {
                     addStatement(
-                        "%T(%M(retPtr.%M)·{·%S·})",
-                        retClass,
+                        "%M(retPtr.%M) {",
                         K_REQUIRE_NOT_NULL,
                         cinteropValue,
-                        "$returnType pointer value was null",
                     )
+                    withIndent { addStatement("%S", "$returnType pointer value was null") }
+                    addStatement("},")
                 }
+                addStatement(")")
             }
 
             else -> addStatement("retPtr")
