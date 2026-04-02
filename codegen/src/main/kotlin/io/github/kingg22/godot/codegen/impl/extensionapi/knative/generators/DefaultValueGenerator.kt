@@ -94,10 +94,8 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
         value.equals("nan", ignoreCase = true) -> parseNaNConstant(godotType, kotlinType)
 
         // nil → Variant.NIL (object singleton)
-        godotType == "Variant" && (value == "nil" || value == "null") -> {
-            val variantClass = context.classNameForOrDefault("Variant")
-            CodeBlock.of("%T.NIL()", variantClass)
-        }
+        godotType == "Variant" && (value == "nil" || value == "null") ->
+            CodeBlock.of("%T()", context.classNameForOrDefault("Variant"))
 
         // Boolean
         value == "true" || value == "false" -> CodeBlock.of(value)
@@ -254,15 +252,7 @@ class DefaultValueGenerator(private val typeResolver: TypeResolver) {
 
         val hasDecimal = value.contains('.') || value.contains('e', ignoreCase = true)
 
-        return if (hasDecimal) {
-            // Variant.FLOAT(value)
-            val floatSubclass = ClassName(variantClass.packageName, variantClass.simpleName, "FLOAT")
-            CodeBlock.of("%T(%L)", floatSubclass, value.toDouble())
-        } else {
-            // Variant.INT(value)
-            val intSubclass = ClassName(variantClass.packageName, variantClass.simpleName, "INT")
-            CodeBlock.of("%T(%LL)", intSubclass, value.toLong())
-        }
+        return CodeBlock.of("%T(%L)", variantClass, if (hasDecimal) value.toDouble() else value.toLong())
     }
 
     // Numeric Literals (primitivos puros)
