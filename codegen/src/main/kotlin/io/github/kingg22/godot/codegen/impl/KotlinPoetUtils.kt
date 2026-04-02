@@ -16,6 +16,7 @@ val K_AUTOCLOSEABLE = ClassName("kotlin", "AutoCloseable")
 val K_TODO = MemberName("kotlin", "TODO")
 val K_OPT_IN = ClassName("kotlin", "OptIn")
 val K_REQUIRE_NOT_NULL = MemberName("kotlin", "requireNotNull")
+val K_CHECK_NOT_NULL = MemberName("kotlin", "checkNotNull")
 
 internal inline fun <T> withExceptionContext(metadata: () -> String, block: () -> T): T = try {
     block()
