@@ -3,8 +3,10 @@ package io.github.kingg22.godot.api.builtin.internal
 import io.github.kingg22.godot.api.builtin.Variant
 import io.github.kingg22.godot.internal.ffi.GDExtensionVariantOperator
 import io.github.kingg22.godot.internal.ffi.GDExtensionVariantType
+import org.jetbrains.annotations.ApiStatus
 
-internal fun Variant.Operator.toGDExtensionVariantOperator(): GDExtensionVariantOperator = when (this) {
+@ApiStatus.Internal
+public fun Variant.Operator.toGDExtensionVariantOperator(): GDExtensionVariantOperator = when (this) {
     EQUAL -> GDEXTENSION_VARIANT_OP_EQUAL
     NOT_EQUAL -> GDEXTENSION_VARIANT_OP_NOT_EQUAL
     LESS -> GDEXTENSION_VARIANT_OP_LESS
@@ -33,7 +35,8 @@ internal fun Variant.Operator.toGDExtensionVariantOperator(): GDExtensionVariant
     MAX -> GDEXTENSION_VARIANT_OP_MAX
 }
 
-internal fun Variant.Type.toGDExtensionVariantType(): GDExtensionVariantType = when (this) {
+@ApiStatus.Internal
+public fun Variant.Type.toGDExtensionVariantType(): GDExtensionVariantType = when (this) {
     NIL -> GDEXTENSION_VARIANT_TYPE_NIL
     BOOL -> GDEXTENSION_VARIANT_TYPE_BOOL
     INT -> GDEXTENSION_VARIANT_TYPE_INT
