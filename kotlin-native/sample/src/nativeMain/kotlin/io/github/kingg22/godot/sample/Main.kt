@@ -71,9 +71,10 @@ private fun testGodotPrinting() {
             editorNotify = true,
         )
         val result = GD.pingpong(-3.0, 3.0)
-        GD.print("Result of ping pong utility: $result.".asVariantString(), Variant.NIL())
+        GD.prints("Result of ping pong utility: $result".asVariantString(), Variant())
         println("Finished printing to Godot, the ping pong utility returned $result")
         println("Finished testing builtin layouts, passed: ${testBuiltinLayouts()}")
+        GD.print("Variant empty is nil? ${Variant().isNil()}".asVariantString())
     } catch (e: Throwable) {
         println("Exception captured: ${e.message}")
         e.printStackTrace()
