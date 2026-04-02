@@ -39,28 +39,29 @@ val createInstanceFunc: CPointer<CFunction<(COpaquePointer?, uint8_t) -> COpaque
         selfPtr
     )
     println("setInstance")
-    ObjectBinding.instance.setInstanceBindingRaw(
-        pO = base,
-        pToken = globalLibrary,
-        pBinding = selfPtr,
-        pCallbacks = memScoped {
-            println("Making callbacks")
-            cValue<GDExtensionInstanceBindingCallbacks> {
+    memScoped {
+        ObjectBinding.instance.setInstanceBindingRaw(
+            pO = base,
+            pToken = globalLibrary,
+            pBinding = selfPtr,
+            pCallbacks = cValue<GDExtensionInstanceBindingCallbacks> {
+                println("Making callbacks")
                 println("Making callbacks, inside")
                 create_callback = null
                 free_callback = null
                 reference_callback = null
             }.ptr
-        }
-    )
+        )
+    }
     println("setInstanceBinding")
-    selfPtr
+    base
 }
 
-val freeInstanceFunc: CPointer<CFunction<(CPointer<out CPointed>?, CPointer<out CPointed>?) -> Unit>> = staticCFunction { _, ptr ->
-    println("Freeing $ptr")
-    objectStorage.remove(ptr)?.dispose()
-}
+val freeInstanceFunc: CPointer<CFunction<(CPointer<out CPointed>?, CPointer<out CPointed>?) -> Unit>> =
+    staticCFunction { _, ptr ->
+        println("Freeing $ptr")
+        objectStorage.remove(ptr)?.dispose()
+    }
 
 @Suppress("unused") // Invoked by Godot
 @CName("godot_kotlin_init")
