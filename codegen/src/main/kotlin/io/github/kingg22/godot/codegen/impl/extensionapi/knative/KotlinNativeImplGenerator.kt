@@ -46,7 +46,7 @@ class KotlinNativeImplGenerator(override val typeResolver: TypeResolver) : CodeI
         engineClassImplGen,
     )
     private val variantImplGen = VariantImplGen(typeResolver)
-    private val variant = NativeVariantGenerator(typeResolver, enumGen, variantImplGen)
+    private val variant = NativeVariantGenerator(enumGen, variantImplGen)
     private val nativeStructureBodyImpl = KNativeImplGen(bodyGenerator)
     private val nativeStructure = KNativeStructureGenerator(typeResolver, nativeStructureBodyImpl)
     private val utilFuncImplGen = UtilityFunctionImplGen()

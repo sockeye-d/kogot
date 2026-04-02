@@ -43,6 +43,7 @@ class ImplementationPackageRegistry(packageStr: String, interfaceModel: GDExtens
         put("GDExtensionPtrConstructor", ffiPackage)
         put("GDExtensionPtrDestructor", ffiPackage)
         put("GDExtensionVariantFromTypeConstructorFunc", ffiPackage)
+        put("GDExtensionTypeFromVariantConstructorFunc", ffiPackage)
         put("GDExtensionPtrBuiltInMethod", ffiPackage)
         put("GDExtensionMethodBindPtr", ffiPackage)
         put("GDExtensionPtrOperatorEvaluator", ffiPackage)

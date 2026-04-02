@@ -3,6 +3,7 @@ package io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import io.github.kingg22.godot.codegen.impl.K_AUTOCLOSEABLE
+import io.github.kingg22.godot.codegen.impl.K_CHECK_NOT_NULL
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
 import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.*
@@ -11,134 +12,95 @@ import io.github.kingg22.godot.codegen.impl.screamingToPascalCase
 import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedEnum
 
 /**
- * Native implementation generator for the `Variant` sealed class.
+ * Native implementation generator for the `Variant` class.
  *
- * The standard [io.github.kingg22.godot.codegen.impl.extensionapi.knative.generators.NativeVariantGenerator]
- * generates a pure-API sealed class that has no memory
- * backing — just wrapper subclasses holding Kotlin values. This class augments it with a proper
- * GDExtension memory lifecycle, so each `Variant` instance owns a Godot Variant allocation.
+ * Generates a single final class — no subclasses, no inheritance hierarchy.
+ * `Variant` is a plain opaque container that owns a Godot Variant allocation and exposes:
  *
- * ## What gets added to the sealed class
+ * - Conversion constructors (Boolean, Long, Int, Double, GodotString, all builtins, GodotObject)
+ * - All `variant_*` operations from GDExtension as instance methods
+ * - Typed extractors: `asXOrNull()` returning nullable, `asX()` throwing on type mismatch
+ * - Top-level lazy fptr properties for `get_variant_from_type_constructor` and
+ *   `get_variant_to_type_constructor` for every non-NIL/MAX type
+ * - Top-level `asVariant()` extension functions for all concrete types
+ *
+ * ## Memory model
  *
  * ```kotlin
- * public open class Variant() : AutoCloseable {
- *     private val storage: CPointer<ByteVar> = nativeHeap.alloc(size = <size>, align = <align>)
- *         .reinterpret<ByteVar>().ptr
- *
- *     private var closed: Boolean = false
- *
- *     val rawPtr: COpaquePointer
- *         get() = storage
- *
- *     override fun close() {
- *         if (!closed) {
- *             VariantBinding.instance.destroyRaw(rawPtr)
- *             nativeHeap.free(storage.rawValue)
- *             closed = true
- *         }
- *     }
+ * class Variant {
+ *     private val storage: CPointer<ByteVar> =
+ *          nativeHeap.alloc(size = <variantSize>, align = <pointerAlign>)
+ *               .reinterpret<ByteVar>().ptr
  * }
  * ```
  *
- * ## NIL becomes a `class`
- *
- * The base generator produces `NIL` as an `object`, but an `object` cannot hold per-instance
- * native storage. With this generator, `NIL` becomes a regular `class` that allocates a Godot
- * Variant and initialises it via `VariantBinding.instance.newNilRaw(rawPtr)`.
- *
- * ## Subclass constructor bodies
- *
- * Each typed subclass calls `super(allocateBuiltinStorage(variantSize))` and then populates the
- * Godot Variant through the appropriate GDExtension path:
- *
- * | Subclass  | GDExtension path                                                        |
- * |-----------|-------------------------------------------------------------------------|
- * | `NIL`     | `variant_new_nil`                                                       |
- * | `BOOL`    | `variant_from_type_constructor(BOOL, rawPtr, [allocGdBool(value)], 1, null)`        |
- * | `INT`     | `variant_from_type_constructor(INT, rawPtr, [LongVar(value).ptr], 1, null)`         |
- * | `FLOAT`   | `variant_from_type_constructor(FLOAT, rawPtr, [DoubleVar(value).ptr], 1, null)`     |
- * | STRING … PACKED_VECTOR4_ARRAY | `variant_from_type_constructor(TYPE, rawPtr, `value.rawPtr`, 1, null)` |
- *
- * ## Variant size
- *
- * `Variant` is NOT a `BuiltinClass` in the extension API JSON, so
- * `context.findResolvedBuiltinClass("Variant")` returns `null`.
- * The size is read directly from `context.extensionApi.builtinClassSizes`.
+ * The storage is zero-initialised by `nativeHeap.alloc`, so `Variant()` with no arguments
+ * is already a valid NIL variant without any explicit `variant_new_nil` call.
+ * Every other constructor writes into the same storage via the appropriate GDExtension path.
  */
 class VariantImplGen(private val typeResolver: TypeResolver) {
     private lateinit var implPackageRegistry: ImplementationPackageRegistry
 
-    /** Must be called before any generate* method. */
     fun initialize(implRegistry: ImplementationPackageRegistry) {
         implPackageRegistry = implRegistry
     }
 
-    // ── Sealed class augmentation ─────────────────────────────────────────────
+    // ── Class skeleton ────────────────────────────────────────────────────────
 
     /**
-     * Augments [classBuilder] (which already has `SEALED` modifier) with:
-     * - private primary constructor `(storage: CPointer<ByteVar>)`
-     * - `storage` property
-     * - `closed` guard
-     * - `rawPtr` property
-     * - `AutoCloseable` superinterface
-     * - `close()` implementation
-     *
-     * Also caches the Variant size for use in [buildNilSubclass] and [buildSubclassConstructorBody].
+     * Adds storage, rawPtr, closed guard, close(), and copy constructor to [classBuilder].
+     * Also registers [K_AUTOCLOSEABLE] and GodotNative as superinterfaces.
      */
     context(ctx: Context)
     fun configureVariantClass(classBuilder: TypeSpec.Builder) {
+        val variantSize = resolveVariantSize()
+        val variantAlign = resolveVariantAlign()
+        val variantBinding = implPackageRegistry.classNameForOrDefault("VariantBinding")
+
+        // private val storage: CPointer<ByteVar>
         val storageProp = PropertySpec
             .builder("storage", C_POINTER.parameterizedBy(BYTE_VAR), KModifier.PRIVATE)
             .initializer(
                 CodeBlock
                     .builder()
-                    .addStatement(
-                        "%T.alloc(size = %L, align = %L)",
-                        cinteropNativeHeap,
-                        resolveVariantSize(),
-                        resolveVariantAlign(),
-                    )
-                    .indent()
-                    .addStatement(
-                        ".%M<%T>().%M",
-                        cinteropReinterpret,
-                        BYTE_VAR,
-                        cinteropPtr,
-                    )
-                    .unindent()
+                    .addStatement("%T.alloc(size = %L, align = %L)", cinteropNativeHeap, variantSize, variantAlign)
+                    .withIndent {
+                        addStatement(".%M<%T>().%M", cinteropReinterpret, BYTE_VAR, cinteropPtr)
+                    }
                     .build(),
             )
             .build()
-
         classBuilder.addProperty(storageProp)
 
+        // private var closed: Boolean = false
         val closedProp = PropertySpec
             .builder("closed", BOOLEAN, KModifier.PRIVATE)
             .mutable(true)
             .initializer("false")
             .build()
+        classBuilder.addProperty(closedProp)
 
+        // GodotNative + AutoCloseable
         classBuilder
-            .addProperty(closedProp)
             .addSuperinterface(ctx.classNameForOrDefault("GodotNative"))
-            .addProperty(
-                PropertySpec
-                    .builder("rawPtr", COPAQUE_POINTER, KModifier.OVERRIDE)
-                    .getter(FunSpec.getterBuilder().addStatement("return %N", storageProp).build())
-                    .build(),
-            )
+            .addSuperinterface(K_AUTOCLOSEABLE)
 
-        classBuilder.addSuperinterface(K_AUTOCLOSEABLE)
+        // override val rawPtr: COpaquePointer get() = storage
+        classBuilder.addProperty(
+            PropertySpec
+                .builder("rawPtr", COPAQUE_POINTER, KModifier.OVERRIDE)
+                .getter(FunSpec.getterBuilder().addStatement("return %N", storageProp).build())
+                .build(),
+        )
 
-        val variantBinding = implPackageRegistry.classNameForOrDefault("VariantBinding")
-
+        // override fun close()
         classBuilder.addFunction(
             FunSpec
                 .builder("close")
                 .addModifiers(KModifier.OVERRIDE)
                 .addCode(
-                    CodeBlock.builder()
+                    CodeBlock
+                        .builder()
                         .beginControlFlow("if (!%N)", closedProp)
                         .addStatement("%T.instance.destroyRaw(rawPtr)", variantBinding)
                         .addStatement("%T.free(%N.rawValue)", cinteropNativeHeap, "storage")
@@ -149,146 +111,149 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
                 .build(),
         )
 
+        // constructor(from: COpaquePointer) — copy from existing Godot pointer
         classBuilder.addFunction(
             FunSpec
                 .constructorBuilder()
                 .addParameter(
                     ParameterSpec
                         .builder("from", COPAQUE_POINTER)
-                        .addKdoc("Godot-owned variant pointer to copy from.")
+                        .addKdoc("Copies a Godot-owned variant pointer into this instance.")
                         .build(),
                 )
-                .addStatement("%T.instance.newCopyRaw(rawPtr, from)", variantBinding)
                 .callThisConstructor()
+                .addStatement("%T.instance.newCopyRaw(rawPtr, from)", variantBinding)
                 .build(),
         )
     }
 
-    // ── NIL subclass ──────────────────────────────────────────────────────────
+    // ── Conversion constructors ───────────────────────────────────────────────
 
     /**
-     * Builds the `NIL` subclass as a `class` (not an `object`).
+     * Builds all typed conversion constructors and adds them to [classBuilder].
      *
-     * ```kotlin
-     * class NIL : Variant(allocateBuiltinStorage(<size>)) {
-     *     init {
-     *         VariantBinding.instance.newNilRaw(rawPtr)
-     *     }
-     * }
-     * ```
+     * | Constructor arg      | GDExtension path                              |
+     * |----------------------|-----------------------------------------------|
+     * | `Boolean`            | `allocGdBool` → `fromTypeFptr_BOOL(rawPtr, …)` |
+     * | `Long`               | `LongVar`    → `fromTypeFptr_INT(rawPtr, …)`  |
+     * | `Int`                | delegates to `Long` constructor               |
+     * | `Double`             | `DoubleVar`  → `fromTypeFptr_FLOAT(rawPtr, …)` |
+     * | builtin / GodotObject| `fromTypeFptr_TYPE(rawPtr, value.rawPtr)`     |
      *
-     * Must be called after [configureVariantClass].
+     * NIL is covered by the zero-arg primary constructor (zero-initialised storage = NIL).
      */
-    fun buildNilSubclass(variantClassName: ClassName): TypeSpec.Builder {
-        val variantBinding = implPackageRegistry.classNameForOrDefault("VariantBinding")
+    context(ctx: Context)
+    fun buildConversionConstructors(classBuilder: TypeSpec.Builder, variantTypes: ResolvedEnum) {
+        // Boolean
+        classBuilder.addFunction(
+            FunSpec
+                .constructorBuilder()
+                .addParameter("value", BOOLEAN)
+                .callThisConstructor()
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .beginControlFlow("%M", memScoped)
+                        .addStatement(
+                            "val boolVar = %M(value)",
+                            implPackageRegistry.memberNameForOrDefault("allocGdBool"),
+                        )
+                        .addStatement("fromTypeFptr_BOOL.%M(rawPtr, boolVar)", cinteropInvoke)
+                        .endControlFlow()
+                        .build(),
+                )
+                .build(),
+        )
 
-        return TypeSpec
-            .classBuilder("NIL")
-            .superclass(variantClassName)
-            .addInitializerBlock(
-                CodeBlock
-                    .builder()
-                    .addStatement("%T.instance.newNilRaw(rawPtr)", variantBinding)
+        // Long
+        classBuilder.addFunction(
+            FunSpec
+                .constructorBuilder()
+                .addParameter("value", LONG)
+                .callThisConstructor()
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .beginControlFlow("%M", memScoped)
+                        .addStatement("val intVar = %M<%T>()", cinteropAlloc, LONG_VAR)
+                        .addStatement("intVar.%M = value", cinteropValue)
+                        .addStatement("fromTypeFptr_INT.%M(rawPtr, intVar.%M)", cinteropInvoke, cinteropPtr)
+                        .endControlFlow()
+                        .build(),
+                )
+                .build(),
+        )
+
+        // Int — synthetic convenience, delegates to Long constructor
+        classBuilder.addFunction(
+            FunSpec
+                .constructorBuilder()
+                .addParameter("value", INT)
+                .callThisConstructor("value.toLong()")
+                .addKdoc("Convenience constructor; delegates to the [Long] constructor.")
+                .build(),
+        )
+
+        // Double
+        classBuilder.addFunction(
+            FunSpec
+                .constructorBuilder()
+                .addParameter("value", DOUBLE)
+                .callThisConstructor()
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .beginControlFlow("%M", memScoped)
+                        .addStatement("val floatVar = %M<%T>()", cinteropAlloc, DOUBLE_VAR)
+                        .addStatement("floatVar.%M = value", cinteropValue)
+                        .addStatement("fromTypeFptr_FLOAT.%M(rawPtr, floatVar.%M)", cinteropInvoke, cinteropPtr)
+                        .endControlFlow()
+                        .build(),
+                )
+                .build(),
+        )
+
+        // Float — synthetic convenience, delegates to Double constructor
+        classBuilder.addFunction(
+            FunSpec
+                .constructorBuilder()
+                .addParameter("value", FLOAT)
+                .callThisConstructor("value.toDouble()")
+                .addKdoc("Convenience constructor; delegates to the [Double] constructor.")
+                .build(),
+        )
+
+        // All builtin/object types — value.rawPtr path
+        variantTypes.raw.values.forEach { enumValue ->
+            val subclassName = enumValue.name.removePrefix("TYPE_")
+                .takeUnless { it == "MAX" || it == "NIL" || it == "BOOL" || it == "INT" || it == "FLOAT" }
+                ?: return@forEach
+
+            val godotTypeName = subclassName.screamingToPascalCase().renameGodotClass()
+            val valueType = typeResolver.resolve(godotTypeName)
+
+            classBuilder.addFunction(
+                FunSpec
+                    .constructorBuilder()
+                    .addParameter("value", valueType)
+                    .callThisConstructor()
+                    .addStatement("fromTypeFptr_%L.%M(rawPtr, value.rawPtr)", subclassName, cinteropInvoke)
                     .build(),
             )
+        }
     }
 
-    // ── Typed subclass constructors ───────────────────────────────────────────
-
-    // Paso 1: obtener el constructorVariant (igual para todos los casos)
-    fun buildTopLevelFptrProperties(variantTypes: ResolvedEnum): List<PropertySpec> =
-        variantTypes.raw.values.mapNotNull { enumValue ->
-            val subclassName = enumValue.name.removePrefix("TYPE_")
-                .takeUnless { it == "MAX" || it == "NIL" } ?: return@mapNotNull null
-
-            PropertySpec
-                .builder(
-                    "constructorVariant$subclassName",
-                    implPackageRegistry.classNameForOrDefault("GDExtensionVariantFromTypeConstructorFunc"),
-                    KModifier.PRIVATE,
-                )
-                .delegate(
-                    buildLazyBlock {
-                        addStatement(
-                            "%T.instance.variantFromTypeConstructorRaw(%L)",
-                            implPackageRegistry.classNameForOrDefault("GetBinding"),
-                            "GDEXTENSION_VARIANT_TYPE_$subclassName",
-                        )
-                        withIndent {
-                            addStatement(
-                                "?: error(%S)",
-                                "Missing variant-from-type constructor for '$subclassName'",
-                            )
-                        }
-                    },
-                )
-                .build()
-        }
+    // ── Variant operations (instance methods) ─────────────────────────────────
 
     /**
-     * Augments a typed subclass builder's constructor with:
-     * 1. A `callSuperConstructor(allocateBuiltinStorage(variantSize))` delegation.
-     * 2. Returns a [CodeBlock] to use as the constructor's `init` block (or body).
+     * Adds all `variant_*` GDExtension operations as instance methods on [classBuilder].
      *
-     * @param subclassName   The screaming-snake subclass name, e.g. `"BOOL"`, `"STRING"`.
-     * @return The body block to use as the constructor's `init` block and the super call
-     */
-    fun buildSubclassConstructorBody(subclassName: String): CodeBlock = CodeBlock.builder().apply {
-        // Paso 2: invocar constructorVariant(variantPtr, typePtr)
-        // La firma es siempre: (GDExtensionVariantPtr, GDExtensionTypePtr) → Unit
-        val constructor = "constructorVariant$subclassName"
-        when (subclassName) {
-            "BOOL" -> {
-                // Boolean necesita stack alloc como GDExtensionBool (UByte)
-                beginControlFlow("%M", memScoped)
-                addStatement(
-                    "val boolVar = %M(value)",
-                    implPackageRegistry.memberNameForOrDefault("allocGdBool"),
-                )
-                addStatement("%N.%M(rawPtr, boolVar)", constructor, cinteropInvoke)
-                endControlFlow()
-            }
-
-            "INT" -> {
-                // Long — stack alloc LongVar
-                beginControlFlow("%M", memScoped)
-                addStatement("val intVar = %M<%T>()", cinteropAlloc, LONG_VAR)
-                addStatement("intVar.%M = value", cinteropValue)
-                addStatement("%N.%M(rawPtr, intVar.%M)", constructor, cinteropInvoke, cinteropPtr)
-                endControlFlow()
-            }
-
-            "FLOAT" -> {
-                // Double — stack alloc DoubleVar
-                beginControlFlow("%M", memScoped)
-                addStatement("val floatVar = %M<%T>()", cinteropAlloc, DOUBLE_VAR)
-                addStatement("floatVar.%M = value", cinteropValue)
-                addStatement("%N.%M(rawPtr, floatVar.%M)", constructor, cinteropInvoke, cinteropPtr)
-                endControlFlow()
-            }
-
-            else -> {
-                // STRING, VECTOR2, STRING_NAME, etc.
-                // value ya es un builtin con rawPtr — el constructorVariant copia directamente
-                addStatement("%N.%M(rawPtr, value.rawPtr)", constructor, cinteropInvoke)
-            }
-        }
-    }.build()
-
-    // ── Utility members ───────────────────────────────────────────────────────
-
-    /**
-     * Augments [classBuilder] with all Variant utility member functions.
-     *
-     * Also returns the `asVariant()` extension functions (one per non-NIL typed subclass)
-     * so the caller can emit them as top-level functions in the same file.
+     * Includes: getType, isNil, evaluate, set/get family, hasMethod/hasKey/hasMember,
+     * iter family, call/callStatic, booleanize, stringify, hashVariant, duplicate,
+     * canConvert, canConvertStrict.
      */
     context(context: Context)
-    fun buildUtilities(
-        classBuilder: TypeSpec.Builder,
-        variantClassName: ClassName,
-        variantTypes: ResolvedEnum,
-    ): List<FunSpec> {
+    fun buildVariantOperations(classBuilder: TypeSpec.Builder, variantClassName: ClassName) {
         val variantBinding = implPackageRegistry.classNameForOrDefault("VariantBinding")
         val checkCallError = implPackageRegistry.memberNameForOrDefault("checkCallError")
         val stringNameClass = context.classNameForOrDefault("StringName")
@@ -334,10 +299,7 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
                     CodeBlock
                         .builder()
                         .addStatement("val result = %T()", variantClassName)
-                        .addStatement(
-                            "val status = %T.instance",
-                            variantBinding,
-                        )
+                        .addStatement("val status = %T.instance", variantBinding)
                         .indent()
                         .addStatement(
                             ".evaluate(op.%M(), rawPtr, rhs.rawPtr, result.rawPtr)",
@@ -355,64 +317,298 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
                 .build(),
         )
 
-        // ── booleanize() ──────────────────────────────────────────────────────
+        // ── set(key, value) ───────────────────────────────────────────────────
         classBuilder.addFunction(
             FunSpec
-                .builder("booleanize")
+                .builder("set")
                 .returns(BOOLEAN)
-                .addStatement("return %T.instance.booleanize(rawPtr)", variantBinding)
-                .build(),
-        )
-
-        // ── stringify() ───────────────────────────────────────────────────────
-        classBuilder.addFunction(
-            FunSpec
-                .builder("stringify")
-                .returns(godotStringClass)
+                .addModifiers(KModifier.OPERATOR)
+                .addParameter("key", variantClassName)
+                .addParameter("value", variantClassName)
+                .addKdoc("Sets [key] to [value]. Returns false if the operation is invalid.")
                 .addCode(
-                    CodeBlock.builder()
-                        .addStatement("val result = %T()", godotStringClass)
-                        .addStatement("%T.instance.stringifyRaw(rawPtr, result.rawPtr)", variantBinding)
-                        .addStatement("return result")
+                    CodeBlock
+                        .builder()
+                        .addStatement(
+                            "return %T.instance.set(rawPtr, key.rawPtr, value.rawPtr).valid == true",
+                            variantBinding,
+                        )
                         .build(),
                 )
                 .build(),
         )
 
-        // ── hashVariant() ─────────────────────────────────────────────────────
+        // ── get(key) ──────────────────────────────────────────────────────────
         classBuilder.addFunction(
             FunSpec
-                .builder("hashVariant")
-                .returns(LONG)
-                .addKdoc("Named `hashVariant` to avoid collision with [Any.hashCode].")
-                .addStatement("return %T.instance.hashRaw(rawPtr)", variantBinding)
-                .build(),
-        )
-
-        // ── duplicate() ───────────────────────────────────────────────────────
-        classBuilder.addFunction(
-            FunSpec
-                .builder("duplicate")
-                .returns(variantClassName)
-                .addParameter(
-                    ParameterSpec
-                        .builder("deep", BOOLEAN)
-                        .defaultValue("false")
-                        .addKdoc("If `true`, nested containers are also duplicated.")
-                        .build(),
-                )
+                .builder("get")
+                .returns(variantClassName.copy(nullable = true))
+                .addModifiers(KModifier.OPERATOR)
+                .addParameter("key", variantClassName)
+                .addKdoc("Gets the value at [key]. Returns null if the operation is invalid.")
                 .addCode(
                     CodeBlock
                         .builder()
                         .addStatement("val result = %T()", variantClassName)
-                        .addStatement("%T.instance.duplicate(rawPtr, result.rawPtr, deep)", variantBinding)
-                        .addStatement("return result")
+                        .addStatement(
+                            "val status = %T.instance.get(rawPtr, key.rawPtr, result.rawPtr)",
+                            variantBinding,
+                        )
+                        .beginControlFlow("return if (status.valid == true)")
+                        .addStatement("result")
+                        .nextControlFlow("else")
+                        .addStatement("result.close()")
+                        .addStatement("null")
+                        .endControlFlow()
                         .build(),
                 )
                 .build(),
         )
 
-        // ── call() ────────────────────────────────────────────────────────────
+        // ── setNamed(name, value) ─────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("setNamed")
+                .returns(BOOLEAN)
+                .addParameter("name", stringNameClass)
+                .addParameter("value", variantClassName)
+                .addKdoc("Sets named member [name] to [value]. Returns false if invalid.")
+                .addCode(
+                    CodeBlock.ofStatement(
+                        "return %T.instance.setNamed(rawPtr, name.rawPtr, value.rawPtr).valid == true",
+                        variantBinding,
+                    ),
+                )
+                .build(),
+        )
+
+        // ── getNamed(name) ────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("getNamed")
+                .returns(variantClassName.copy(nullable = true))
+                .addParameter("name", stringNameClass)
+                .addKdoc("Gets named member [name]. Returns null if invalid.")
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val result = %T()", variantClassName)
+                        .addStatement(
+                            "val status = %T.instance.getNamed(rawPtr, name.rawPtr, result.rawPtr)",
+                            variantBinding,
+                        )
+                        .beginControlFlow("return if (status.valid == true)")
+                        .addStatement("result")
+                        .nextControlFlow("else")
+                        .addStatement("result.close()")
+                        .addStatement("null")
+                        .endControlFlow()
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── setKeyed(key, value) ──────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("setKeyed")
+                .returns(BOOLEAN)
+                .addParameter("key", variantClassName)
+                .addParameter("value", variantClassName)
+                .addKdoc("Sets keyed property [key] to [value]. Returns false if invalid.")
+                .addCode(
+                    CodeBlock.ofStatement(
+                        "return %T.instance.setKeyed(rawPtr, key.rawPtr, value.rawPtr).valid == true",
+                        variantBinding,
+                    ),
+                )
+                .build(),
+        )
+
+        // ── getKeyed(key) ─────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("getKeyed")
+                .returns(variantClassName.copy(nullable = true))
+                .addParameter("key", variantClassName)
+                .addKdoc("Gets keyed property [key]. Returns null if invalid.")
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val result = %T()", variantClassName)
+                        .addStatement(
+                            "val status = %T.instance.getKeyed(rawPtr, key.rawPtr, result.rawPtr)",
+                            variantBinding,
+                        )
+                        .beginControlFlow("return if (status.valid == true)")
+                        .addStatement("result")
+                        .nextControlFlow("else")
+                        .addStatement("result.close()")
+                        .addStatement("null")
+                        .endControlFlow()
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── setIndexed(index, value) ──────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("setIndexed")
+                .returns(BOOLEAN)
+                .addParameter("index", LONG)
+                .addParameter("value", variantClassName)
+                .addKdoc("Sets element at [index]. Returns false if invalid or out of bounds.")
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement(
+                            "val status = %T.instance.setIndexed(rawPtr, index, value.rawPtr)",
+                            variantBinding,
+                        )
+                        .addStatement("return status.valid == true && status.outOfBounds != true")
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── getIndexed(index) ─────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("getIndexed")
+                .returns(variantClassName.copy(nullable = true))
+                .addParameter("index", LONG)
+                .addKdoc("Gets element at [index]. Returns null if invalid or out of bounds.")
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val result = %T()", variantClassName)
+                        .addStatement(
+                            "val status = %T.instance.getIndexed(rawPtr, index, result.rawPtr)",
+                            variantBinding,
+                        )
+                        .beginControlFlow("return if (status.valid == true && status.outOfBounds != true)")
+                        .addStatement("result")
+                        .nextControlFlow("else")
+                        .addStatement("result.close()")
+                        .addStatement("null")
+                        .endControlFlow()
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── hasMethod(method) ─────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("hasMethod")
+                .returns(BOOLEAN)
+                .addParameter("method", stringNameClass)
+                .addStatement(
+                    "return %T.instance.hasMethod(rawPtr, method.rawPtr)",
+                    variantBinding,
+                )
+                .build(),
+        )
+
+        // ── hasKey(key) ───────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("hasKey")
+                .returns(BOOLEAN)
+                .addParameter("key", variantClassName)
+                .addKdoc("Returns true if this variant has the given key and the check itself is valid.")
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement(
+                            "val result = %T.instance.hasKey(rawPtr, key.rawPtr)",
+                            variantBinding,
+                        )
+                        .addStatement("return result.valid == true && result.value")
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── hasMember(type, member) — static-style ────────────────────────────
+        // Exposed as a companion fun; added later in buildCompanionMembers.
+        // Here we just note it for reference — companion is built in the generator.
+
+        // ── iterInit(iter) ────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("iterInit")
+                .returns(variantClassName.copy(nullable = true))
+                .addKdoc(
+                    "Initialises an iterator. Returns the iterator Variant on success, null if not iterable.",
+                )
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val iter = %T()", variantClassName)
+                        .addStatement(
+                            "val result = %T.instance.iterInit(rawPtr, iter.rawPtr)",
+                            variantBinding,
+                        )
+                        .beginControlFlow("return if (result.valid == true && result.value)")
+                        .addStatement("iter")
+                        .nextControlFlow("else")
+                        .addStatement("iter.close()")
+                        .addStatement("null")
+                        .endControlFlow()
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── iterNext(iter) ────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("iterNext")
+                .returns(BOOLEAN)
+                .addParameter("iter", variantClassName)
+                .addKdoc("Advances the iterator. Returns true if there is a next element.")
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement(
+                            "val result = %T.instance.iterNext(rawPtr, iter.rawPtr)",
+                            variantBinding,
+                        )
+                        .addStatement("return result.valid == true && result.value")
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── iterGet(iter) ─────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("iterGet")
+                .returns(variantClassName.copy(nullable = true))
+                .addParameter("iter", variantClassName)
+                .addKdoc("Gets the current iterator value. Returns null if invalid.")
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val result = %T()", variantClassName)
+                        .addStatement(
+                            "val status = %T.instance.iterGet(rawPtr, iter.rawPtr, result.rawPtr)",
+                            variantBinding,
+                        )
+                        .beginControlFlow("return if (status.valid == true)")
+                        .addStatement("result")
+                        .nextControlFlow("else")
+                        .addStatement("result.close()")
+                        .addStatement("null")
+                        .endControlFlow()
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── call(method, vararg args) ──────────────────────────────────────────
         classBuilder.addFunction(
             FunSpec
                 .builder("call")
@@ -438,7 +634,7 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
                 .build(),
         )
 
-        // ── callStatic() ──────────────────────────────────────────────────────
+        // ── callStatic(type, method, vararg args) ──────────────────────────────
         classBuilder.addFunction(
             FunSpec
                 .builder("callStatic")
@@ -468,39 +664,485 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
                 .build(),
         )
 
-        return buildAsVariantFunctions(variantClassName, variantTypes)
+        // ── booleanize() ──────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("booleanize")
+                .returns(BOOLEAN)
+                .addStatement("return %T.instance.booleanize(rawPtr)", variantBinding)
+                .build(),
+        )
+
+        // ── stringify() ───────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("stringify")
+                .returns(godotStringClass)
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val result = %T()", godotStringClass)
+                        .addStatement("%T.instance.stringifyRaw(rawPtr, result.rawPtr)", variantBinding)
+                        .addStatement("return result")
+                        .build(),
+                )
+                .build(),
+        )
+
+        // ── hashVariant() ─────────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("hashVariant")
+                .returns(LONG)
+                .addKdoc("Named `hashVariant` to avoid collision with [Any.hashCode].")
+                .addStatement("return %T.instance.hashRaw(rawPtr)", variantBinding)
+                .build(),
+        )
+
+        // ── duplicate(deep) ───────────────────────────────────────────────────
+        classBuilder.addFunction(
+            FunSpec
+                .builder("duplicate")
+                .returns(variantClassName)
+                .addParameter(
+                    ParameterSpec
+                        .builder("deep", BOOLEAN)
+                        .defaultValue("false")
+                        .addKdoc("If `true`, nested containers are also duplicated.")
+                        .build(),
+                )
+                .addCode(
+                    CodeBlock
+                        .builder()
+                        .addStatement("val result = %T()", variantClassName)
+                        .addStatement("%T.instance.duplicate(rawPtr, result.rawPtr, deep)", variantBinding)
+                        .addStatement("return result")
+                        .build(),
+                )
+                .build(),
+        )
     }
 
-    // ── asVariant() top-level functions ───────────────────────────────────────
+    // ── Typed extractors ──────────────────────────────────────────────────────
 
-    context(_: Context)
-    private fun buildAsVariantFunctions(variantClassName: ClassName, variantTypes: ResolvedEnum): List<FunSpec> =
-        variantTypes.raw.values.mapNotNull { enumValue ->
+    /**
+     * Adds `asXOrNull()` and `asX()` extractor methods for every concrete Variant type.
+     *
+     * `asXOrNull()` — returns null when the stored type doesn't match.
+     * `asX()`       — returns the value or throws [IllegalStateException].
+     *
+     * The actual extraction uses `toTypeFptr_<TYPE>` (from `get_variant_to_type_constructor`).
+     *
+     * Primitive types (BOOL, INT, FLOAT) use their respective cinterop alloc pattern.
+     * All other types allocate a fresh Kotlin wrapper and invoke the to-type fptr.
+     */
+    context(ctx: Context)
+    fun buildExtractors(classBuilder: TypeSpec.Builder, variantClassName: ClassName, variantTypes: ResolvedEnum) {
+        val variantTypeClass = variantClassName.nestedClass("Type")
+
+        variantTypes.raw.values.forEach { enumValue ->
             val subclassName = enumValue.name.removePrefix("TYPE_")
-                .takeUnless { it == "MAX" || it == "NIL" } ?: return@mapNotNull null
+                .takeUnless { it == "MAX" || it == "NIL" } ?: return@forEach
 
-            // ── Typed subclasses ──────────────────────────────────────────
-            val godotTypeName = subclassName.screamingToPascalCase().renameGodotClass()
-            val receiverType = typeResolver.resolve(godotTypeName)
-
-            FunSpec
-                .builder("asVariant")
-                .receiver(receiverType.copy(nullable = true))
-                .returns(variantClassName)
-                .addCode("return ")
-                .beginControlFlow("if (this == null)")
-                .addStatement("%T.NIL()", variantClassName)
-                .nextControlFlow("else")
-                .addStatement(
-                    "%T.%L(this)",
-                    variantClassName,
+            val (orNullFun, forcedFun) = when (subclassName) {
+                "BOOL" -> buildPrimitiveExtractor(
                     subclassName,
+                    variantTypeClass,
+                    BOOLEAN,
+                    CodeBlock
+                        .builder()
+                        .beginControlFlow("%M", memScoped)
+                        .addStatement("val out = %M<%T>()", cinteropAlloc, BYTE_VAR)
+                        .addStatement("toTypeFptr_BOOL.%M(out.%M, rawPtr)", cinteropInvoke, cinteropPtr)
+                        .addStatement("return out.%M != 0.toByte()", cinteropValue)
+                        .endControlFlow()
+                        .build(),
                 )
-                .endControlFlow()
+
+                "INT" -> buildPrimitiveExtractor(
+                    subclassName,
+                    variantTypeClass,
+                    LONG,
+                    CodeBlock
+                        .builder()
+                        .beginControlFlow("%M", memScoped)
+                        .addStatement("val out = %M<%T>()", cinteropAlloc, LONG_VAR)
+                        .addStatement("toTypeFptr_INT.%M(out.%M, rawPtr)", cinteropInvoke, cinteropPtr)
+                        .addStatement("return out.%M", cinteropValue)
+                        .endControlFlow()
+                        .build(),
+                )
+
+                "FLOAT" -> buildPrimitiveExtractor(
+                    subclassName,
+                    variantTypeClass,
+                    DOUBLE,
+                    CodeBlock
+                        .builder()
+                        .beginControlFlow("%M", memScoped)
+                        .addStatement("val out = %M<%T>()", cinteropAlloc, DOUBLE_VAR)
+                        .addStatement("toTypeFptr_FLOAT.%M(out.%M, rawPtr)", cinteropInvoke, cinteropPtr)
+                        .addStatement("return out.%M", cinteropValue)
+                        .endControlFlow()
+                        .build(),
+                )
+
+                "OBJECT" -> {
+                    val returnType = ctx.classNameForOrDefault("Object")
+                    buildPrimitiveExtractor(
+                        subclassName,
+                        variantTypeClass,
+                        returnType,
+                        CodeBlock
+                            .builder()
+                            .beginControlFlow("%M", memScoped)
+                            .addStatement("val out = %M<%T>()", cinteropAlloc, C_OPAQUE_POINTER_VAR)
+                            .addStatement("toTypeFptr_OBJECT.%M(out.%M, rawPtr)", cinteropInvoke, cinteropPtr)
+                            .addStatement(
+                                "return %T(%M(out.%M)·{·%S·})",
+                                returnType,
+                                K_CHECK_NOT_NULL,
+                                cinteropValue,
+                                "Return pointer value of Object was null",
+                            )
+                            .endControlFlow()
+                            .build(),
+                    )
+                }
+
+                else -> {
+                    val godotTypeName = subclassName.screamingToPascalCase().renameGodotClass()
+                    val valueType = typeResolver.resolve(godotTypeName)
+                    buildWrapperExtractor(subclassName, variantTypeClass, valueType)
+                }
+            }
+
+            classBuilder.addFunction(orNullFun)
+            classBuilder.addFunction(forcedFun)
+        }
+    }
+
+    /**
+     * Builds `asBoolOrNull/asBool`, `asLongOrNull/asLong`, `asDoubleOrNull/asDouble` —
+     * primitive extractors that use stack-allocated cinterop variables.
+     */
+    private fun buildPrimitiveExtractor(
+        subclassName: String,
+        variantTypeClass: ClassName,
+        returnType: TypeName,
+        extractBody: CodeBlock,
+    ): Pair<FunSpec, FunSpec> {
+        val pascalName = subclassName.screamingToPascalCase()
+            .replaceFirstChar { it.uppercase() }
+        val orNullName = "as${pascalName}OrNull"
+        val forcedName = "as$pascalName"
+
+        val orNullFun = FunSpec
+            .builder(orNullName)
+            .returns(returnType.copy(nullable = true))
+            .addKdoc("Returns the [%T] value or null if this Variant is not %L.", returnType, subclassName)
+            .addCode(
+                CodeBlock
+                    .builder()
+                    .addStatement("if (getType() != %T.%L) return null", variantTypeClass, subclassName)
+                    .add(extractBody)
+                    .build(),
+            )
+            .build()
+
+        val forcedFun = FunSpec
+            .builder(forcedName)
+            .returns(returnType)
+            .addKdoc(
+                "Returns the [%T] value or throws [IllegalStateException] if this Variant is not %L.",
+                returnType,
+                subclassName,
+            )
+            .beginControlFlow(
+                "return %M(%N())",
+                K_CHECK_NOT_NULL,
+                orNullName,
+            )
+            .addStatement("%P", $$"Variant type mismatch: expected $$subclassName but was ${getType()}")
+            .endControlFlow()
+            .build()
+
+        return orNullFun to forcedFun
+    }
+
+    /**
+     * Builds `asXOrNull/asX` for builtin wrapper types (GodotString, Vector2, Color, etc.).
+     * The extraction allocates a new Kotlin wrapper and calls the to-type fptr into it.
+     */
+    private fun buildWrapperExtractor(
+        subclassName: String,
+        variantTypeClass: ClassName,
+        valueType: TypeName,
+    ): Pair<FunSpec, FunSpec> {
+        val pascalName = subclassName
+            .split("_")
+            .joinToString("") { it.lowercase().replaceFirstChar { c -> c.uppercase() } }
+        val orNullName = "as${pascalName}OrNull"
+        val forcedName = "as$pascalName"
+
+        val orNullFun = FunSpec
+            .builder(orNullName)
+            .returns(valueType.copy(nullable = true))
+            .addKdoc(
+                "Returns the [%T] value or null if this Variant is not %L.",
+                valueType,
+                subclassName,
+            )
+            .addCode(
+                CodeBlock
+                    .builder()
+                    .addStatement("if (getType() != %T.%L) return null", variantTypeClass, subclassName)
+                    .addStatement("val result = %T()", valueType)
+                    .addStatement("toTypeFptr_%L.%M(result.rawPtr, rawPtr)", subclassName, cinteropInvoke)
+                    .addStatement("return result")
+                    .build(),
+            )
+            .build()
+
+        val forcedFun = FunSpec
+            .builder(forcedName)
+            .returns(valueType)
+            .addKdoc(
+                "Returns the [%T] value or throws [IllegalStateException] if this Variant is not %L.",
+                valueType,
+                subclassName,
+            )
+            .beginControlFlow(
+                "return %M(%N())",
+                K_CHECK_NOT_NULL,
+                orNullName,
+            )
+            .addStatement("%P", $$"Variant type mismatch: expected $$subclassName but was ${getType()}")
+            .endControlFlow()
+            .build()
+
+        return orNullFun to forcedFun
+    }
+
+    // ── Companion object ──────────────────────────────────────────────────────
+
+    /**
+     * Builds a companion object containing static-style helpers:
+     * - `hasMember(type, member): Boolean`
+     * - `canConvert(from, to): Boolean`
+     * - `canConvertStrict(from, to): Boolean`
+     */
+    context(ctx: Context)
+    fun buildCompanion(classBuilder: TypeSpec.Builder, variantClassName: ClassName) {
+        val variantBinding = implPackageRegistry.classNameForOrDefault("VariantBinding")
+        val stringNameClass = ctx.classNameForOrDefault("StringName")
+        val variantTypeClass = variantClassName.nestedClass("Type")
+
+        val companion = TypeSpec.companionObjectBuilder()
+
+        companion.addFunction(
+            FunSpec
+                .builder("hasMember")
+                .returns(BOOLEAN)
+                .addParameter("type", variantTypeClass)
+                .addParameter("member", stringNameClass)
+                .addStatement(
+                    "return %T.instance.hasMember(type.%M(), member.rawPtr)",
+                    variantBinding,
+                    implPackageRegistry.memberNameForOrDefault("toGDExtensionVariantType"),
+                )
+                .build(),
+        )
+
+        companion.addFunction(
+            FunSpec
+                .builder("canConvert")
+                .returns(BOOLEAN)
+                .addParameter("from", variantTypeClass)
+                .addParameter("to", variantTypeClass)
+                .addStatement(
+                    "return %T.instance.canConvert(from.%M(), to.%M())",
+                    variantBinding,
+                    implPackageRegistry.memberNameForOrDefault("toGDExtensionVariantType"),
+                    implPackageRegistry.memberNameForOrDefault("toGDExtensionVariantType"),
+                )
+                .build(),
+        )
+
+        companion.addFunction(
+            FunSpec
+                .builder("canConvertStrict")
+                .returns(BOOLEAN)
+                .addParameter("from", variantTypeClass)
+                .addParameter("to", variantTypeClass)
+                .addStatement(
+                    "return %T.instance.canConvertStrict(from.%M(), to.%M())",
+                    variantBinding,
+                    implPackageRegistry.memberNameForOrDefault("toGDExtensionVariantType"),
+                    implPackageRegistry.memberNameForOrDefault("toGDExtensionVariantType"),
+                )
+                .build(),
+        )
+
+        classBuilder.addType(companion.build())
+    }
+
+    // ── invoke operator (commented out) ──────────────────────────────────────
+
+    /**
+     * Emits commented-out `operator fun invoke` overloads as a KDoc block on a stub property.
+     *
+     * These would allow `variant(5L)`, `variant(true)`, etc. for dynamic reassignment.
+     * Left commented for future evaluation — the semantics require destroying the current
+     * content before writing the new type, which is possible but has ownership implications.
+     */
+    fun buildInvokeOperatorStub(classBuilder: TypeSpec.Builder, variantTypes: ResolvedEnum) {
+        /*
+        val lines = buildString {
+            appendLine("// operator fun invoke — dynamic type reassignment (commented, evaluate before enabling)")
+            appendLine("//")
+            appendLine("// Usage: variant(42L), variant(true), variant(someVector2)")
+            appendLine("// Each overload would call VariantBinding.instance.destroyRaw(rawPtr)")
+            appendLine("// then reinitialise storage via the appropriate fromTypeFptr_X.")
+            appendLine("//")
+            appendLine("// operator fun invoke(value: Boolean): Variant {")
+            appendLine("//     VariantBinding.instance.destroyRaw(rawPtr)")
+            appendLine("//     memScoped { val b = allocGdBool(value); fromTypeFptr_BOOL.invoke(rawPtr, b) }")
+            appendLine("//     return this")
+            appendLine("// }")
+            appendLine("// operator fun invoke(value: Long): Variant {")
+            appendLine("//     VariantBinding.instance.destroyRaw(rawPtr)")
+            appendLine(
+                "//     memScoped { val v = alloc<LongVar>().apply { this.value = value }; fromTypeFptr_INT.invoke(rawPtr, v.ptr) }",
+            )
+            appendLine("//     return this")
+            appendLine("// }")
+            appendLine("// operator fun invoke(value: Int): Variant = invoke(value.toLong())")
+            appendLine("// operator fun invoke(value: Double): Variant {")
+            appendLine("//     VariantBinding.instance.destroyRaw(rawPtr)")
+            appendLine(
+                "//     memScoped { val v = alloc<DoubleVar>().apply { this.value = value }; fromTypeFptr_FLOAT.invoke(rawPtr, v.ptr) }",
+            )
+            appendLine("//     return this")
+            appendLine("// }")
+
+            variantTypes.raw.values.forEach { enumValue ->
+                val subclassName = enumValue.name.removePrefix("TYPE_")
+                    .takeUnless { it == "MAX" || it == "NIL" || it == "BOOL" || it == "INT" || it == "FLOAT" }
+                    ?: return@forEach
+                val godotTypeName = subclassName.screamingToPascalCase().renameGodotClass()
+                appendLine("// operator fun invoke(value: $godotTypeName): Variant {")
+                appendLine("//     VariantBinding.instance.destroyRaw(rawPtr)")
+                appendLine("//     fromTypeFptr_$subclassName.invoke(rawPtr, value.rawPtr)")
+                appendLine("//     return this")
+                appendLine("// }")
+            }
+        }
+
+        // Emit as a file-level comment via a private property with a giant KDoc.
+        // KotlinPoet doesn't have a raw comment API for class bodies, so we use
+        // an INTERNAL marker property that suppression silences.
+        classBuilder.addProperty(
+            PropertySpec
+                .builder("_invokeOperatorStub", UNIT, KModifier.PRIVATE)
+                .addKdoc("%L", lines)
+                .initializer("Unit")
+                .build(),
+        )
+         */
+    }
+
+    // ── Top-level fptr properties ─────────────────────────────────────────────
+
+    /**
+     * Emits one `private val fromTypeFptr_X` and one `private val toTypeFptr_X` for every
+     * non-NIL/MAX Variant type.
+     *
+     * `fromTypeFptr_X` — `GDExtensionVariantFromTypeConstructorFunc` (type → Variant)
+     * `toTypeFptr_X`   — `GDExtensionTypeFromVariantConstructorFunc` (Variant → type)
+     */
+    fun buildTopLevelFptrProperties(variantTypes: ResolvedEnum): List<PropertySpec> {
+        val fromType = implPackageRegistry.classNameForOrDefault("GDExtensionVariantFromTypeConstructorFunc")
+        val toType = implPackageRegistry.classNameForOrDefault("GDExtensionTypeFromVariantConstructorFunc")
+        val getBinding = implPackageRegistry.classNameForOrDefault("GetBinding")
+
+        return variantTypes.raw.values.flatMap { enumValue ->
+            val subclassName = enumValue.name.removePrefix("TYPE_")
+                .takeUnless { it == "MAX" || it == "NIL" } ?: return@flatMap emptyList()
+
+            val gdxType = "GDEXTENSION_VARIANT_TYPE_$subclassName"
+
+            val fromProp = PropertySpec
+                .builder("fromTypeFptr_$subclassName", fromType, KModifier.PRIVATE)
+                .delegate(
+                    buildLazyBlock {
+                        addStatement("%T.instance.variantFromTypeConstructorRaw(%L)", getBinding, gdxType)
+                        withIndent {
+                            addStatement("?: error(%S)", "Missing variant-from-type constructor for '$subclassName'")
+                        }
+                    },
+                )
+                .build()
+
+            val toProp = PropertySpec
+                .builder("toTypeFptr_$subclassName", toType, KModifier.PRIVATE)
+                .delegate(
+                    buildLazyBlock {
+                        addStatement("%T.instance.variantToTypeConstructorRaw(%L)", getBinding, gdxType)
+                        withIndent {
+                            addStatement("?: error(%S)", "Missing variant-to-type constructor for '$subclassName'")
+                        }
+                    },
+                )
+                .build()
+
+            listOf(fromProp, toProp)
+        }
+    }
+
+    // ── asVariant() top-level extensions ──────────────────────────────────────
+
+    /**
+     * Emits `fun X.asVariant(): Variant` and `fun X?.asVariant(): Variant` top-level extensions
+     * for every non-NIL/MAX type. Also emits the primitive overloads (Boolean, Long, Int, Double).
+     */
+    context(ctx: Context)
+    fun buildAsVariantExtensions(variantClassName: ClassName, variantTypes: ResolvedEnum): List<FunSpec> {
+        val funs = mutableListOf<FunSpec>()
+
+        // use the corresponding Variant conversion constructor
+        fun asVariantType(kotlinType: TypeName, ctorArg: String = "this") {
+            // nullable
+            funs += FunSpec
+                .builder("asVariant")
+                .receiver(kotlinType.copy(nullable = true))
+                .returns(variantClassName)
+                .addStatement(
+                    "return if (this == null) %T() else %T($ctorArg)",
+                    variantClassName,
+                    variantClassName,
+                )
                 .build()
         }
 
-    // ── Variant size ──────────────────────────────────────────────────────────
+        asVariantType(INT) // delegates to Long ctor inside Variant
+
+        // All builtin / object types
+        variantTypes.raw.values.forEach { enumValue ->
+            val subclassName = enumValue.name.removePrefix("TYPE_")
+                .takeUnless { it == "MAX" || it == "NIL" }
+                ?: return@forEach
+
+            val godotTypeName = subclassName.screamingToPascalCase().renameGodotClass()
+            val receiverType = typeResolver.resolve(godotTypeName)
+
+            asVariantType(receiverType)
+        }
+
+        return funs
+    }
+
+    // ── Variant size helpers ──────────────────────────────────────────────────
 
     /**
      * Looks up the Variant size from `builtinClassSizes` in the extension API JSON.

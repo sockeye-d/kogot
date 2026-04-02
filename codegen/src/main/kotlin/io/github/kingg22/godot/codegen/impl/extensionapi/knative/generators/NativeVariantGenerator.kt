@@ -3,115 +3,110 @@ package io.github.kingg22.godot.codegen.impl.extensionapi.knative.generators
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
-import com.squareup.kotlinpoet.KModifier
-import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import io.github.kingg22.godot.codegen.impl.createFile
 import io.github.kingg22.godot.codegen.impl.extensionapi.Context
-import io.github.kingg22.godot.codegen.impl.extensionapi.TypeResolver
 import io.github.kingg22.godot.codegen.impl.extensionapi.knative.impl.VariantImplGen
-import io.github.kingg22.godot.codegen.impl.renameGodotClass
-import io.github.kingg22.godot.codegen.impl.screamingToPascalCase
 import io.github.kingg22.godot.codegen.impl.withExceptionContext
 import io.github.kingg22.godot.codegen.models.extensionapi.domain.ResolvedEnum
 
 /**
- * Generates the `Variant` sealed class and its nested `Type` / `Operator` enums.
+ * Generates the `Variant` class and its nested `Type` / `Operator` enums.
  *
- * When [implGen] is provided (native implementation backend), the sealed class is augmented with:
- * - A private primary constructor backed by `CPointer<ByteVar>` storage
- * - `rawPtr: COpaquePointer` property
- * - `AutoCloseable.close()` that destroys the Godot Variant and frees native storage
- * - `NIL` as a `class` (not `object`) — every NIL variant owns a heap allocation
- * - Each typed subclass constructor that populates the Godot Variant via `variant_construct`
+ * ## Design
  *
- * When [implGen] is `null` (stub or interface-only backend), the original pure-API shape is
- * generated: `NIL` as `object`, no `rawPtr`, no lifecycle, pure Kotlin value wrappers.
+ * `Variant` is a **single final class** — no subclasses, no inheritance hierarchy.
+ * It owns a Godot Variant allocation (opaque N-byte buffer on `nativeHeap`) and exposes:
+ *
+ * - A zero-arg primary constructor that produces a NIL variant (zero-initialised storage)
+ * - Typed conversion constructors: `Boolean`, `Long`, `Int`, `Double`, and all builtin types
+ * - All `variant_*` GDExtension operations as instance methods
+ * - Typed extractors: `asXOrNull()` (nullable) and `asX()` (throws on mismatch)
+ * - A companion object with static-style helpers (`hasMember`, `canConvert`, `canConvertStrict`)
+ * - Commented-out `operator fun invoke` stubs for dynamic reassignment
+ *
+ * ## File layout
+ *
+ * ```
+ * Variant.kt
+ * ├── class Variant                     ← final, owns native storage
+ * │   ├── constructor()                 ← NIL (zero-init)
+ * │   ├── constructor(from: COpaquePointer)
+ * │   ├── constructor(value: Boolean)
+ * │   ├── constructor(value: Long)
+ * │   ├── constructor(value: Int)       ← synthetic, delegates to Long
+ * │   ├── constructor(value: Double)
+ * │   ├── constructor(value: GodotString) … constructor(value: PackedVector4Array)
+ * │   ├── getType() / isNil()
+ * │   ├── evaluate / set / get / setNamed / getNamed / setKeyed / getKeyed / setIndexed / getIndexed
+ * │   ├── hasMethod / hasKey
+ * │   ├── iterInit / iterNext / iterGet
+ * │   ├── call / callStatic
+ * │   ├── booleanize / stringify / hashVariant / duplicate
+ * │   ├── asBoolOrNull / asBool
+ * │   ├── asLongOrNull / asLong
+ * │   ├── asDoubleOrNull / asDouble
+ * │   ├── asGodotStringOrNull / asGodotString … asPackedVector4ArrayOrNull / asPackedVector4Array
+ * │   ├── companion object { hasMember / canConvert / canConvertStrict }
+ * │   ├── // operator fun invoke stubs (commented)
+ * │   └── enum class Type / enum class Operator
+ * ├── fun Boolean.asVariant() … fun PackedVector4Array?.asVariant()   (top-level extensions)
+ * ├── private val fromTypeFptr_BOOL … fromTypeFptr_PACKED_VECTOR4_ARRAY  (top-level lazy)
+ * └── private val toTypeFptr_BOOL  … toTypeFptr_PACKED_VECTOR4_ARRAY    (top-level lazy)
+ * ```
  */
-class NativeVariantGenerator(
-    private val typeResolver: TypeResolver,
-    private val enumGenerator: NativeEnumGenerator,
-    private val implGen: VariantImplGen,
-) {
-    context(context: Context)
-    fun generateFile(variantEnums: List<ResolvedEnum>): FileSpec {
+class NativeVariantGenerator(private val enumGenerator: NativeEnumGenerator, private val implGen: VariantImplGen) {
+
+    context(ctx: Context)
+    fun generateFile(variantEnums: List<ResolvedEnum>): FileSpec = withExceptionContext({
+        "Generating Variant class"
+    }) {
         val variantTypes = requireNotNull(variantEnums.firstOrNull { it.name == "Variant.Type" }) {
-            "Variant.Type enum not found this is required, nested enums: [$variantEnums]"
+            "Variant.Type enum not found; available: [${variantEnums.joinToString { it.name }}]"
         }
-        val variantClassName = ClassName(context.packageForOrDefault("Variant"), "Variant")
-        val spec = generateSpec(variantTypes)
+        val variantClassName = ctx.classNameForOrDefault("Variant")
+        val classSpec = generateSpec(variantClassName, variantTypes)
+
+        // nested enums (Type + Operator) — generated by NativeEnumGenerator as before
         val enums = variantEnums.map { enumGenerator.generateSpec(it) }
-        spec.addTypes(enums)
-        val utilitiesFunctions = implGen.buildUtilities(spec, variantClassName, variantTypes)
-        return createFile("Variant", context.packageForOrDefault("Variant")) {
-            addType(spec.build())
-            addFunctions(utilitiesFunctions)
+        classSpec.addTypes(enums)
+
+        // companion object with static helpers
+        implGen.buildCompanion(classSpec, variantClassName)
+
+        // commented invoke operator stubs
+        implGen.buildInvokeOperatorStub(classSpec, variantTypes)
+
+        createFile("Variant", ctx.packageForOrDefault("Variant")) {
+            addType(classSpec.build())
+
+            // top-level asVariant() extensions
+            addFunctions(implGen.buildAsVariantExtensions(variantClassName, variantTypes))
+
+            // top-level lazy fptr properties (from + to, one pair per type)
             addProperties(implGen.buildTopLevelFptrProperties(variantTypes))
         }
     }
 
-    context(context: Context)
-    fun generateSpec(variantTypes: ResolvedEnum): TypeSpec.Builder = withExceptionContext({
-        "Generating Variant class, nested enums count: ${variantTypes.raw.values.size}"
-    }) {
-        val variantClassName = ClassName(context.packageForOrDefault("Variant"), "Variant")
+    context(_: Context)
+    fun generateSpec(variantClassName: ClassName, variantTypes: ResolvedEnum): TypeSpec.Builder {
+        val typeBuilder = TypeSpec.classBuilder(variantClassName)
 
-        val typeBuilder = TypeSpec
-            .classBuilder(variantClassName)
-            .addModifiers(KModifier.OPEN)
-            .addAnnotation(API_STATUS_NON_EXTENSIBLE)
-
-        // empty constructor
+        // Empty primary constructor → NIL (zero-init storage)
         typeBuilder.primaryConstructor(FunSpec.constructorBuilder().build())
 
-        // ── Native storage augmentation ───────────────────────────────────────
-        // When implGen is present, the sealed class gets storage  rawPtr  close().
-        // This MUST run before subclass generation so _cachedVariantSize is populated.
+        // ── Storage, rawPtr, close(), copy constructor ─────────────────────
         implGen.configureVariantClass(typeBuilder)
 
-        variantTypes.raw.values.forEach { variantType ->
-            withExceptionContext({ "Generating Variant subclass '${variantType.name}'" }) {
-                val enumValueName = variantType.name // e.g. "TYPE_PACKED_BYTE_ARRAY"
-                val subclassName = enumValueName.removePrefix("TYPE_").takeUnless { it == "MAX" }
-                    ?: return@forEach
+        // ── Typed conversion constructors ──────────────────────────────────
+        implGen.buildConversionConstructors(typeBuilder, variantTypes)
 
-                // ── NIL ───────────────────────────────────────────────────────
-                if (subclassName == "NIL") {
-                    val nilSpec = implGen
-                        .buildNilSubclass(variantClassName)
-                        .addKdocIfPresent(variantType)
-                        .build()
-                    typeBuilder.addType(nilSpec)
-                    return@forEach
-                }
+        // ── All variant_* instance operations ──────────────────────────────
+        implGen.buildVariantOperations(typeBuilder, variantClassName)
 
-                // ── Typed subclasses ──────────────────────────────────────────
-                val godotTypeName = subclassName.screamingToPascalCase().renameGodotClass()
-                val valueType = typeResolver.resolve(godotTypeName)
+        // ── Typed extractors: asXOrNull + asX ─────────────────────────────
+        implGen.buildExtractors(typeBuilder, variantClassName, variantTypes)
 
-                val subclassBuilder = TypeSpec
-                    .classBuilder(subclassName)
-                    .superclass(variantClassName)
-                    .addKdocIfPresent(variantType)
-
-                // Build constructor — ctorBuilder.callSuperConstructor is set inside
-                val ctorBuilder = FunSpec.constructorBuilder()
-                    .addParameter("value", valueType)
-
-                val initBody = implGen.buildSubclassConstructorBody(subclassName)
-
-                subclassBuilder.primaryConstructor(ctorBuilder.build())
-                subclassBuilder.addProperty(
-                    PropertySpec.builder("value", valueType).initializer("value").build(),
-                )
-
-                // init block: real implementation
-                subclassBuilder.addInitializerBlock(initBody)
-
-                typeBuilder.addType(subclassBuilder.build())
-            }
-        }
-
-        typeBuilder
+        return typeBuilder
     }
 }
