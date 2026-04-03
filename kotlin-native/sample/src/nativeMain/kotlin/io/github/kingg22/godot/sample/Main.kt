@@ -7,22 +7,28 @@ import io.github.kingg22.godot.api.utils.print
 import io.github.kingg22.godot.internal.binding.BindingProcAddressHolder
 import io.github.kingg22.godot.internal.binding.ClassDBBinding
 import io.github.kingg22.godot.internal.binding.ObjectBinding
-import io.github.kingg22.godot.internal.ffi.GDExtensionBool
-import io.github.kingg22.godot.internal.ffi.GDExtensionClassCreationInfo5
-import io.github.kingg22.godot.internal.ffi.GDExtensionClassLibraryPtr
-import io.github.kingg22.godot.internal.ffi.GDExtensionInitialization
-import io.github.kingg22.godot.internal.ffi.GDExtensionInitializationLevel
-import io.github.kingg22.godot.internal.ffi.GDExtensionInstanceBindingCallbacks
-import io.github.kingg22.godot.internal.ffi.GDExtensionInterfaceGetProcAddress
-import io.github.kingg22.godot.internal.ffi.TRUE
-import kotlinx.cinterop.*
-import platform.posix.uint8_t
+import io.github.kingg22.godot.internal.binding.toGdBool
+import io.github.kingg22.godot.internal.ffi.*
+import kotlinx.cinterop.COpaquePointer
+import kotlinx.cinterop.CPointer
+import kotlinx.cinterop.StableRef
+import kotlinx.cinterop.asStableRef
+import kotlinx.cinterop.cValue
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.pointed
+import kotlinx.cinterop.staticCFunction
 
 private lateinit var globalLibrary: GDExtensionClassLibraryPtr
 
-val objectStorage = mutableMapOf<COpaquePointer, StableRef<*>>()
+val notificationFunc: GDExtensionClassNotification2 = staticCFunction { instancePtr, notification, reversed ->
+    println("Calling notification func")
+    val _ = instancePtr
+    val _ = notification
+    val _ = reversed
+    //instancePtr?.asStableRef<GodotObject>()?.get()?.notification(notification, reversed.toBoolean())
+}
 
-val createInstanceFunc: CPointer<CFunction<(COpaquePointer?, uint8_t) -> COpaquePointer?>> = staticCFunction { _, _ ->
+val createInstanceFunc: GDExtensionClassCreateInstance2 = staticCFunction { _, _ ->
     println("Create instance func called")
     val base = ClassDB.instance.instantiate("Node".asStringName()).asObject().rawPtr
     println("Base constructed")
@@ -31,37 +37,38 @@ val createInstanceFunc: CPointer<CFunction<(COpaquePointer?, uint8_t) -> COpaque
     val selfRef = StableRef.create(self)
     println("Ref created")
     val selfPtr = selfRef.asCPointer()
-    objectStorage[selfPtr] = selfRef
-    println("selfPtr created")
+    println("setInstance")
     ObjectBinding.instance.setInstanceRaw(
         base,
         "CustomClass".asStringName().rawPtr,
         selfPtr
     )
-    println("setInstance")
     memScoped {
+        println("setInstanceBinding")
         ObjectBinding.instance.setInstanceBindingRaw(
             pO = base,
             pToken = globalLibrary,
             pBinding = selfPtr,
             pCallbacks = cValue<GDExtensionInstanceBindingCallbacks> {
                 println("Making callbacks")
-                println("Making callbacks, inside")
                 create_callback = null
                 free_callback = null
                 reference_callback = null
             }.ptr
         )
     }
-    println("setInstanceBinding")
+    println("after setInstanceBinding")
     base
 }
 
-val freeInstanceFunc: CPointer<CFunction<(CPointer<out CPointed>?, CPointer<out CPointed>?) -> Unit>> =
-    staticCFunction { _, ptr ->
+val freeInstanceFunc: GDExtensionClassFreeInstance = staticCFunction { _, ptr ->
+    if (ptr != null) {
         println("Freeing $ptr")
-        objectStorage.remove(ptr)?.dispose()
+        ptr.asStableRef<Any>().dispose()
+    } else {
+        println("Ptr was null??????")
     }
+}
 
 @Suppress("unused") // Invoked by Godot
 @CName("godot_kotlin_init")
@@ -92,9 +99,9 @@ private fun initialize(userdata: COpaquePointer?, level: GDExtensionInitializati
         GDEXTENSION_INITIALIZATION_SCENE -> {
             println("✓ SCENE initialized")
             val info = cValue<GDExtensionClassCreationInfo5> {
-                is_virtual = false.toByte().toUByte()
-                is_abstract = false.toByte().toUByte()
-                is_exposed = true.toByte().toUByte()
+                is_virtual = false.toGdBool()
+                is_abstract = false.toGdBool()
+                is_exposed = true.toGdBool()
                 set_func = null
                 get_func = null
                 get_property_list_func = null
@@ -102,7 +109,7 @@ private fun initialize(userdata: COpaquePointer?, level: GDExtensionInitializati
                 property_can_revert_func = null
                 property_get_revert_func = null
                 validate_property_func = null
-                notification_func = null
+                notification_func = notificationFunc
                 to_string_func = null
                 reference_func = null
                 unreference_func = null
