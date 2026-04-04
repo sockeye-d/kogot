@@ -159,10 +159,16 @@ fun String.renameGodotClass(getTypedClass: Boolean = false): String = when {
     else -> this
 }
 
+fun String.renameAllUpperCaseToCamelCase() = if (isAllUpperCase(this)) {
+    this.lowercase().replaceFirstChar { it.uppercaseChar() }
+} else {
+    this
+}
+
 /** Verifica si todos los caracteres son mayúsculas sin crear iteradores. */
 private fun isAllUpperCase(str: String): Boolean {
     if (str.isEmpty()) return false
-    for (i in 0 until str.length) {
+    for (i in str.indices) {
         if (!str[i].isUpperCase()) return false
     }
     return true
@@ -207,13 +213,13 @@ private val UNDERSCORES_REGEX = "__+".toRegex()
 fun String.toScreamingSnakeCase(): String {
     if (this.isBlank()) return ""
 
-    return this.trim()
+    val tmp = this.trim()
         // 1. Insertar guion bajo entre minúscula/número y una mayúscula
         // Ejemplo: user1Login -> user1_Login
         .replace(WORDS_REGEX, "$1_$2")
         // 2. Insertar guion bajo entre una letra y un número (si se desea que el número sea palabra aparte)
         // Ejemplo: User1 -> USER_1
-        .replace(WORDS_2_REGEX, "$1_$2")
+        // .replace(WORDS_2_REGEX, "$1_$2")
         // 3. Manejar acrónimos: insertar guion bajo antes de la última mayúscula de una serie
         // Ejemplo: HTTPResponse -> HTTP_Response
         .replace(ABC_REGEX, "$1_$2")
@@ -221,6 +227,15 @@ fun String.toScreamingSnakeCase(): String {
         .uppercase()
         // 5. Limpiar posibles guiones bajos duplicados (por si el input ya tenía algunos)
         .replace(UNDERSCORES_REGEX, "_")
+    if (tmp.endsWith("2_D")) return tmp.dropLast(3) + "2D"
+    if (tmp.endsWith("3_D")) return tmp.dropLast(3) + "3D"
+    return tmp
+}
+
+private fun String.fixed2d3d(): String = when {
+    this.endsWith("2d") -> this.dropLast(2) + "2D"
+    this.endsWith("3d") -> this.dropLast(2) + "3D"
+    else -> this
 }
 
 fun String.screamingToPascalCase(): String = this
@@ -233,7 +248,7 @@ fun String.screamingToPascalCase(): String = this
             str.endsWith("3d") -> str.dropLast(2) + "3D"
             else -> str
         }
-    }
+    }.fixed2d3d()
 
 // ── Kotlin keyword list ───────────────────────────────────────────────────────
 
