@@ -1,10 +1,6 @@
 package io.github.kingg22.godot.sample
 
-import io.github.kingg22.godot.api.builtin.Variant
-import io.github.kingg22.godot.api.builtin.asVariantString
-import io.github.kingg22.godot.api.utils.GD
 import io.github.kingg22.godot.internal.binding.BindingProcAddressHolder
-import io.github.kingg22.godot.internal.binding.PrintBinding
 import io.github.kingg22.godot.internal.ffi.GDExtensionBool
 import io.github.kingg22.godot.internal.ffi.GDExtensionClassLibraryPtr
 import io.github.kingg22.godot.internal.ffi.GDExtensionInitialization
@@ -49,7 +45,6 @@ fun initialize(userdata: COpaquePointer?, level: GDExtensionInitializationLevel)
 
         GDEXTENSION_INITIALIZATION_EDITOR -> {
             println("✓ EDITOR initialized - printing to Godot now")
-            testGodotPrinting()
         }
 
         GDExtensionInitializationLevel.GDEXTENSION_MAX_INITIALIZATION_LEVEL -> {}
@@ -58,25 +53,4 @@ fun initialize(userdata: COpaquePointer?, level: GDExtensionInitializationLevel)
 
 fun deinitialize(userdata: COpaquePointer?, level: GDExtensionInitializationLevel) {
     println("✗ DEINITIALIZE LEVEL = $level")
-}
-
-private fun testGodotPrinting() {
-    try {
-        // Load print function
-        PrintBinding.instance.error(
-            description = "This is a warning message",
-            function = "testGodotPrinting",
-            file = "MainKt",
-            pLine = 42,
-            editorNotify = true,
-        )
-        val result = GD.pingpong(-3.0, 3.0)
-        GD.prints("Result of ping pong utility: $result".asVariantString(), Variant())
-        println("Finished printing to Godot, the ping pong utility returned $result")
-        println("Finished testing builtin layouts, passed: ${testBuiltinLayouts()}")
-        GD.print("Variant empty is nil? ${Variant().isNil()}".asVariantString())
-    } catch (e: Throwable) {
-        println("Exception captured: ${e.message}")
-        e.printStackTrace()
-    }
 }
