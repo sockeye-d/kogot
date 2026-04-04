@@ -879,9 +879,7 @@ class VariantImplGen(private val typeResolver: TypeResolver) {
         variantTypeClass: ClassName,
         valueType: TypeName,
     ): Pair<FunSpec, FunSpec> {
-        val pascalName = subclassName
-            .split("_")
-            .joinToString("") { it.lowercase().replaceFirstChar { c -> c.uppercase() } }
+        val pascalName = subclassName.screamingToPascalCase()
         val orNullName = "as${pascalName}OrNull"
         val forcedName = "as$pascalName"
 
