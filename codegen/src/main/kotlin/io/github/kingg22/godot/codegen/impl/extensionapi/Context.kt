@@ -146,7 +146,7 @@ class Context(
                 },
             )
             val packageRegistry = packageRegistryFactory(rootPackage, model)
-            val experimentalTypesRegistry = if (godotVersion.compareTo(4, 6, 1) == 0) {
+            val experimentalTypesRegistry = if (godotVersion.isAfter(4, 6)) {
                 ExperimentalTypesRegistry.v4_6_1
             } else {
                 error("Missing experimental types registry for Godot version $godotVersion")
