@@ -1,5 +1,7 @@
 package io.github.kingg22.godot.sample
 
+import io.github.kingg22.godot.api.builtin.PackedByteArray
+import io.github.kingg22.godot.api.builtin.StringName
 import io.github.kingg22.godot.api.builtin.asStringName
 import io.github.kingg22.godot.api.singleton.ClassDB
 import io.github.kingg22.godot.api.utils.GD
@@ -7,25 +9,33 @@ import io.github.kingg22.godot.api.utils.print
 import io.github.kingg22.godot.internal.binding.BindingProcAddressHolder
 import io.github.kingg22.godot.internal.binding.ClassDBBinding
 import io.github.kingg22.godot.internal.binding.ObjectBinding
+import io.github.kingg22.godot.internal.binding.VariantBinding
 import io.github.kingg22.godot.internal.binding.toGdBool
 import io.github.kingg22.godot.internal.ffi.*
+import io.github.kingg22.godot.internal.ffi.GDExtensionVariantType.GDEXTENSION_VARIANT_TYPE_STRING_NAME
 import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.asStableRef
 import kotlinx.cinterop.cValue
+import kotlinx.cinterop.invoke
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.pointed
 import kotlinx.cinterop.staticCFunction
+import kotlin.reflect.KClass
 
 private lateinit var globalLibrary: GDExtensionClassLibraryPtr
 
+inline fun <reified T : Any> COpaquePointer?.getInstance() = this!!.asStableRef<T>().get()
+
 val notificationFunc: GDExtensionClassNotification2 = staticCFunction { instancePtr, notification, reversed ->
-    println("Calling notification func")
+    //println("Calling notification func")
     val _ = instancePtr
     val _ = notification
     val _ = reversed
-    //instancePtr?.asStableRef<GodotObject>()?.get()?.notification(notification, reversed.toBoolean())
+    //val obj = (instancePtr ?: error("Instance ptr was null")).asStableRef<GodotObject>().get()
+    //val clazz = obj::class
+    //obj.notification(notification, reversed.toBoolean())
 }
 
 val createInstanceFunc: GDExtensionClassCreateInstance2 = staticCFunction { _, _ ->
@@ -62,11 +72,44 @@ val createInstanceFunc: GDExtensionClassCreateInstance2 = staticCFunction { _, _
 }
 
 val freeInstanceFunc: GDExtensionClassFreeInstance = staticCFunction { _, ptr ->
-    if (ptr != null) {
-        println("Freeing $ptr")
-        ptr.asStableRef<Any>().dispose()
+    require(ptr != null)
+    println("Freeing $ptr")
+    ptr.asStableRef<Any>().dispose()
+}
+
+val readyStringName by lazy { StringName("_ready") }
+
+private val methodStringNameToUtf8Buffer_247621236_Fn: GDExtensionPtrBuiltInMethod by
+lazy(PUBLICATION) {
+    StringName("to_utf8_buffer").use { name ->
+        VariantBinding.instance.getPtrBuiltinMethodRaw(GDEXTENSION_VARIANT_TYPE_STRING_NAME, name.rawPtr, 247_621_236L)
+            ?: error("Missing builtin method 'StringName.to_utf8_buffer' hash: 247621236")
+    }
+}
+
+val getVirtualFunc: GDExtensionClassGetVirtual2 = staticCFunction { classPtr, funcName, _ ->
+    val clazz = classPtr.getInstance<KClass<*>>()
+    requireNotNull(funcName)
+    println("Getting virtual of $clazz (${clazz::class.qualifiedName}) $funcName")
+    val buf = PackedByteArray()
+    methodStringNameToUtf8Buffer_247621236_Fn.invoke(funcName, null, buf.rawPtr, 0)
+    val string = (0..<buf.size()).map { buf[it].toByte() }.toByteArray().decodeToString()
+    println("Function name is $string")
+    if (clazz == CustomClass::class) {
+        println("Class is custom class!")
+        if (string == "_ready") {
+            println("func is _ready")
+            staticCFunction { instancePtr, args, _ ->
+                val instance = instancePtr.getInstance<CustomClass>()
+                println("_ready called")
+                instance._ready()
+            }
+        } else {
+            staticCFunction { _, _, _ ->
+            }
+        }
     } else {
-        println("Ptr was null??????")
+        null
     }
 }
 
@@ -114,10 +157,11 @@ private fun initialize(userdata: COpaquePointer?, level: GDExtensionInitializati
                 reference_func = null
                 unreference_func = null
                 recreate_instance_func = null
-                get_virtual_func = null
+                get_virtual_func = getVirtualFunc
                 get_virtual_call_data_func = null
                 call_virtual_with_data_func = null
-                class_userdata = null
+                val clazz: KClass<*> = CustomClass::class
+                class_userdata = StableRef.create(clazz).asCPointer()
                 create_instance_func = createInstanceFunc
                 free_instance_func = freeInstanceFunc
             }
