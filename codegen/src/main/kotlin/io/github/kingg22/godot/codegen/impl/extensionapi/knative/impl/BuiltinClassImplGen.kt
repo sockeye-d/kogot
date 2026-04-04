@@ -78,6 +78,7 @@ private fun variantTypeConst(godotName: String?): String? = when (godotName) {
     "PackedVector3Array" -> "GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR3_ARRAY"
     "PackedColorArray" -> "GDEXTENSION_VARIANT_TYPE_PACKED_COLOR_ARRAY"
     "PackedVector4Array" -> "GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR4_ARRAY"
+    "Object" -> "GDEXTENSION_VARIANT_TYPE_OBJECT"
     else -> null
 }
 
@@ -356,14 +357,10 @@ class BuiltinClassImplGen(private val typeResolver: TypeResolver, private val me
             }
 
             // ── Operator evaluator fptrs ──────────────────────────────────────────────
-            var generatedEquals = false
             builtinClass.raw.operators
-                .filter { it.name != "!=" } // != derived from equals; Kotlin never calls this fptr
                 .forEach { op ->
-                    if (op.name == "==") {
-                        if (generatedEquals) return@forEach
-                        generatedEquals = true
-                    }
+                    if (op.name == "!=") return@forEach // != derived from equals; Kotlin never calls this fptr
+                    if (op.name == "==" && op.rightType == "Variant") return@forEach // == requires the other fptr
                     val variantOp = methodImplGen.godotOpToVariantOp(op.name) ?: return@forEach
                     val rightVariantType = variantTypeConst(op.rightType) ?: "GDEXTENSION_VARIANT_TYPE_NIL"
                     add(
@@ -375,17 +372,20 @@ class BuiltinClassImplGen(private val typeResolver: TypeResolver, private val me
                             )
                             .delegate(
                                 buildLazyBlock {
-                                    addStatement(
-                                        "%T.instance.getPtrOperatorEvaluatorRaw(%N, %N, %N)",
-                                        variantBinding,
-                                        variantOp,
-                                        variantType,
-                                        rightVariantType,
-                                    )
+                                    addStatement("%T.instance", variantBinding)
+                                    withIndent {
+                                        addStatement(".getPtrOperatorEvaluatorRaw(")
+                                        withIndent {
+                                            addStatement("%N,", variantOp)
+                                            addStatement("%N,", variantType)
+                                            addStatement("%N,", rightVariantType)
+                                        }
+                                        addStatement(")")
+                                    }
                                     withIndent {
                                         addStatement(
                                             "?: error(%S)",
-                                            "Missing operator evaluator ${builtinClass.name}.${op.name}(${op.rightType.orEmpty()})",
+                                            "Missing operator evaluator (${builtinClass.name})${op.name}(${op.rightType.orEmpty()})",
                                         )
                                     }
                                 },
@@ -720,8 +720,11 @@ class BuiltinClassImplGen(private val typeResolver: TypeResolver, private val me
     }
 
     context(_: Context)
-    fun buildOperatorBody(operator: BuiltinClass.Operator, safeName: String, resolvedClass: ResolvedBuiltinClass) =
-        methodImplGen.buildOperatorBody(operator, safeName, resolvedClass)
+    fun buildOperatorBody(operator: BuiltinClass.Operator) = methodImplGen.buildOperatorBody(operator)
+
+    context(_: Context)
+    fun buildEqualsOperatorBody(resolvedBuiltinClass: ResolvedBuiltinClass) =
+        methodImplGen.buildEqualsOperatorBody(resolvedBuiltinClass)
 
     context(_: Context)
     fun buildCompareToBody(resolvedClass: ResolvedBuiltinClass) = methodImplGen.buildCompareToBody(resolvedClass)
