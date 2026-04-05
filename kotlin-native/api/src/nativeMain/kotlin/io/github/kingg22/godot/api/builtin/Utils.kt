@@ -11,3 +11,5 @@ public fun String?.asVariantString(): Variant = this?.asGodotString().use { it.a
 public fun String?.asVariantStringName(): Variant = this?.asStringName().use { it.asVariant() }
 
 public fun String?.asVariantNodePath(): Variant = this?.asNodePath().use { it.asVariant() }
+
+public fun PackedByteArray.toByteArray(): ByteArray = (0..<size()).map { get(it).toByte() }.toByteArray()

@@ -1,8 +1,8 @@
 package io.github.kingg22.godot.sample
 
-import io.github.kingg22.godot.api.builtin.PackedByteArray
 import io.github.kingg22.godot.api.builtin.StringName
 import io.github.kingg22.godot.api.builtin.asStringName
+import io.github.kingg22.godot.api.builtin.toByteArray
 import io.github.kingg22.godot.api.singleton.ClassDB
 import io.github.kingg22.godot.api.utils.GD
 import io.github.kingg22.godot.api.utils.print
@@ -18,7 +18,6 @@ import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.StableRef
 import kotlinx.cinterop.asStableRef
 import kotlinx.cinterop.cValue
-import kotlinx.cinterop.invoke
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.pointed
 import kotlinx.cinterop.staticCFunction
@@ -88,18 +87,16 @@ lazy(PUBLICATION) {
 }
 
 val getVirtualFunc: GDExtensionClassGetVirtual2 = staticCFunction { classPtr, funcName, _ ->
-    val clazz = classPtr.getInstance<KClass<*>>()
     requireNotNull(funcName)
+    val clazz = classPtr.getInstance<KClass<*>>()
     println("Getting virtual of $clazz (${clazz::class.qualifiedName}) $funcName")
-    val buf = PackedByteArray()
-    methodStringNameToUtf8Buffer_247621236_Fn.invoke(funcName, null, buf.rawPtr, 0)
-    val string = (0..<buf.size()).map { buf[it].toByte() }.toByteArray().decodeToString()
+    val string = StringName(funcName).toUtf8Buffer().toByteArray().decodeToString()
     println("Function name is $string")
     if (clazz == CustomClass::class) {
         println("Class is custom class!")
         if (string == "_ready") {
             println("func is _ready")
-            staticCFunction { instancePtr, args, _ ->
+            staticCFunction { instancePtr, _, _ ->
                 val instance = instancePtr.getInstance<CustomClass>()
                 println("_ready called")
                 instance._ready()
