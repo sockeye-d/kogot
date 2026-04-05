@@ -22,6 +22,13 @@ import io.github.kingg22.godot.codegen.impl.extensionapi.knative.memScoped
 import io.github.kingg22.godot.codegen.models.extensioninterface.GDExtensionInterface
 import io.github.kingg22.godot.codegen.models.extensioninterface.Interface
 
+private val PLATFORM_TYPES = setOf(
+    "string_new_with_wide_chars",
+    "string_new_with_wide_chars_and_len",
+    "string_to_wide_chars",
+    "string_operator_plus_eq_wcstr",
+)
+
 class RuntimeFFIGenerator(private val packageName: String) {
     private val convenienceGen = RuntimeFFIConvenienceGen()
 
@@ -80,6 +87,7 @@ class RuntimeFFIGenerator(private val packageName: String) {
             .addType(buildCompanionObject(className))
             .apply {
                 interfaces.forEach { iface ->
+                    if (iface.name in PLATFORM_TYPES) return@forEach
                     addProperty(buildFunctionPointerProperty(iface))
                     addFunction(buildRawWrapper(iface))
                     convenienceGen.buildConvenienceWrappers(iface).forEach(::addFunction)
