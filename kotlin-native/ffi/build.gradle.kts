@@ -19,7 +19,7 @@ kotlin {
 
     // linux
     linuxX64 { configureGodotInterop() }
-    mingwX64 { configureGodotInterop() }
+    // mingwX64 { configureGodotInterop() }
 }
 
 fun KotlinNativeTarget.configureGodotInterop() {

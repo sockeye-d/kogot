@@ -26,7 +26,7 @@ kotlin {
 
     // linux
     linuxX64()
-    mingwX64()
+    // mingwX64()
 }
 
 tasks.generateGodotExtensionApi.configure {

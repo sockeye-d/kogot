@@ -34,7 +34,7 @@ kotlin {
     applyDefaultHierarchyTemplate()
 
     linuxX64 { applyBinariesExport() }
-    mingwX64 { applyBinariesExport() }
+    // mingwX64 { applyBinariesExport() }
 }
 
 fun KotlinNativeTarget.applyBinariesExport(baseName: String = "godot-kotlin-sample") {
