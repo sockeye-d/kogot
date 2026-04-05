@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 
 plugins {
@@ -29,12 +30,14 @@ kotlin {
 
     applyDefaultHierarchyTemplate()
 
-    // linux
-    linuxX64 {
-        binaries {
-            sharedLib(buildTypes = listOfNativeBuildType) {
-                baseName = "godot-kotlin-sample"
-            }
+    linuxX64 { applyBinariesExport() }
+    mingwX64 { applyBinariesExport() }
+}
+
+fun KotlinNativeTarget.applyBinariesExport(baseName: String = "godot-kotlin-sample") {
+    binaries {
+        sharedLib(buildTypes = listOfNativeBuildType) {
+            this.baseName = baseName
         }
     }
 }

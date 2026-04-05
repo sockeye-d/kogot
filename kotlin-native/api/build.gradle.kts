@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
     id("buildlogic.kotlin-multiplatform-conventions")
@@ -25,14 +26,15 @@ kotlin {
 
     applyDefaultHierarchyTemplate()
 
-    // linux
-    linuxX64 {
-        val main by compilations.getting
-        val godotNativeStructures by main.cinterops.creating {
-            packageName = "io.github.kingg22.godot.api.native"
-            defFile(layout.projectDirectory.file("nativeInterop/cinterop/extension_api_native.def"))
-            includeDirs.allHeaders(layout.projectDirectory.dir("nativeInterop/cinterop"))
-        }
+    linuxX64 { configureGodotInterop() }
+    mingwX64 { configureGodotInterop() }
+}
+
+fun KotlinNativeTarget.configureGodotInterop() {
+    compilations.getByName("main").cinterops.create("godotNativeStructures") {
+        packageName = "io.github.kingg22.godot.api.native"
+        defFile(project.file("nativeInterop/cinterop/extension_api_native.def"))
+        includeDirs.allHeaders("nativeInterop/cinterop")
     }
 }
 
