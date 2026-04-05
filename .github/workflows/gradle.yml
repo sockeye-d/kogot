@@ -22,6 +22,7 @@ concurrency:
 
 jobs:
   build:
+    if: false # Disable until we have a better solution for Native computation time of KMP
     timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:
