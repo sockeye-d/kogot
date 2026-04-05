@@ -1,5 +1,7 @@
 package io.github.kingg22.godot.sample
 
+import io.github.kingg22.godot.api.utils.GD
+import io.github.kingg22.godot.api.utils.print
 import io.github.kingg22.godot.internal.binding.BindingProcAddressHolder
 import io.github.kingg22.godot.internal.ffi.GDExtensionBool
 import io.github.kingg22.godot.internal.ffi.GDExtensionClassLibraryPtr
@@ -12,6 +14,7 @@ import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.pointed
 import kotlinx.cinterop.staticCFunction
 
+@Suppress("unused") // Invoked by Godot
 @CName("godot_kotlin_init")
 fun godotKotlinInit(
     pGetProcAddress: GDExtensionInterfaceGetProcAddress,
@@ -29,28 +32,21 @@ fun godotKotlinInit(
     return GDExtensionBool.TRUE
 }
 
-fun initialize(userdata: COpaquePointer?, level: GDExtensionInitializationLevel) {
+private fun initialize(userdata: COpaquePointer?, level: GDExtensionInitializationLevel) {
     when (level) {
-        GDEXTENSION_INITIALIZATION_CORE -> {
-            println("✓ CORE initialized")
-        }
+        GDEXTENSION_INITIALIZATION_CORE -> println("✓ CORE initialized")
 
-        GDEXTENSION_INITIALIZATION_SERVERS -> {
-            println("✓ SERVERS initialized")
-        }
+        GDEXTENSION_INITIALIZATION_SERVERS -> println("✓ SERVERS initialized")
 
-        GDEXTENSION_INITIALIZATION_SCENE -> {
-            println("✓ SCENE initialized")
-        }
+        GDEXTENSION_INITIALIZATION_SCENE -> println("✓ SCENE initialized")
 
-        GDEXTENSION_INITIALIZATION_EDITOR -> {
-            println("✓ EDITOR initialized - printing to Godot now")
-        }
+        GDEXTENSION_INITIALIZATION_EDITOR -> GD.print("✓ EDITOR initialized. Hello from Kotlin Native")
 
-        GDExtensionInitializationLevel.GDEXTENSION_MAX_INITIALIZATION_LEVEL -> {}
+        // False positive https://youtrack.jetbrains.com/issue/KT-77521
+        else -> println("Unexpected $level, userdata: $userdata")
     }
 }
 
-fun deinitialize(userdata: COpaquePointer?, level: GDExtensionInitializationLevel) {
-    println("✗ DEINITIALIZE LEVEL = $level")
+private fun deinitialize(userdata: COpaquePointer?, level: GDExtensionInitializationLevel) {
+    println("✗ DEINITIALIZE LEVEL = $level, userdata: $userdata")
 }
